@@ -1,0 +1,101 @@
+name: Release
+
+# Push a tag such as v0.1.0 to build every platform and publish a release.
+on:
+  push:
+    tags: [ "v*" ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  create:
+    name: Create draft release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create or update release
+        run: |
+          NOTES=".github/release-notes/${TAG}.md"
+          [ -f "$NOTES" ] || NOTES=/dev/null
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file "$NOTES"
+          else
+            gh release create "$TAG" --draft --prerelease --title "Dokey Core ${TAG#v}" --notes-file "$NOTES"
+          fi
+
+  build:
+    name: ${{ matrix.name }}
+    needs: create
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-universal
+            os: macos-14
+            cmake: -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
+            test: true
+          - name: linux-x64
+            os: ubuntu-22.04
+            cmake: ""
+            test: true
+          - name: windows-x64
+            os: windows-2022
+            cmake: -A x64
+            test: true
+          - name: windows-arm64
+            os: windows-2022
+            cmake: -A ARM64
+            test: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        shell: bash
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release ${{ matrix.cmake }}
+          cmake --build build --config Release
+      - name: Test
+        if: matrix.test
+        shell: bash
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Package
+        shell: bash
+        run: |
+          VERSION="${TAG#v}"
+          NAME="dokey-core-${VERSION}-${{ matrix.name }}"
+          cmake --install build --config Release --prefix "pkg/$NAME"
+          mkdir -p dist
+          if [[ "${{ matrix.os }}" == windows-* ]]; then
+            (cd pkg && 7z a -tzip "../dist/$NAME.zip" "$NAME" > /dev/null)
+          else
+            tar -C pkg -czf "dist/$NAME.tar.gz" "$NAME"
+          fi
+          ls -la dist
+          if [[ "${{ matrix.name }}" == macos-universal ]]; then lipo -info "pkg/$NAME/bin/dokey"; fi
+      - name: Upload
+        shell: bash
+        run: gh release upload "$TAG" dist/* --clobber
+
+  publish:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checksums and publish
+        run: |
+          mkdir dist && cd dist
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" --pattern "dokey-core-*"
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          gh release upload "$TAG" SHA256SUMS.txt -R "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false

@@ -499,15 +499,16 @@ void Engine::backspace() {
 std::u16string Engine::simulate(const std::string& keys, const Options& options) {
     Engine engine(options);
     std::u16string text;
-    for (unsigned char c : keys) {
-        if (c == '\b') {
+    // Non-ASCII input (already Vietnamese text, emoji...) passes through unchanged.
+    for (char16_t c : fromUtf8(keys)) {
+        if (c == u'\b') {
             if (!text.empty()) text.pop_back();
             engine.backspace();
             continue;
         }
         Edit e = engine.key(c);
         if (!e.handled) {
-            text.push_back(static_cast<char16_t>(c));
+            text.push_back(c);
             continue;
         }
         text.erase(text.size() - static_cast<size_t>(std::min<int>(e.backspaces, static_cast<int>(text.size()))));
