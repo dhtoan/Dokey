@@ -82,3 +82,17 @@ void dokey_backspace(dokey_engine*);
 void dokey_reset(dokey_engine*);   // gọi khi click chuột, đổi ứng dụng, phím mũi tên…
 void dokey_destroy(dokey_engine*);
 ```
+
+## 8. Lớp nền tảng macOS
+
+Ứng dụng `apps/macos/` dùng API ở mục 7 theo các quy tắc sau.
+
+- **Bắt phím:** một `CGEventTap` ở mức phiên (session), đặt ở đầu chuỗi, chạy trên run loop của một luồng riêng. Tap nhận: phím xuống, đổi phím bổ trợ, click chuột.
+- **Ký tự gửi cho engine:** chuỗi Unicode của sự kiện phím theo bố cục bàn phím hiện tại, chỉ khi phím sinh đúng một ký tự in được và không có ⌘ ⌃ ⌥.
+- **Kết quả `1`:** nuốt phím gốc; gửi `backspaces` lần phím Backspace, rồi gửi `text` bằng sự kiện phím mang chuỗi Unicode. Sự kiện được chèn bằng `CGEventTapPostEvent`, mang dấu `eventSourceUserData` riêng, và không mang cờ phím bổ trợ.
+- **Kết quả `0`:** để phím gốc đi qua.
+- **Backspace:** gọi `dokey_backspace`, để phím đi qua.
+- **Enter, Tab:** gửi cho engine như ký tự ngắt (`\r`, `\t`). Nếu engine sửa từ, gửi phép sửa (bỏ ký tự ngắt ở cuối), rồi gửi lại bản sao của phím gốc.
+- **`dokey_reset`:** click chuột, phím mũi tên, Home, End, Page Up/Down, Esc, Forward Delete, phím tắt có ⌘ ⌃ ⌥, phím giữ (autorepeat), đổi ứng dụng, bật/tắt tiếng Việt.
+- **Nhóm ứng dụng:** trình duyệt, Electron/IDE, thường (theo bundle id, và theo framework trong `Contents/Frameworks` với ứng dụng lạ). Hai nhóm đầu nhận mỗi sự kiện một ký tự UTF-16 (không tách cặp surrogate), có khoảng nghỉ sau mỗi phím và sau loạt Backspace. Nhóm thường nhận tối đa 20 ký tự mỗi sự kiện, không nghỉ.
+- **Tap bị tắt** (`kCGEventTapDisabledByTimeout`, `kCGEventTapDisabledByUserInput`): bật lại ngay và bắt đầu từ mới. Bộ đếm giờ 2 giây kiểm tra lại.
