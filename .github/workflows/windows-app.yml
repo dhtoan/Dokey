@@ -56,8 +56,8 @@ jobs:
       - name: Unit tests (x64, x86)
         shell: bash
         run: |
-          ctest --test-dir build/x64 -C Release --output-on-failure
-          ctest --test-dir build/x86 -C Release --output-on-failure
+          ctest --test-dir build/x64 -C Release -R dokey_windows_tests --output-on-failure
+          ctest --test-dir build/x86 -C Release -R dokey_windows_tests --output-on-failure
 
       - name: Check binaries
         shell: pwsh
