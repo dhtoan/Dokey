@@ -1,5 +1,7 @@
 # Dokey Core
 
+[![CI](https://github.com/dhtoan/Dokey/actions/workflows/ci.yml/badge.svg)](https://github.com/dhtoan/Dokey/actions/workflows/ci.yml)
+
 Engine gõ tiếng Việt thế hệ mới của **Dokey**, viết mới hoàn toàn bằng C++17. Engine dùng chung cho Dokey trên macOS, Windows, Linux và Android.
 
 ## Điểm khác biệt
