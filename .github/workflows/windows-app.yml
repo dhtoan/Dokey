@@ -89,7 +89,6 @@ jobs:
 
       - name: End-to-end typing test (Notepad)
         shell: pwsh
-        continue-on-error: true  # depends on the runner having an interactive desktop
         run: apps\windows\tests\e2e.ps1 -Exe "$pwd\dist\bin\x64\Dokey.exe"
 
       - name: Installer
