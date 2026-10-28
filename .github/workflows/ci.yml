@@ -25,3 +25,18 @@ jobs:
         run: cmake --build build --config Release
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
+
+  macos-app:
+    name: macOS app (Universal)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Dokey.app and disk image
+        run: apps/macos/build.sh --dmg
+      - name: Check bundle
+        run: |
+          APP=apps/macos/build/Dokey.app
+          lipo "$APP/Contents/MacOS/Dokey" -verify_arch x86_64 arm64
+          plutil -lint "$APP/Contents/Info.plist"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          hdiutil verify apps/macos/build/Dokey-*.dmg

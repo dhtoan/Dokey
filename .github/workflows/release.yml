@@ -30,7 +30,7 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" --notes-file "$NOTES"
           else
-            gh release create "$TAG" --draft --prerelease --title "Dokey Core ${TAG#v}" --notes-file "$NOTES"
+            gh release create "$TAG" --draft --prerelease --title "Dokey ${TAG#v}" --notes-file "$NOTES"
           fi
 
   build:
@@ -86,15 +86,29 @@ jobs:
         shell: bash
         run: gh release upload "$TAG" dist/* --clobber
 
+  macos-app:
+    name: macos-app
+    needs: create
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Dokey.app and disk image
+        run: VERSION="${TAG#v}" apps/macos/build.sh --dmg
+      - name: Upload
+        run: |
+          lipo apps/macos/build/Dokey.app/Contents/MacOS/Dokey -verify_arch x86_64 arm64
+          hdiutil verify "apps/macos/build/Dokey-${TAG#v}.dmg"
+          gh release upload "$TAG" "apps/macos/build/Dokey-${TAG#v}.dmg" --clobber
+
   publish:
     name: Publish
-    needs: build
+    needs: [ build, macos-app ]
     runs-on: ubuntu-latest
     steps:
       - name: Checksums and publish
         run: |
           mkdir dist && cd dist
-          gh release download "$TAG" -R "$GITHUB_REPOSITORY" --pattern "dokey-core-*"
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" --pattern "dokey-core-*" --pattern "Dokey-*.dmg"
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
           gh release upload "$TAG" SHA256SUMS.txt -R "$GITHUB_REPOSITORY" --clobber

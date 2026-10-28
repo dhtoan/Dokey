@@ -2,18 +2,20 @@
 
 # Dokey
 
-**Lõi gõ tiếng Việt thế hệ mới: nhanh, chính xác, đa nền tảng**
+**Bộ gõ tiếng Việt thế hệ mới: nhanh, chính xác, đa nền tảng**
 
-*The next-generation Vietnamese input engine*
+*The next-generation Vietnamese input method*
 
 [![CI](https://github.com/dhtoan/Dokey/actions/workflows/ci.yml/badge.svg)](https://github.com/dhtoan/Dokey/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/dhtoan/Dokey?include_prereleases&label=release&color=0A84FF)](https://github.com/dhtoan/Dokey/releases)
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
+![Swift](https://img.shields.io/badge/Swift-AppKit-F05138?logo=swift&logoColor=white)
 ![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-6E6E73)
 ![Tests](https://img.shields.io/badge/tests-18%2C494%20passing-2EA44F)
 
 [Giới thiệu](#giới-thiệu) •
 [Tính năng](#tính-năng) •
+[Ứng dụng macOS](#ứng-dụng-macos) •
 [Bắt đầu nhanh](#bắt-đầu-nhanh) •
 [Tích hợp](#tích-hợp-vào-ứng-dụng) •
 [Kiến trúc](#kiến-trúc) •
@@ -27,7 +29,9 @@
 
 **Dokey** là bộ gõ tiếng Việt được xây dựng lại từ đầu, hướng tới một mục tiêu: gõ đúng ngay lần đầu, ở mọi ứng dụng, trên mọi máy.
 
-Repo này chứa **Dokey Core**, bộ não xử lý tiếng Việt dùng chung cho các ứng dụng Dokey trên macOS, Windows, Linux và Android. Dokey Core là một thư viện C++17 độc lập, không phụ thuộc thư viện ngoài, có API C ổn định để tích hợp vào Swift, Win32 hay Kotlin.
+Repo này chứa:
+- **Dokey Core**, bộ não xử lý tiếng Việt dùng chung cho các ứng dụng Dokey trên macOS, Windows, Linux và Android. Dokey Core là một thư viện C++17 độc lập, không phụ thuộc thư viện ngoài, có API C ổn định để tích hợp vào Swift, Win32 hay Kotlin.
+- **Dokey cho macOS** (`apps/macos/`), ứng dụng bộ gõ trên thanh menu, viết bằng Swift + AppKit.
 
 ```console
 $ dokey "Xin chaof cacs banj, Dokey gox tieengs Vieetj khoong nhayr chuwx."
@@ -58,6 +62,38 @@ Xin chào các bạn, Dokey gõ tiếng Việt không nhảy chữ.
 |---|---|
 | **Unicode dựng sẵn** | Mặc định, tương thích mọi ứng dụng hiện đại |
 | **Unicode tổ hợp** | Dấu thanh dạng ký tự kết hợp (U+0300–U+0323) |
+
+## Ứng dụng macOS
+
+**Dokey 0.2** là ứng dụng bộ gõ đầu tiên chạy trên Dokey Core. Đây là một tệp Universal: chạy trên Intel từ macOS 10.13, trên Apple Silicon từ macOS 11.
+
+- Biểu tượng **V/E** trên thanh menu; chuyển Anh/Việt bằng ⌃⇧ (hoặc ⌥Z, ⌃Space, ⌘⇧Space).
+- Telex/VNI, Unicode dựng sẵn/tổ hợp, kiểm tra chính tả, đặt dấu kiểu mới/cũ.
+- Nhớ chế độ Anh/Việt theo từng ứng dụng; khởi động cùng macOS.
+- **Chống nhảy chữ trong Chrome, Edge, Claude và ứng dụng Electron:** event tap chạy trên luồng riêng; ứng dụng được chia thành ba nhóm (trình duyệt, Electron/IDE, thường); với hai nhóm đầu, Dokey gửi từng ký tự và nghỉ ngắn giữa các phím. Có chế độ **Tương thích máy chậm**.
+- Tự bật lại event tap khi macOS tắt nó; giữ phím (autorepeat) thì bắt đầu từ mới.
+
+Build bằng Command Line Tools, không cần Xcode:
+
+```bash
+apps/macos/build.sh --dmg
+```
+
+Chi tiết cách cài, cấp quyền Trợ năng và cơ chế hoạt động: [apps/macos/README.md](apps/macos/README.md).
+
+### Đã kiểm thử đến đâu
+
+| Hạng mục | Trạng thái |
+|---|---|
+| `build.sh` tạo `Dokey.app` Universal (x86_64 + arm64) và `.dmg` trên MacBook Intel, macOS 14, chỉ có Command Line Tools | ✅ Đã chạy |
+| `Dokey --self-test`: gọi engine qua API C từ Swift (Telex, VNI, giữ từ tiếng Anh, tự sửa cuối từ, kiểu dấu cũ), phân loại ứng dụng, vẽ biểu tượng | ✅ Chạy trong mỗi lần build và trên CI (macOS 14, Apple Silicon) |
+| Ứng dụng khởi động và chạy không lỗi khi chưa có quyền Trợ năng | ✅ Đã chạy thử trên máy Intel (chưa kiểm tra giao diện bằng mắt) |
+| **Gõ thật** trong TextEdit, Chrome, Edge, Claude, VS Code… | ❌ **Chưa kiểm thử.** Cần quyền Trợ năng, mà chỉ chủ máy mới cấp được |
+| Chống nhảy chữ trên máy chậm (MacBook Pro 2015, 8 GB RAM) | ❌ Chưa kiểm thử. Khoảng nghỉ hiện tại là ước lượng ban đầu, sẽ chỉnh theo kết quả gõ thật |
+| Chạy trên macOS 10.13 – 10.15 và trên máy Apple Silicon thật | ❌ Chưa kiểm thử. Bản build có thư viện Swift cho macOS cũ, nhưng chưa thử trên máy thật |
+| Khởi động cùng macOS, nhớ chế độ theo ứng dụng, các phím chuyển | ❌ Chưa kiểm thử bằng tay |
+
+Hạn chế đã biết: thanh địa chỉ của trình duyệt có thể tự gợi ý và bôi đen phần còn lại của địa chỉ, khiến Backspace xoá phần gợi ý thay vì chữ vừa gõ. Dokey 0.2 chưa xử lý riêng trường hợp này.
 
 ## Bắt đầu nhanh
 
@@ -137,6 +173,7 @@ dokey_destroy(engine);
 | `src/` | Parser, quy tắc đặt dấu, từ điển âm tiết, bảng ký tự Unicode |
 | `tools/` | Công cụ dòng lệnh `dokey` |
 | `tests/` | Bộ kiểm thử |
+| `apps/macos/` | Ứng dụng macOS (Swift + AppKit) và script build |
 | `SPEC.md` | Đặc tả hành vi đầy đủ |
 
 ## Chất lượng
@@ -151,7 +188,7 @@ dokey_destroy(engine);
 | Phiên bản | Nội dung | Trạng thái |
 |---|---|---|
 | **0.1** | Dokey Core: Telex, VNI, kiểm tra chính tả, API C/C++, công cụ dòng lệnh | ✅ Phát hành |
-| 0.2 | Ứng dụng macOS (Swift + AppKit, macOS 10.13+, Intel và Apple Silicon) | 🚧 Đang phát triển |
+| **0.2** | Ứng dụng macOS (Swift + AppKit, macOS 10.13+, Intel và Apple Silicon) | 🧪 Đã build, chờ thử gõ thật |
 | 0.3 | Ứng dụng Windows (Windows 10/11, x86, x64, ARM64) | 🗓️ Kế hoạch |
 | 0.4 | Gõ tắt, công cụ chuyển mã, bảng mã TCVN3, VNI Windows, CP1258 | 🗓️ Kế hoạch |
 | 1.0 | Bộ biểu tượng mới, ký số và notarize, phát hành chính thức | 🗓️ Kế hoạch |
