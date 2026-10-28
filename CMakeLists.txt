@@ -1,0 +1,25 @@
+cmake_minimum_required(VERSION 3.16)
+project(DokeyCore VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_library(dokey_core STATIC
+    src/engine.cpp
+    src/vietnamese.cpp
+    src/c_api.cpp
+)
+target_include_directories(dokey_core PUBLIC include)
+if(MSVC)
+    target_compile_options(dokey_core PRIVATE /utf-8 /W4)
+else()
+    target_compile_options(dokey_core PRIVATE -Wall -Wextra)
+endif()
+
+enable_testing()
+add_executable(dokey_tests tests/engine_tests.cpp)
+target_link_libraries(dokey_tests PRIVATE dokey_core)
+if(MSVC)
+    target_compile_options(dokey_tests PRIVATE /utf-8)
+endif()
+add_test(NAME dokey_tests COMMAND dokey_tests)
