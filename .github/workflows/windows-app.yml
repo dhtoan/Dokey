@@ -1,0 +1,133 @@
+name: Windows app
+
+# Builds Dokey.exe for x86, x64 and ARM64 plus the Setup.exe installer in one
+# job (artifact storage is full, so nothing is passed between jobs).
+# release.yml calls this workflow with a tag to upload the installer.
+on:
+  push:
+    branches: [ "main", "windows-app" ]
+    paths: [ "apps/windows/**", "src/**", "include/**", "CMakeLists.txt", ".github/workflows/windows-app.yml" ]
+  pull_request:
+    paths: [ "apps/windows/**", "src/**", "include/**", "CMakeLists.txt", ".github/workflows/windows-app.yml" ]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to upload the installer to, e.g. v0.2.0"
+        type: string
+        required: true
+
+jobs:
+  build:
+    name: Windows app (x86, x64, ARM64, installer)
+    runs-on: windows-2022
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        shell: bash
+        run: |
+          if [ -n "$TAG" ]; then
+            VERSION="${TAG#v}"
+          else
+            VERSION=$(sed -n 's/^project(DokeyCore VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Dokey for Windows $VERSION"
+
+      - name: Build x86, x64, ARM64
+        shell: bash
+        run: |
+          set -e
+          for pair in Win32:x86 x64:x64 ARM64:arm64; do
+            platform="${pair%%:*}"; arch="${pair##*:}"
+            echo "::group::$arch"
+            cmake -S apps/windows -B "build/$arch" -A "$platform" -DDOKEY_APP_VERSION="$VERSION"
+            cmake --build "build/$arch" --config Release --parallel
+            mkdir -p "dist/bin/$arch"
+            cp "build/$arch/Release/Dokey.exe" "dist/bin/$arch/"
+            echo "::endgroup::"
+          done
+          ls -la dist/bin/*
+
+      - name: Unit tests (x64, x86)
+        shell: bash
+        run: |
+          ctest --test-dir build/x64 -C Release --output-on-failure
+          ctest --test-dir build/x86 -C Release --output-on-failure
+
+      - name: Check binaries
+        shell: pwsh
+        run: |
+          $expected = @{ x86 = '014C'; x64 = '8664'; arm64 = 'AA64' }
+          foreach ($arch in $expected.Keys) {
+            $path = "dist\bin\$arch\Dokey.exe"
+            $bytes = [IO.File]::ReadAllBytes($path)
+            $pe = [BitConverter]::ToInt32($bytes, 0x3C)
+            $machine = '{0:X4}' -f [BitConverter]::ToUInt16($bytes, $pe + 4)
+            $version = (Get-Item $path).VersionInfo.FileVersion
+            Write-Host "$arch : machine $machine, version $version, $($bytes.Length) bytes"
+            if ($machine -ne $expected[$arch]) { throw "$path is $machine, expected $($expected[$arch])" }
+          }
+          # Imports: must not depend on the VC++ runtime DLLs.
+          $dumpbin = Get-ChildItem "${env:ProgramFiles}\Microsoft Visual Studio\2022\*\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" | Select-Object -First 1
+          $deps = & $dumpbin.FullName /DEPENDENTS dist\bin\x64\Dokey.exe
+          $deps | Write-Host
+          if ($deps -match 'VCRUNTIME|MSVCP') { throw "Dokey.exe needs the VC++ runtime" }
+
+      - name: Self-test (hooks install and remove)
+        shell: pwsh
+        run: |
+          foreach ($arch in 'x64', 'x86') {
+            $p = Start-Process "dist\bin\$arch\Dokey.exe" -ArgumentList '--self-test' -PassThru -Wait
+            Write-Host "$arch self-test exit code: $($p.ExitCode)"
+            if ($p.ExitCode -ne 0) { throw "$arch self-test failed" }
+          }
+
+      - name: End-to-end typing test (Notepad)
+        shell: pwsh
+        continue-on-error: true  # depends on the runner having an interactive desktop
+        run: apps\windows\tests\e2e.ps1 -Exe "$pwd\dist\bin\x64\Dokey.exe"
+
+      - name: Installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          & $iscc "/DAppVersion=$env:VERSION" "/DBinDir=$pwd\dist\bin" "/O$pwd\dist" apps\windows\installer\Dokey.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+          Get-ChildItem dist\*.exe | Format-Table Name, Length
+
+      - name: Install and uninstall (silent)
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem dist\Dokey-*-Windows-Setup.exe | Select-Object -First 1
+          $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/LOG=install.log' -PassThru -Wait
+          Get-Content install.log -Tail 15
+          if ($p.ExitCode -ne 0) { throw "Setup exit code $($p.ExitCode)" }
+          $exe = "$env:LOCALAPPDATA\Programs\Dokey\Dokey.exe"
+          if (-not (Test-Path $exe)) { throw "$exe not installed" }
+          $bytes = [IO.File]::ReadAllBytes($exe)
+          $machine = '{0:X4}' -f [BitConverter]::ToUInt16($bytes, [BitConverter]::ToInt32($bytes, 0x3C) + 4)
+          Write-Host "Installed $exe (machine $machine)"
+          if ($machine -ne '8664') { throw "x64 runner got the wrong build" }
+          $shortcut = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Dokey.lnk'
+          if (-not $shortcut) { throw "Start menu shortcut missing" }
+          Write-Host "Shortcut: $($shortcut.FullName)"
+          $run = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name Dokey -ErrorAction SilentlyContinue
+          Write-Host "Run key: $($run.Dokey)"
+          $uninstaller = "$env:LOCALAPPDATA\Programs\Dokey\unins000.exe"
+          $p = Start-Process $uninstaller -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -PassThru -Wait
+          Start-Sleep -Seconds 2
+          if (Test-Path $exe) { throw "Uninstall left $exe behind" }
+          Write-Host "Uninstall OK (exit $($p.ExitCode))"
+
+      - name: Upload installer to release
+        if: env.TAG != ''
+        shell: bash
+        run: gh release upload "$TAG" dist/Dokey-*-Windows-Setup.exe --clobber
