@@ -13,6 +13,10 @@
 
 using namespace dokey_win;
 
+#ifndef IMC_GETOPENSTATUS
+#define IMC_GETOPENSTATUS 0x0005  // from <ime.h>
+#endif
+
 namespace {
 
 const wchar_t kWindowClass[] = L"DokeyMainWindow";  // also used by the installer
