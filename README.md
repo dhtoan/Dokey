@@ -16,6 +16,7 @@
 [Giới thiệu](#giới-thiệu) •
 [Tính năng](#tính-năng) •
 [Ứng dụng macOS](#ứng-dụng-macos) •
+[Ứng dụng Windows](#ứng-dụng-windows) •
 [Bắt đầu nhanh](#bắt-đầu-nhanh) •
 [Tích hợp](#tích-hợp-vào-ứng-dụng) •
 [Kiến trúc](#kiến-trúc) •
@@ -32,6 +33,7 @@
 Repo này chứa:
 - **Dokey Core**, bộ não xử lý tiếng Việt dùng chung cho các ứng dụng Dokey trên macOS, Windows, Linux và Android. Dokey Core là một thư viện C++17 độc lập, không phụ thuộc thư viện ngoài, có API C ổn định để tích hợp vào Swift, Win32 hay Kotlin.
 - **Dokey cho macOS** (`apps/macos/`), ứng dụng bộ gõ trên thanh menu, viết bằng Swift + AppKit.
+- **Dokey cho Windows** (`apps/windows/`), ứng dụng bộ gõ ở khay hệ thống, viết bằng C++ Win32, kèm bộ cài `Setup.exe`.
 
 ```console
 $ dokey "Xin chaof cacs banj, Dokey gox tieengs Vieetj khoong nhayr chuwx."
@@ -94,6 +96,33 @@ Chi tiết cách cài, cấp quyền Trợ năng và cơ chế hoạt động: [
 | Khởi động cùng macOS, nhớ chế độ theo ứng dụng, các phím chuyển | ❌ Chưa kiểm thử bằng tay |
 
 Hạn chế đã biết: thanh địa chỉ của trình duyệt có thể tự gợi ý và bôi đen phần còn lại của địa chỉ, khiến Backspace xoá phần gợi ý thay vì chữ vừa gõ. Dokey 0.2 chưa xử lý riêng trường hợp này.
+
+## Ứng dụng Windows
+
+> ⚠️ **Chưa được thử trên máy Windows thật.** Dokey cho Windows được viết trên macOS. Mọi kiểm thử dưới đây chạy trên máy ảo GitHub Actions (Windows Server 2022, x64). Bản x86 và ARM64 mới chỉ được build, chưa chạy lần nào.
+
+**Dokey 0.3** thêm ứng dụng cho Windows 10/11, một bộ cài cho cả x86, x64 và ARM64: `Dokey-<phiên bản>-Windows-Setup.exe`.
+
+- Biểu tượng **V/E** ở khay hệ thống; chuyển Anh/Việt bằng Ctrl+Shift hoặc Alt+Z, hoặc bấm vào biểu tượng.
+- Telex/VNI, kiểm tra chính tả, đặt dấu kiểu mới/cũ, khởi động cùng Windows.
+- **Chống nhảy chữ:** hook `WH_KEYBOARD_LL` nhẹ trên luồng riêng; mỗi lần sửa chữ là một lần `SendInput` duy nhất (xoá + chèn Unicode); phím gõ tiếp trong lúc chờ được xếp hàng sau chữ của Dokey nên không vượt lên trước được. Với Chrome, Edge và ứng dụng Electron (`Chrome_WidgetWin_*`) có thêm khoảng nghỉ ngắn giữa phím xoá và chữ mới.
+- Tự đứng ngoài khi bộ gõ Trung/Nhật/Hàn đang bật; đặt lại từ khi click chuột, đổi cửa sổ, bấm phím mũi tên.
+- Không cần quyền quản trị, không cần cài Visual C++ Redistributable.
+
+### Đã kiểm thử đến đâu
+
+| Hạng mục | Trạng thái |
+|---|---|
+| Build `Dokey.exe` cho x86, x64, ARM64 (MSVC, CRT tĩnh) và kiểm tra kiến trúc từng tệp | ✅ Mỗi lần CI |
+| Unit test: dựng chuỗi sự kiện `SendInput`, gắn `dwExtraInfo`, hợp đồng với engine | ✅ CI, x64 và x86 |
+| `Dokey.exe --self-test`: cài và gỡ hook bàn phím/chuột | ✅ CI, x64 và x86 |
+| **Gõ thật vào Notepad**: phím giả lập bằng `SendInput`, gõ thường (40 ms/phím) và gõ dồn hết tốc độ, đọc lại chữ trong Notepad: `Việt Nam đường windows Tôi yêu tiếng Việt` | ✅ CI, x64 (máy ảo) |
+| Bộ cài: cài im lặng, chọn đúng bản x64, có lối tắt Start menu, gỡ cài đặt sạch | ✅ CI, x64 (máy ảo) |
+| Gõ trong Chrome, Edge, VS Code, Word… | ❌ Chưa kiểm thử |
+| Máy thật Windows 10/11, máy chậm, máy ARM64, bản x86 trên Windows 32-bit | ❌ Chưa kiểm thử |
+| Giao diện khay, menu, phím tắt chuyển Anh/Việt, khởi động cùng Windows | ❌ Chưa kiểm thử bằng tay |
+
+Bộ cài chưa ký số nên SmartScreen có thể cảnh báo: chọn **More info → Run anyway**. Chi tiết: [apps/windows/README.md](apps/windows/README.md).
 
 ## Bắt đầu nhanh
 
@@ -174,6 +203,7 @@ dokey_destroy(engine);
 | `tools/` | Công cụ dòng lệnh `dokey` |
 | `tests/` | Bộ kiểm thử |
 | `apps/macos/` | Ứng dụng macOS (Swift + AppKit) và script build |
+| `apps/windows/` | Ứng dụng Windows (C++ Win32), bộ cài Inno Setup |
 | `SPEC.md` | Đặc tả hành vi đầy đủ |
 
 ## Chất lượng
@@ -189,7 +219,7 @@ dokey_destroy(engine);
 |---|---|---|
 | **0.1** | Dokey Core: Telex, VNI, kiểm tra chính tả, API C/C++, công cụ dòng lệnh | ✅ Phát hành |
 | **0.2** | Ứng dụng macOS (Swift + AppKit, macOS 10.13+, Intel và Apple Silicon) | 🧪 Đã build, chờ thử gõ thật |
-| 0.3 | Ứng dụng Windows (Windows 10/11, x86, x64, ARM64) | 🗓️ Kế hoạch |
+| **0.3** | Ứng dụng Windows (Windows 10/11, x86, x64, ARM64), bộ cài Setup.exe | 🧪 Đã phát hành, chưa thử trên máy Windows thật |
 | 0.4 | Gõ tắt, công cụ chuyển mã, bảng mã TCVN3, VNI Windows, CP1258 | 🗓️ Kế hoạch |
 | 1.0 | Bộ biểu tượng mới, ký số và notarize, phát hành chính thức | 🗓️ Kế hoạch |
 

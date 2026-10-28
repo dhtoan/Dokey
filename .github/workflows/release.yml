@@ -100,15 +100,23 @@ jobs:
           hdiutil verify "apps/macos/build/Dokey-${TAG#v}.dmg"
           gh release upload "$TAG" "apps/macos/build/Dokey-${TAG#v}.dmg" --clobber
 
+  windows-app:
+    name: windows-app
+    needs: create
+    uses: ./.github/workflows/windows-app.yml
+    with:
+      tag: ${{ github.event.inputs.tag || github.ref_name }}
+    secrets: inherit
+
   publish:
     name: Publish
-    needs: [ build, macos-app ]
+    needs: [ build, macos-app, windows-app ]
     runs-on: ubuntu-latest
     steps:
       - name: Checksums and publish
         run: |
           mkdir dist && cd dist
-          gh release download "$TAG" -R "$GITHUB_REPOSITORY" --pattern "dokey-core-*" --pattern "Dokey-*.dmg"
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" --pattern "dokey-core-*" --pattern "Dokey-*.dmg" --pattern "Dokey-*-Windows-Setup.exe"
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
           gh release upload "$TAG" SHA256SUMS.txt -R "$GITHUB_REPOSITORY" --clobber
