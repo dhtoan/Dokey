@@ -13,41 +13,44 @@ protocol ControlPanelDelegate: AnyObject {
     var panelEditCount: Int { get }
 }
 
-/// A glass card with a caption, a big value, a status line and a glossy
-/// emblem peeking in from the top-right corner.
+/// A compact glass card: emblem on the left, then caption, value and status,
+/// with an optional button on the right.
 final class StatCard: GlassCard {
-    let caption = label("", size: 12, weight: .semibold, color: Palette.secondaryText)
-    let value = label("", size: 26, weight: .bold)
+    let caption = label("", size: 12, weight: .medium, color: Palette.secondaryText)
+    let value = label("", size: 22, weight: .bold)
     let status = label("", size: 12, weight: .medium, color: Palette.success)
     let badge: GlossyBadge
     private let accessory = NSStackView()
 
-    init(caption text: String, badge: GlossyBadge, badgeSize: CGFloat, valueSize: CGFloat = 26) {
+    init(caption text: String, badge: GlossyBadge, badgeSize: CGFloat, valueSize: CGFloat = 22) {
         self.badge = badge
         super.init(frame: .zero)
         caption.stringValue = text
         value.font = .systemFont(ofSize: valueSize, weight: .bold)
         value.lineBreakMode = .byTruncatingTail
         value.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        status.lineBreakMode = .byTruncatingTail
+        status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         accessory.orientation = .horizontal
-        for v in [badge, caption, value, status, accessory] as [NSView] {
+        let text = NSStackView(views: [caption, value, status])
+        text.orientation = .vertical
+        text.alignment = .leading
+        text.spacing = 2
+        text.setCustomSpacing(4, after: value)
+        for v in [badge, text, accessory] as [NSView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             addSubview(v)
         }
         NSLayoutConstraint.activate([
             badge.widthAnchor.constraint(equalToConstant: badgeSize),
             badge.heightAnchor.constraint(equalToConstant: badgeSize),
-            badge.trailingAnchor.constraint(equalTo: trailingAnchor, constant: badgeSize * 0.18),
-            badge.topAnchor.constraint(equalTo: topAnchor, constant: -badgeSize * 0.14),
-            caption.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            caption.topAnchor.constraint(equalTo: topAnchor, constant: 17),
-            value.leadingAnchor.constraint(equalTo: caption.leadingAnchor),
-            value.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -14),
-            status.leadingAnchor.constraint(equalTo: caption.leadingAnchor),
-            status.topAnchor.constraint(equalTo: value.bottomAnchor, constant: 2),
-            accessory.leadingAnchor.constraint(equalTo: caption.leadingAnchor),
-            accessory.topAnchor.constraint(equalTo: status.bottomAnchor, constant: 8),
-            accessory.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
+            badge.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            badge.centerYAnchor.constraint(equalTo: centerYAnchor),
+            text.leadingAnchor.constraint(equalTo: badge.trailingAnchor, constant: 8),
+            text.centerYAnchor.constraint(equalTo: centerYAnchor),
+            text.trailingAnchor.constraint(lessThanOrEqualTo: accessory.leadingAnchor, constant: -10),
+            accessory.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            accessory.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
     }
 
@@ -67,6 +70,8 @@ final class StatCard: GlassCard {
 final class ControlPanelController: NSWindowController, NSWindowDelegate {
     weak var delegate: ControlPanelDelegate?
     var onClose: (() -> Void)?
+    /// Screenshots only: show the panel as if Accessibility were granted.
+    var assumeReady = false
 
     private let settings = Settings.shared
     private let content = NSView()
@@ -81,24 +86,25 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     private let modeCard = StatCard(caption: "Chế độ gõ",
                                     badge: GlossyBadge(shape: .squircle, top: NSColor(red: 0.98, green: 0.45, blue: 0.86, alpha: 1),
                                                        bottom: NSColor(red: 0.62, green: 0.16, blue: 0.80, alpha: 1), symbol: .text("V")),
-                                    badgeSize: 190, valueSize: 34)
+                                    badgeSize: 96, valueSize: 28)
     private let permissionCard = StatCard(caption: "Quyền Trợ năng",
                                           badge: GlossyBadge(shape: .shield, top: NSColor(red: 0.40, green: 0.92, blue: 0.62, alpha: 1),
                                                              bottom: NSColor(red: 0.05, green: 0.55, blue: 0.40, alpha: 1), symbol: .check),
-                                          badgeSize: 130)
+                                          badgeSize: 80)
     private let methodCard = StatCard(caption: "Kiểu gõ",
                                       badge: GlossyBadge(shape: .hexagon, top: NSColor(red: 1.0, green: 0.68, blue: 0.40, alpha: 1),
                                                          bottom: NSColor(red: 0.85, green: 0.30, blue: 0.20, alpha: 1), symbol: .keycap),
-                                      badgeSize: 112)
-    private let appCard = StatCard(caption: "Ứng dụng đang dùng",
+                                      badgeSize: 60, valueSize: 19)
+    private let appCard = StatCard(caption: "Ứng dụng",
                                    badge: GlossyBadge(shape: .hexagon, top: NSColor(red: 0.42, green: 0.62, blue: 1.0, alpha: 1),
                                                       bottom: NSColor(red: 0.18, green: 0.25, blue: 0.85, alpha: 1), symbol: .grid),
-                                   badgeSize: 112)
+                                   badgeSize: 60, valueSize: 19)
     private let countCard = StatCard(caption: "Đã thêm dấu",
                                      badge: GlossyBadge(shape: .circle, top: NSColor(red: 0.35, green: 0.95, blue: 0.90, alpha: 1),
                                                         bottom: NSColor(red: 0.05, green: 0.55, blue: 0.70, alpha: 1), symbol: .bolt),
-                                     badgeSize: 112)
+                                     badgeSize: 60, valueSize: 19)
     private let permissionButton = AccentButton(title: "Cấp quyền")
+    private let tryField = NSTextField(string: "")
 
     // Typing
     private let methodPicker = PillPicker(options: ["Telex", "VNI"])
@@ -115,7 +121,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     private let currentAppLine = label("", size: 12, color: Palette.secondaryText, wrapping: true)
 
     convenience init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 860, height: 500),
                               styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
         window.titlebarAppearsTransparent = true
@@ -164,7 +170,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
             content.leadingAnchor.constraint(equalTo: sidebar.trailingAnchor, constant: 22),
             content.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -24),
             content.topAnchor.constraint(equalTo: background.topAnchor, constant: 44),
-            content.bottomAnchor.constraint(equalTo: orb.topAnchor, constant: 2),
+            content.bottomAnchor.constraint(equalTo: background.bottomAnchor, constant: -20),
             orb.centerXAnchor.constraint(equalTo: content.centerXAnchor),
             orb.bottomAnchor.constraint(equalTo: background.bottomAnchor, constant: -8),
             orb.widthAnchor.constraint(equalToConstant: 100),
@@ -235,20 +241,20 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     /// A page header card: big title and subtitle with a glossy emblem.
     private func heroCard(_ title: String, _ subtitle: String, badge: GlossyBadge) -> GlassCard {
         let card = GlassCard()
-        let text = vertical([label(title, size: 28, weight: .bold),
+        let text = vertical([label(title, size: 22, weight: .bold),
                              label(subtitle, size: 13, color: Palette.secondaryText)], spacing: 4)
         for v in [badge, text] as [NSView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             card.addSubview(v)
         }
         NSLayoutConstraint.activate([
-            card.heightAnchor.constraint(equalToConstant: 112),
-            text.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 20),
+            card.heightAnchor.constraint(equalToConstant: 88),
+            badge.widthAnchor.constraint(equalToConstant: 80),
+            badge.heightAnchor.constraint(equalToConstant: 80),
+            badge.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 8),
+            badge.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            text.leadingAnchor.constraint(equalTo: badge.trailingAnchor, constant: 6),
             text.centerYAnchor.constraint(equalTo: card.centerYAnchor),
-            badge.widthAnchor.constraint(equalToConstant: 150),
-            badge.heightAnchor.constraint(equalToConstant: 150),
-            badge.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: 10),
-            badge.centerYAnchor.constraint(equalTo: card.centerYAnchor, constant: 8),
         ])
         return card
     }
@@ -273,7 +279,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
             let line = NSStackView(views: [text, spacer, row.2])
             line.orientation = .horizontal
             line.alignment = .centerY
-            line.edgeInsets = NSEdgeInsets(top: 11, left: 18, bottom: 11, right: 18)
+            line.edgeInsets = NSEdgeInsets(top: 9, left: 18, bottom: 9, right: 18)
             stack.addArrangedSubview(line)
             line.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         }
@@ -303,17 +309,50 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         let top = horizontal([modeCard, permissionCard])
         let bottom = horizontal([methodCard, appCard, countCard])
         bottom.distribution = .fillEqually
-        let page = vertical([top, bottom], spacing: 12)
-        fullWidth([top, bottom], in: page)
+        let page = vertical([top, bottom, tryCard()], spacing: 12)
+        fullWidth(page.arrangedSubviews, in: page)
         NSLayoutConstraint.activate([
-            modeCard.heightAnchor.constraint(equalToConstant: 232),
+            modeCard.heightAnchor.constraint(equalToConstant: 112),
             permissionCard.heightAnchor.constraint(equalTo: modeCard.heightAnchor),
-            modeCard.widthAnchor.constraint(equalTo: permissionCard.widthAnchor, multiplier: 1.9),
-            methodCard.heightAnchor.constraint(equalToConstant: 196),
+            modeCard.widthAnchor.constraint(equalTo: permissionCard.widthAnchor, multiplier: 1.25),
+            methodCard.heightAnchor.constraint(equalToConstant: 92),
             appCard.heightAnchor.constraint(equalTo: methodCard.heightAnchor),
             countCard.heightAnchor.constraint(equalTo: methodCard.heightAnchor),
         ])
         return page
+    }
+
+    /// A place to try typing without leaving the panel.
+    private func tryCard() -> GlassCard {
+        let card = GlassCard()
+        let caption = label("Gõ thử", size: 12, weight: .medium, color: Palette.secondaryText)
+        tryField.placeholderString = "Gõ thử ở đây, ví dụ: Vieetj Nam, dduowngf, Haxy…"
+        tryField.font = .systemFont(ofSize: 17, weight: .medium)
+        tryField.textColor = .white
+        tryField.isBordered = false
+        tryField.drawsBackground = false
+        tryField.focusRingType = .none
+        let well = NSView()
+        well.wantsLayer = true
+        well.layer?.backgroundColor = NSColor(white: 0, alpha: 0.18).cgColor
+        well.layer?.cornerRadius = 10
+        for v in [caption, well, tryField] as [NSView] {
+            v.translatesAutoresizingMaskIntoConstraints = false
+            card.addSubview(v)
+        }
+        NSLayoutConstraint.activate([
+            card.heightAnchor.constraint(equalToConstant: 92),
+            caption.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 18),
+            caption.topAnchor.constraint(equalTo: card.topAnchor, constant: 12),
+            well.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 12),
+            well.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -12),
+            well.topAnchor.constraint(equalTo: caption.bottomAnchor, constant: 8),
+            well.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -12),
+            tryField.leadingAnchor.constraint(equalTo: well.leadingAnchor, constant: 10),
+            tryField.trailingAnchor.constraint(equalTo: well.trailingAnchor, constant: -10),
+            tryField.centerYAnchor.constraint(equalTo: well.centerYAnchor),
+        ])
+        return card
     }
 
     private func typingPage() -> NSView {
@@ -375,8 +414,8 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     private func aboutPage() -> NSView {
         let badge = GlossyBadge(shape: .squircle, top: NSColor(red: 0.98, green: 0.45, blue: 0.86, alpha: 1),
                                 bottom: NSColor(red: 0.45, green: 0.20, blue: 0.95, alpha: 1), symbol: .text("đ"))
-        badge.widthAnchor.constraint(equalToConstant: 150).isActive = true
-        badge.heightAnchor.constraint(equalToConstant: 150).isActive = true
+        badge.widthAnchor.constraint(equalToConstant: 112).isActive = true
+        badge.heightAnchor.constraint(equalToConstant: 112).isActive = true
         let text = label("""
         Bộ gõ tiếng Việt cho macOS, chạy trên lõi Dokey Core.
         Mỗi phím, Dokey dựng lại cả từ và kiểm tra chính tả với 3.759 âm tiết,
@@ -412,7 +451,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         modeCard.badge.symbol = .text(vietnamese ? "V" : "E")
         modeCard.setStatus(vietnamese ? "Đang bật · \(settings.hotkey.shortTitle) để chuyển" : "Đang tắt · \(settings.hotkey.shortTitle) để bật", ok: vietnamese)
 
-        let ready = Accessibility.isTrusted && (delegate?.panelTapRunning ?? false)
+        let ready = assumeReady || (Accessibility.isTrusted && (delegate?.panelTapRunning ?? false))
         permissionCard.value.stringValue = ready ? "Sẵn sàng" : "Chưa cấp"
         permissionCard.setStatus(ready ? "Dokey đang nghe bàn phím" : "Cần quyền để gõ tiếng Việt", ok: ready)
         permissionCard.setAccessory(ready ? nil : permissionButton)
@@ -487,7 +526,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         for (i, page) in pages.enumerated() { page.isHidden = i != index }
         for (i, b) in sidebarButtons.enumerated() { b.isSelected = i == index }
         pageTitle.stringValue = titles[index]
-        orb.isHidden = index == 3
+        orb.isHidden = index != 0
         guard let page = pages[safe: index] else { return }
         guard animated else {
             page.alphaValue = 1

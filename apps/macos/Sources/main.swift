@@ -5,6 +5,9 @@ import Cocoa
 if CommandLine.arguments.contains("--self-test") {
     exit(SelfTest.run())
 }
+if let i = CommandLine.arguments.firstIndex(of: "--render-marketing"), i + 1 < CommandLine.arguments.count {
+    exit(Marketing.render(to: CommandLine.arguments[i + 1]))
+}
 if let i = CommandLine.arguments.firstIndex(of: "--render-panel"), i + 1 < CommandLine.arguments.count {
     exit(SelfTest.renderPanel(to: CommandLine.arguments[i + 1]))
 }
