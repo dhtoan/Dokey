@@ -15,6 +15,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cwctype>
 #include <deque>
 #include <mutex>
 #include <thread>
@@ -39,6 +40,7 @@ std::thread g_senderThread;
 std::atomic<bool> g_imeActive{false};
 
 std::atomic<int> g_pending{0};
+std::atomic<unsigned> g_markedWords{0};  // shown in the control panel
 std::atomic<ULONGLONG> g_pendingSince{0};
 
 std::mutex g_queueMutex;
@@ -58,6 +60,7 @@ HWND g_lastFocus = nullptr;
 bool g_chromium = false;
 bool g_swallowed[256] = {};
 bool g_comboArmed = false;  // Ctrl+Shift pressed with nothing else in between
+bool g_wordMarked = false;  // the current word was already counted in g_markedWords
 
 void ApplyEngineOptions() {
     dokey_options o = {};
@@ -142,6 +145,9 @@ bool IsModifier(DWORD vk) {
 }
 
 // Keys that neither type nor move the caret: they leave the word alone.
+// Letters and digits (VNI marks) belong to a word; anything else ends it.
+bool IsWordChar(unsigned ch) { return ch < 0x10000 && iswalnum(static_cast<wint_t>(ch)); }
+
 bool IsNeutral(DWORD vk) {
     switch (vk) {
         case VK_CAPITAL: case VK_NUMLOCK: case VK_SCROLL:
@@ -252,6 +258,7 @@ bool OnKeyDown(const KBDLLHOOKSTRUCT& k) {
 
     dokey_edit edit;
     if (!dokey_key(g_engine, ch, &edit)) {
+        if (!IsWordChar(ch)) g_wordMarked = false;
         if (!IsPending()) return false;
         Job job = ch < 0x20 ? ReplayJob(k) : Job();
         if (ch >= 0x20) job.text.push_back(static_cast<char16_t>(ch));
@@ -259,6 +266,12 @@ bool OnKeyDown(const KBDLLHOOKSTRUCT& k) {
         g_swallowed[vk] = true;
         return true;
     }
+
+    if (edit.backspaces > 0 && !g_wordMarked) {
+        g_markedWords++;
+        g_wordMarked = true;
+    }
+    if (edit.length > 0 && !IsWordChar(edit.text[edit.length - 1])) g_wordMarked = false;
 
     Job job;
     job.backspaces = edit.backspaces;
@@ -408,5 +421,7 @@ void UpdateKeyboard(const Settings& settings) {
 }
 
 void SetImeActive(bool active) { g_imeActive.store(active); }
+
+unsigned MarkedWordCount() { return g_markedWords.load(); }
 
 } // namespace dokey_win

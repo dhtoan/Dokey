@@ -5,8 +5,12 @@
 #include <shellapi.h>
 #include <windowsx.h>
 
+#include <string>
+#include <vector>
+
 #include "dokey/dokey.h"
 #include "keyboard.h"
+#include "panel.h"
 #include "resource.h"
 #include "settings.h"
 #include "version.h"
@@ -22,11 +26,13 @@ namespace {
 const wchar_t kWindowClass[] = L"DokeyMainWindow";  // also used by the installer
 const wchar_t kMutexName[] = L"DokeyAppMutex";      // also used by the installer
 constexpr UINT WM_TRAY = WM_APP + 10;
+constexpr UINT WM_DOKEY_SHOWPANEL = WM_APP + 11;  // posted by a second Dokey.exe
 constexpr UINT kTrayId = 1;
 constexpr UINT_PTR kImeTimer = 1;
 constexpr UINT kImeTimerMs = 1000;
 
 enum Command : UINT {
+    CMD_PANEL = 99,
     CMD_TOGGLE = 100,
     CMD_TELEX,
     CMD_VNI,
@@ -45,6 +51,10 @@ Settings g_settings;
 HICON g_iconVietnamese = nullptr;
 HICON g_iconEnglish = nullptr;
 UINT g_taskbarCreated = 0;
+HWND g_mainWindow = nullptr;
+bool g_imeActive = false;
+std::wstring g_appName;  // the application the user last typed in
+bool g_appChromium = false;
 
 // ---- icons -------------------------------------------------------------------
 
@@ -186,11 +196,78 @@ void Apply(HWND hwnd) {
     SaveSettings(g_settings);
     UpdateKeyboard(g_settings);
     UpdateTrayIcon(hwnd);
+    RefreshPanel();
+}
+
+// ---- control panel ---------------------------------------------------------------
+
+// "Google Chrome" for chrome.exe: the file description, else the file name.
+std::wstring AppNameOf(DWORD pid) {
+    HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!process) return L"";
+    wchar_t path[MAX_PATH];
+    DWORD size = MAX_PATH;
+    BOOL ok = QueryFullProcessImageNameW(process, 0, path, &size);
+    CloseHandle(process);
+    if (!ok) return L"";
+
+    std::wstring name;
+    DWORD handle = 0, infoSize = GetFileVersionInfoSizeW(path, &handle);
+    std::vector<BYTE> info(infoSize);
+    struct Translation {
+        WORD language, codePage;
+    }* translation = nullptr;
+    UINT length = 0;
+    if (infoSize && GetFileVersionInfoW(path, 0, infoSize, info.data()) &&
+        VerQueryValueW(info.data(), L"\\VarFileInfo\\Translation", reinterpret_cast<void**>(&translation), &length) &&
+        length >= sizeof(Translation)) {
+        wchar_t query[64];
+        wsprintfW(query, L"\\StringFileInfo\\%04x%04x\\FileDescription", translation->language, translation->codePage);
+        wchar_t* description = nullptr;
+        if (VerQueryValueW(info.data(), query, reinterpret_cast<void**>(&description), &length) && length > 1) {
+            name = description;
+        }
+    }
+    if (name.empty()) {
+        const wchar_t* file = wcsrchr(path, L'\\');
+        name = file ? file + 1 : path;
+        size_t dot = name.rfind(L'.');
+        if (dot != std::wstring::npos) name.erase(dot);
+    }
+    return name;
+}
+
+// Remembers the foreground application for the dashboard (not Dokey itself).
+void TrackForegroundApp() {
+    HWND foreground = GetForegroundWindow();
+    DWORD pid = 0;
+    if (!foreground || !GetWindowThreadProcessId(foreground, &pid) || pid == GetCurrentProcessId()) return;
+    static DWORD lastPid = 0;
+    wchar_t className[64] = {};
+    GetClassNameW(foreground, className, ARRAYSIZE(className));
+    g_appChromium = wcsncmp(className, L"Chrome_WidgetWin_", 17) == 0;
+    if (pid == lastPid && !g_appName.empty()) return;
+    lastPid = pid;
+    g_appName = AppNameOf(pid);
+}
+
+void PanelSettingsChanged() { Apply(g_mainWindow); }
+
+PanelStatus PanelState() {
+    PanelStatus status;
+    status.imeActive = g_imeActive;
+    status.appName = g_appName;
+    status.appChromium = g_appChromium;
+    status.markedWords = MarkedWordCount();
+    return status;
 }
 
 void ShowMenu(HWND hwnd, int x, int y) {
     HMENU menu = CreatePopupMenu();
     HMENU hotkeys = CreatePopupMenu();
+    AppendMenuW(menu, MF_STRING, CMD_PANEL, L"Mở bảng điều khiển");
+    SetMenuDefaultItem(menu, CMD_PANEL, FALSE);
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     const UINT checked = MF_STRING | MF_CHECKED, unchecked = MF_STRING | MF_UNCHECKED;
     auto check = [&](bool on) { return on ? checked : unchecked; };
 
@@ -220,17 +297,6 @@ void ShowMenu(HWND hwnd, int x, int y) {
     DestroyMenu(menu);  // also destroys the submenu
 }
 
-void ShowAbout(HWND hwnd) {
-    wchar_t text[512];
-    wsprintfW(text,
-              L"Dokey %s\n"
-              L"Bộ gõ tiếng Việt cho Windows, dùng lõi Dokey Core.\n\n"
-              L"Bật/tắt tiếng Việt: bấm vào biểu tượng V/E hoặc dùng phím tắt.\n\n"
-              L"Copyright © 2026 Do Huy Toan.",
-              DOKEY_APP_VERSION_W);
-    MessageBoxW(hwnd, text, L"Dokey", MB_OK | MB_ICONINFORMATION);
-}
-
 void OnCommand(HWND hwnd, UINT id) {
     switch (id) {
         case CMD_TOGGLE: g_settings.vietnamese = !g_settings.vietnamese; break;
@@ -242,7 +308,8 @@ void OnCommand(HWND hwnd, UINT id) {
         case CMD_HOTKEY_CTRL_SHIFT: g_settings.hotkey = HOTKEY_CTRL_SHIFT; break;
         case CMD_HOTKEY_ALT_Z: g_settings.hotkey = HOTKEY_ALT_Z; break;
         case CMD_STARTUP: SetStartupEnabled(!IsStartupEnabled()); return;
-        case CMD_ABOUT: ShowAbout(hwnd); return;
+        case CMD_PANEL: ShowPanel(0); return;
+        case CMD_ABOUT: ShowPanel(3); return;
         case CMD_EXIT: DestroyWindow(hwnd); return;
         default: return;
     }
@@ -284,6 +351,7 @@ void CheckIme(bool force) {
     lastCheck = now;
     if (active != lastResult || force) {
         lastResult = active;
+        g_imeActive = active;
         SetImeActive(active);
     }
 }
@@ -316,9 +384,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             g_settings.vietnamese = wParam != 0;
             SaveSettings(g_settings);
             UpdateTrayIcon(hwnd);
+            RefreshPanel();
             return 0;
         case WM_DOKEY_FOCUS:
             CheckIme(true);
+            TrackForegroundApp();
+            return 0;
+        case WM_DOKEY_SHOWPANEL:
+            ShowPanel(0);
             return 0;
         case WM_TIMER:
             if (wParam == kImeTimer) CheckIme(false);
@@ -333,6 +406,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
         case WM_DESTROY:
             KillTimer(hwnd, kImeTimer);
+            ShutdownPanel();
             RemoveTrayIcon(hwnd);
             PostQuitMessage(0);
             return 0;
@@ -347,18 +421,43 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 } // namespace
 
-int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR commandLine, int) {
+int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     g_instance = instance;
     // --self-test: install and remove the hooks, then exit (used by CI).
-    const bool selfTest = commandLine && wcsstr(commandLine, L"--self-test") != nullptr;
+    // --background: start in the tray without opening the control panel (sign-in).
+    // --render-panel <prefix>: draw the control panel pages to PNG files and exit.
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    bool selfTest = false, background = false;
+    std::wstring renderPrefix;
+    for (int i = 1; argv && i < argc; i++) {
+        if (wcscmp(argv[i], L"--self-test") == 0) selfTest = true;
+        if (wcscmp(argv[i], L"--background") == 0) background = true;
+        if (wcscmp(argv[i], L"--render-panel") == 0 && i + 1 < argc) renderPrefix = argv[++i];
+    }
+    if (argv) LocalFree(argv);
+
+    g_settings = LoadSettings();
+    if (!renderPrefix.empty()) {
+        if (!InitPanel(instance, &g_settings, {})) return 2;
+        int result = RenderPanelImages(renderPrefix.c_str());
+        ShutdownPanel();
+        return result;
+    }
+
     HANDLE mutex = CreateMutexW(nullptr, TRUE, kMutexName);
     if (GetLastError() == ERROR_ALREADY_EXISTS && !selfTest) {
-        MessageBoxW(nullptr, L"Dokey đang chạy. Biểu tượng V/E nằm ở khay hệ thống, góc phải thanh tác vụ.",
-                    L"Dokey", MB_OK | MB_ICONINFORMATION);
+        // Started again (Start menu, desktop icon): show the running Dokey's panel.
+        HWND running = FindWindowW(kWindowClass, nullptr);
+        DWORD pid = 0;
+        if (running && GetWindowThreadProcessId(running, &pid)) {
+            AllowSetForegroundWindow(pid);
+            PostMessageW(running, WM_DOKEY_SHOWPANEL, 0, 0);
+        }
+        if (mutex) CloseHandle(mutex);
         return 0;
     }
 
-    g_settings = LoadSettings();
     g_taskbarCreated = RegisterWindowMessageW(L"TaskbarCreated");
     CreateTrayIcons();
 
@@ -373,6 +472,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR commandLine, int) {
     HWND hwnd = CreateWindowExW(WS_EX_TOOLWINDOW, kWindowClass, L"Dokey", WS_POPUP, 0, 0, 0, 0, nullptr, nullptr,
                                 instance, nullptr);
     if (!hwnd) return 1;
+    g_mainWindow = hwnd;
 
     if (selfTest) {
         bool ok = StartKeyboard(hwnd, g_settings);
@@ -385,6 +485,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR commandLine, int) {
         DestroyWindow(hwnd);
         return 1;
     }
+
+    InitPanel(instance, &g_settings, {PanelSettingsChanged, PanelState});
+    TrackForegroundApp();
+    if (!background) ShowPanel(0);
 
     MSG msg;
     while (GetMessageW(&msg, nullptr, 0, 0) > 0) {

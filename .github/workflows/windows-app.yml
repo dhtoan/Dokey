@@ -87,6 +87,30 @@ jobs:
             if ($p.ExitCode -ne 0) { throw "$arch self-test failed" }
           }
 
+      - name: Render the control panel
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force shots | Out-Null
+          $p = Start-Process "dist\bin\x64\Dokey.exe" -ArgumentList '--render-panel', "$pwd\shots\panel" -PassThru -Wait
+          if ($p.ExitCode -ne 0) { throw "render-panel exit code $($p.ExitCode)" }
+          # Artifact storage is full: print small JPEGs as base64 to the log instead.
+          Add-Type -AssemblyName System.Drawing
+          $jpeg = [Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object MimeType -eq 'image/jpeg'
+          $params = New-Object Drawing.Imaging.EncoderParameters 1
+          $params.Param[0] = New-Object Drawing.Imaging.EncoderParameter ([Drawing.Imaging.Encoder]::Quality), 85L
+          foreach ($i in 1..6) {
+            $png = "shots\panel-$i.png"
+            if (-not (Test-Path $png)) { throw "$png missing" }
+            $image = [Drawing.Image]::FromFile("$pwd\$png")
+            $out = "$pwd\shots\panel-$i.jpg"
+            $image.Save($out, $jpeg, $params)
+            Write-Host "$png : $($image.Width)x$($image.Height)"
+            $image.Dispose()
+            Write-Host "BEGIN-PANEL-$i"
+            [Convert]::ToBase64String([IO.File]::ReadAllBytes($out)) -split '(.{4000})' | Where-Object { $_ } | ForEach-Object { Write-Host $_ }
+            Write-Host "END-PANEL-$i"
+          }
+
       - name: End-to-end typing test (Notepad)
         shell: pwsh
         run: apps\windows\tests\e2e.ps1 -Exe "$pwd\dist\bin\x64\Dokey.exe"

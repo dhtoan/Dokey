@@ -1,0 +1,949 @@
+// Dokey for Windows - the control panel window: a violet gradient, an icon
+// sidebar and frosted glass cards with glossy emblems. Everything is drawn
+// with GDI+ at the monitor's DPI; there are no image resources.
+// Copyright (c) 2026 Do Huy Toan. All rights reserved.
+#include "panel.h"
+
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
+#include <objidl.h>
+#include <dwmapi.h>
+#include <shellapi.h>
+#include <windowsx.h>
+namespace Gdiplus {
+using std::max;
+using std::min;
+}
+#include <gdiplus.h>
+
+#include "dokey/dokey.h"
+#include "resource.h"
+#include "version.h"
+
+using namespace Gdiplus;
+
+namespace dokey_win {
+
+namespace {
+
+const wchar_t kPanelClass[] = L"DokeyPanelWindow";
+constexpr float kWidth = 900, kHeight = 600, kSidebar = 68;
+constexpr UINT_PTR kRefreshTimer = 1;
+constexpr UINT kRefreshMs = 1500;
+constexpr DWORD kSlowPauseMs = 30;  // "slow machine" pause in Chromium windows
+
+enum Page { PAGE_DASHBOARD, PAGE_TYPING, PAGE_APPS, PAGE_ABOUT, PAGE_COUNT };
+const wchar_t* const kTitles[PAGE_COUNT] = {L"Bảng điều khiển", L"Kiểu gõ", L"Ứng dụng", L"Giới thiệu"};
+
+enum HotId {
+    HOT_NONE = 0,
+    HOT_PAGE = 1,  // HOT_PAGE + page index
+    HOT_MODE = HOT_PAGE + PAGE_COUNT,
+    HOT_ORB,
+    HOT_TELEX,
+    HOT_VNI,
+    HOT_SPELLING,
+    HOT_TONE,
+    HOT_CTRL_SHIFT,
+    HOT_ALT_Z,
+    HOT_SLOW,
+    HOT_STARTUP,
+    HOT_GITHUB,
+};
+
+struct HotArea {
+    RectF rect;
+    int id;
+};
+
+HINSTANCE g_instance = nullptr;
+ULONG_PTR g_gdiplusToken = 0;
+Settings* g_settings = nullptr;
+PanelCallbacks g_callbacks = {};
+HWND g_panel = nullptr;
+int g_page = PAGE_DASHBOARD;
+int g_hover = HOT_NONE;
+bool g_trackingMouse = false;
+std::vector<HotArea> g_hot;  // in 96-DPI units, rebuilt by every Render()
+
+// ---- colours -----------------------------------------------------------------------
+
+Color Rgb(int r, int g, int b, int a = 255) {
+    return Color(static_cast<BYTE>(a), static_cast<BYTE>(r), static_cast<BYTE>(g), static_cast<BYTE>(b));
+}
+Color White(int a) { return Rgb(255, 255, 255, a); }
+Color WithAlpha(const Color& c, int a) { return Rgb(c.GetR(), c.GetG(), c.GetB(), a); }
+
+const Color kBackgroundTop = Rgb(0x29, 0x10, 0x61);
+const Color kBackgroundMiddle = Rgb(0x4F, 0x1C, 0x9E);
+const Color kBackgroundBottom = Rgb(0x73, 0x26, 0xB3);
+const Color kGlowPink = Rgb(237, 77, 217);
+const Color kGlowBlue = Rgb(77, 115, 255);
+const Color kAccentStart = Rgb(250, 92, 217);
+const Color kAccentEnd = Rgb(153, 56, 242);
+const Color kSuccess = Rgb(0x61, 0xE6, 0x8C);
+const Color kWarning = Rgb(255, 189, 89);
+const int kSecondaryAlpha = 158;  // 62% white
+
+// ---- drawing helpers ---------------------------------------------------------------
+
+void AddRoundRect(GraphicsPath& path, const RectF& r, float radius) {
+    float d = std::min(radius * 2, std::min(r.Width, r.Height));
+    path.AddArc(r.X, r.Y, d, d, 180, 90);
+    path.AddArc(r.GetRight() - d, r.Y, d, d, 270, 90);
+    path.AddArc(r.GetRight() - d, r.GetBottom() - d, d, d, 0, 90);
+    path.AddArc(r.X, r.GetBottom() - d, d, d, 90, 90);
+    path.CloseFigure();
+}
+
+PointF Lerp(const PointF& a, const PointF& b, float t) { return PointF(a.X + (b.X - a.X) * t, a.Y + (b.Y - a.Y) * t); }
+
+// A polygon whose corners are rounded with Bézier curves `corner` long.
+void AddRoundedPolygon(GraphicsPath& path, const std::vector<PointF>& points, float corner) {
+    const size_t n = points.size();
+    for (size_t i = 0; i < n; i++) {
+        const PointF& prev = points[(i + n - 1) % n];
+        const PointF& cur = points[i];
+        const PointF& next = points[(i + 1) % n];
+        auto toward = [&](const PointF& other) {
+            float dx = other.X - cur.X, dy = other.Y - cur.Y;
+            float len = std::sqrt(dx * dx + dy * dy);
+            float t = len > 0 ? std::min(corner / len, 0.5f) : 0;
+            return Lerp(cur, other, t);
+        };
+        PointF a = toward(prev), b = toward(next);
+        path.AddBezier(a, Lerp(a, cur, 0.6f), Lerp(b, cur, 0.6f), b);  // GDI+ joins the edges with lines
+    }
+    path.CloseFigure();
+}
+
+enum class Weight { Regular, Semibold, Bold };
+
+void Label(Graphics& g, const std::wstring& text, const RectF& r, float size, Weight weight, const Color& color,
+              StringAlignment horizontal = StringAlignmentNear, StringAlignment vertical = StringAlignmentNear,
+              bool wrap = false) {
+    FontFamily family(weight == Weight::Semibold ? L"Segoe UI Semibold" : L"Segoe UI");
+    Font font(family.IsAvailable() ? &family : FontFamily::GenericSansSerif(), size,
+              weight == Weight::Bold ? FontStyleBold : FontStyleRegular, UnitPixel);
+    StringFormat format;
+    format.SetAlignment(horizontal);
+    format.SetLineAlignment(vertical);
+    format.SetTrimming(StringTrimmingEllipsisCharacter);
+    if (!wrap) format.SetFormatFlags(StringFormatFlagsNoWrap);
+    SolidBrush brush(color);
+    g.DrawString(text.c_str(), -1, &font, r, &format, &brush);
+}
+
+void FillAccent(Graphics& g, GraphicsPath& path, const RectF& r) {
+    LinearGradientBrush brush(PointF(r.X - 1, r.Y), PointF(r.GetRight() + 1, r.GetBottom()), kAccentStart, kAccentEnd);
+    g.FillPath(&brush, &path);
+}
+
+// A soft round glow fading out to the edge of `r`.
+void FillGlow(Graphics& g, const RectF& r, const Color& color, int alpha) {
+    GraphicsPath ellipse;
+    ellipse.AddEllipse(r);
+    PathGradientBrush brush(&ellipse);
+    brush.SetCenterColor(WithAlpha(color, alpha));
+    Color surround = WithAlpha(color, 0);
+    INT count = 1;
+    brush.SetSurroundColors(&surround, &count);
+    g.FillEllipse(&brush, r);
+}
+
+// ---- emblems: glossy 3D badges drawn in code -----------------------------------------
+
+enum class Shape { Circle, Hexagon, Shield, Squircle };
+enum class Symbol { Text, Check, Bolt, Keycap, Grid };
+
+struct Emblem {
+    Shape shape;
+    Color top, bottom;
+    Symbol symbol;
+    const wchar_t* text;
+};
+
+const Emblem kModeOn = {Shape::Squircle, Rgb(250, 115, 219), Rgb(158, 41, 204), Symbol::Text, L"V"};
+const Emblem kModeOff = {Shape::Squircle, Rgb(150, 160, 190), Rgb(80, 85, 120), Symbol::Text, L"E"};
+const Emblem kReady = {Shape::Shield, Rgb(102, 235, 158), Rgb(13, 140, 102), Symbol::Check, nullptr};
+const Emblem kPaused = {Shape::Shield, Rgb(255, 199, 102), Rgb(230, 102, 26), Symbol::Text, L"!"};
+const Emblem kMethod = {Shape::Hexagon, Rgb(255, 173, 102), Rgb(217, 77, 51), Symbol::Keycap, nullptr};
+const Emblem kApps = {Shape::Hexagon, Rgb(107, 158, 255), Rgb(46, 64, 217), Symbol::Grid, nullptr};
+const Emblem kCount = {Shape::Circle, Rgb(89, 242, 230), Rgb(13, 140, 179), Symbol::Bolt, nullptr};
+const Emblem kAbout = {Shape::Squircle, Rgb(250, 115, 219), Rgb(115, 51, 242), Symbol::Text, L"đ"};
+const Emblem kAppIcon = {Shape::Squircle, Rgb(0xE8, 0x3A, 0x2F), Rgb(0xB0, 0x1E, 0x17), Symbol::Text, L"Đ"};
+
+void AddShape(GraphicsPath& path, Shape shape, const RectF& r) {
+    const float w = r.Width, h = r.Height, cx = r.X + w / 2, cy = r.Y + h / 2;
+    switch (shape) {
+        case Shape::Circle:
+            path.AddEllipse(r);
+            break;
+        case Shape::Squircle:
+            AddRoundRect(path, r, w * 0.28f);
+            break;
+        case Shape::Hexagon: {  // pointy top
+            std::vector<PointF> points;
+            const float radius = h / 2;
+            for (int i = 0; i < 6; i++) {
+                double a = -3.14159265358979 / 2 + i * 3.14159265358979 / 3;
+                points.emplace_back(cx + static_cast<float>(std::cos(a)) * radius,
+                                    cy + static_cast<float>(std::sin(a)) * radius);
+            }
+            AddRoundedPolygon(path, points, w * 0.13f);
+            break;
+        }
+        case Shape::Shield: {
+            const float l = r.X, t = r.Y, rt = r.GetRight(), b = r.GetBottom();
+            path.AddBezier(PointF(cx, t), PointF(cx + w * 0.22f, t + h * 0.09f), PointF(rt - w * 0.06f, t + h * 0.10f),
+                           PointF(rt, t + h * 0.14f));
+            path.AddLine(PointF(rt, t + h * 0.14f), PointF(rt, t + h * 0.46f));
+            path.AddBezier(PointF(rt, t + h * 0.46f), PointF(rt, t + h * 0.74f), PointF(cx + w * 0.22f, t + h * 0.90f),
+                           PointF(cx, b));
+            path.AddBezier(PointF(cx, b), PointF(cx - w * 0.22f, t + h * 0.90f), PointF(l, t + h * 0.74f),
+                           PointF(l, t + h * 0.46f));
+            path.AddLine(PointF(l, t + h * 0.46f), PointF(l, t + h * 0.14f));
+            path.AddBezier(PointF(l, t + h * 0.14f), PointF(l + w * 0.06f, t + h * 0.10f), PointF(cx - w * 0.22f, t + h * 0.09f),
+                           PointF(cx, t));
+            path.CloseFigure();
+            break;
+        }
+    }
+}
+
+void DrawSymbol(Graphics& g, const Emblem& e, const RectF& body, const Color& color) {
+    const float w = body.Width, h = body.Height, x = body.X, y = body.Y;
+    auto at = [&](float fx, float fy) { return PointF(x + w * fx, y + h * fy); };
+    switch (e.symbol) {
+        case Symbol::Text: {
+            float size = h * (e.text && e.text[0] == L'!' ? 0.56f : 0.58f);
+            RectF r(x, y + (e.shape == Shape::Shield ? -h * 0.04f : 0), w, h);
+            Label(g, e.text ? e.text : L"", r, size, Weight::Bold, color, StringAlignmentCenter, StringAlignmentCenter);
+            break;
+        }
+        case Symbol::Check: {
+            Pen pen(color, w * 0.10f);
+            pen.SetStartCap(LineCapRound);
+            pen.SetEndCap(LineCapRound);
+            pen.SetLineJoin(LineJoinRound);
+            PointF points[] = {at(0.30f, 0.47f), at(0.45f, 0.62f), at(0.71f, 0.34f)};
+            g.DrawLines(&pen, points, 3);
+            break;
+        }
+        case Symbol::Bolt: {
+            PointF points[] = {at(0.56f, 0.16f), at(0.30f, 0.55f), at(0.48f, 0.55f), at(0.43f, 0.85f),
+                               at(0.71f, 0.43f), at(0.53f, 0.43f), at(0.60f, 0.16f)};
+            SolidBrush brush(color);
+            g.FillPolygon(&brush, points, 7);
+            break;
+        }
+        case Symbol::Keycap: {
+            GraphicsPath key;
+            AddRoundRect(key, RectF(x + w * 0.25f, y + h * 0.31f, w * 0.50f, h * 0.38f), w * 0.08f);
+            Pen pen(color, w * 0.055f);
+            g.DrawPath(&pen, &key);
+            Label(g, L"Aa", RectF(x, y + h * 0.01f, w, h), h * 0.19f, Weight::Bold, color, StringAlignmentCenter,
+                     StringAlignmentCenter);
+            break;
+        }
+        case Symbol::Grid: {
+            SolidBrush brush(color);
+            const float cell = w * 0.19f, gap = w * 0.06f, left = x + (w - cell * 2 - gap) / 2,
+                        top = y + (h - cell * 2 - gap) / 2;
+            for (int i = 0; i < 4; i++) {
+                GraphicsPath square;
+                AddRoundRect(square, RectF(left + (i % 2) * (cell + gap), top + (i / 2) * (cell + gap), cell, cell),
+                             cell * 0.28f);
+                g.FillPath(&brush, &square);
+            }
+            break;
+        }
+    }
+}
+
+// Draws an emblem filling `box`: glow, gradient body, glossy cap, rim, symbol.
+// Everything stays inside `box`, so nothing is clipped by the card.
+void DrawEmblem(Graphics& g, const Emblem& e, const RectF& box, bool glow = true) {
+    const float inset = glow ? box.Width * 0.14f : 0;
+    RectF body(box.X + inset, box.Y + inset, box.Width - inset * 2, box.Height - inset * 2);
+    if (glow) {
+        FillGlow(g, box, e.bottom, 150);
+        // A soft shadow below the body.
+        RectF shadow(body.X + body.Width * 0.08f, body.Y + body.Height * 0.16f, body.Width * 0.84f, body.Height * 0.9f);
+        FillGlow(g, shadow, Rgb(30, 0, 60), 70);
+    }
+
+    GraphicsPath path;
+    AddShape(path, e.shape, body);
+    LinearGradientBrush fill(PointF(body.X, body.Y - 1), PointF(body.X + body.Width * 0.25f, body.GetBottom() + 1),
+                             e.top, e.bottom);
+    g.FillPath(&fill, &path);
+
+    // Glossy cap over the upper half and a faint light from below.
+    Region old;
+    g.GetClip(&old);
+    g.SetClip(&path, CombineModeIntersect);
+    RectF cap(body.X - body.Width * 0.18f, body.Y - body.Height * 0.62f, body.Width * 1.36f, body.Height * 1.10f);
+    LinearGradientBrush gloss(PointF(0, cap.Y), PointF(0, cap.GetBottom() + 1), White(130), White(10));
+    g.FillEllipse(&gloss, cap);
+    RectF under(body.X + body.Width * 0.1f, body.Y + body.Height * 0.72f, body.Width * 0.8f, body.Height * 0.5f);
+    FillGlow(g, under, White(255), 45);
+    g.SetClip(&old);
+
+    Pen rim(White(150), std::max(1.2f, body.Width * 0.018f));
+    g.DrawPath(&rim, &path);
+
+    // The symbol with a soft drop shadow.
+    RectF shadowBody(body.X, body.Y + body.Height * 0.02f, body.Width, body.Height);
+    DrawSymbol(g, e, shadowBody, Rgb(40, 0, 60, 70));
+    DrawSymbol(g, e, body, White(255));
+}
+
+// ---- controls ----------------------------------------------------------------------
+
+void AddHot(const RectF& r, int id) { g_hot.push_back({r, id}); }
+
+void DrawCard(Graphics& g, const RectF& r, bool hover = false) {
+    GraphicsPath path;
+    AddRoundRect(path, r, 16);
+    SolidBrush fill(White(hover ? 28 : 18));
+    g.FillPath(&fill, &path);
+    Region old;
+    g.GetClip(&old);
+    g.SetClip(&path, CombineModeIntersect);
+    RectF sheen(r.X, r.Y, r.Width, r.Height * 0.45f);
+    LinearGradientBrush brush(PointF(0, sheen.Y - 1), PointF(0, sheen.GetBottom() + 1), White(18), White(0));
+    g.FillRectangle(&brush, sheen);
+    g.SetClip(&old);
+    Pen border(White(hover ? 52 : 28), 1);
+    g.DrawPath(&border, &path);
+}
+
+// "✓ text" in green or "● text" in orange; the marks are drawn, not font glyphs.
+void DrawStatus(Graphics& g, float x, float y, float width, const std::wstring& text, bool ok) {
+    const Color color = ok ? kSuccess : kWarning;
+    if (ok) {
+        Pen pen(color, 1.8f);
+        pen.SetStartCap(LineCapRound);
+        pen.SetEndCap(LineCapRound);
+        PointF points[] = {PointF(x + 1, y + 9.5f), PointF(x + 4, y + 12.5f), PointF(x + 10, y + 5.5f)};
+        g.DrawLines(&pen, points, 3);
+    } else {
+        SolidBrush brush(color);
+        g.FillEllipse(&brush, RectF(x + 1.5f, y + 5.5f, 7, 7));
+    }
+    Label(g, text, RectF(x + 18, y, width - 18, 18), 12, Weight::Semibold, color, StringAlignmentNear,
+             StringAlignmentCenter);
+}
+
+void DrawToggle(Graphics& g, float right, float cy, bool on, int id) {
+    RectF r(right - 44, cy - 12, 44, 24);
+    GraphicsPath track;
+    AddRoundRect(track, r, 12);
+    if (on) {
+        FillAccent(g, track, r);
+    } else {
+        SolidBrush off(White(g_hover == id ? 66 : 52));
+        g.FillPath(&off, &track);
+    }
+    float knobX = on ? r.GetRight() - 22 : r.X + 2;
+    SolidBrush shadow(Rgb(30, 0, 60, 60));
+    g.FillEllipse(&shadow, RectF(knobX, r.Y + 3, 20, 20));
+    SolidBrush knob(White(255));
+    g.FillEllipse(&knob, RectF(knobX, r.Y + 2, 20, 20));
+    AddHot(r, id);
+}
+
+void DrawPills(Graphics& g, float right, float cy, float width, const wchar_t* const* options, int count,
+               int selected, int firstId) {
+    RectF r(right - width, cy - 14, width, 28);
+    GraphicsPath track;
+    AddRoundRect(track, r, 14);
+    SolidBrush trackBrush(White(26));
+    g.FillPath(&trackBrush, &track);
+    const float segment = (r.Width - 4) / count;
+    for (int i = 0; i < count; i++) {
+        RectF s(r.X + 2 + i * segment, r.Y + 2, segment, r.Height - 4);
+        if (i == selected) {
+            GraphicsPath pill;
+            AddRoundRect(pill, s, 12);
+            FillAccent(g, pill, s);
+        } else if (g_hover == firstId + i) {
+            GraphicsPath pill;
+            AddRoundRect(pill, s, 12);
+            SolidBrush hover(White(20));
+            g.FillPath(&hover, &pill);
+        }
+        Label(g, options[i], s, 12.5f, Weight::Semibold, i == selected ? White(255) : White(175),
+                 StringAlignmentCenter, StringAlignmentCenter);
+        AddHot(s, firstId + i);
+    }
+}
+
+void DrawAccentButton(Graphics& g, const RectF& r, const wchar_t* text, int id) {
+    GraphicsPath path;
+    AddRoundRect(path, r, r.Height / 2);
+    FillAccent(g, path, r);
+    if (g_hover == id) {
+        SolidBrush hover(White(30));
+        g.FillPath(&hover, &path);
+    }
+    Label(g, text, r, 13, Weight::Semibold, White(255), StringAlignmentCenter, StringAlignmentCenter);
+    AddHot(r, id);
+}
+
+// The round on/off button at the bottom: glow, pulse ring, glossy body.
+void DrawOrb(Graphics& g, const RectF& box, bool on) {
+    const bool hover = g_hover == HOT_ORB;
+    const float cx = box.X + box.Width / 2, cy = box.Y + box.Height / 2;
+    FillGlow(g, box, on ? kAccentStart : Rgb(170, 150, 220), hover ? 150 : 115);
+    Pen ring(White(on ? 95 : 55), 2);
+    g.DrawEllipse(&ring, RectF(cx - 39, cy - 39, 78, 78));
+
+    RectF body(cx - 32, cy - 32, 64, 64);
+    GraphicsPath path;
+    path.AddEllipse(body);
+    LinearGradientBrush fill(PointF(body.X, body.Y - 1), PointF(body.X + 16, body.GetBottom() + 1),
+                             on ? kAccentStart : Rgb(140, 120, 190), on ? kAccentEnd : Rgb(80, 60, 130));
+    g.FillPath(&fill, &path);
+    Region old;
+    g.GetClip(&old);
+    g.SetClip(&path, CombineModeIntersect);
+    RectF cap(body.X - 8, body.Y - 40, body.Width + 16, 70);
+    LinearGradientBrush gloss(PointF(0, cap.Y), PointF(0, cap.GetBottom() + 1), White(120), White(8));
+    g.FillEllipse(&gloss, cap);
+    g.SetClip(&old);
+    Pen rim(White(165), 1.6f);
+    g.DrawEllipse(&rim, body);
+    Label(g, on ? L"Tắt" : L"Bật", body, 15, Weight::Semibold, White(255), StringAlignmentCenter,
+             StringAlignmentCenter);
+    AddHot(body, HOT_ORB);
+}
+
+// ---- sidebar -----------------------------------------------------------------------
+
+void DrawSidebarIcon(Graphics& g, int page, const RectF& r, const Color& color) {
+    const float cx = r.X + r.Width / 2, cy = r.Y + r.Height / 2;
+    SolidBrush brush(color);
+    Pen pen(color, 1.7f);
+    pen.SetLineJoin(LineJoinRound);
+    switch (page) {
+        case PAGE_DASHBOARD:
+            for (int i = 0; i < 4; i++) {
+                GraphicsPath square;
+                AddRoundRect(square, RectF(cx - 9 + (i % 2) * 10, cy - 9 + (i / 2) * 10, 8, 8), 2.5f);
+                g.FillPath(&brush, &square);
+            }
+            break;
+        case PAGE_TYPING: {
+            GraphicsPath key;
+            AddRoundRect(key, RectF(cx - 10, cy - 7, 20, 14), 3);
+            g.DrawPath(&pen, &key);
+            for (int i = 0; i < 4; i++) g.FillRectangle(&brush, RectF(cx - 6.5f + i * 3.8f, cy - 3.5f, 2, 2));
+            g.FillRectangle(&brush, RectF(cx - 5, cy + 2, 10, 1.8f));
+            break;
+        }
+        case PAGE_APPS:
+            for (int i = 0; i < 9; i++) g.FillEllipse(&brush, RectF(cx - 8.5f + (i % 3) * 6.5f, cy - 8.5f + (i / 3) * 6.5f, 4, 4));
+            break;
+        case PAGE_ABOUT:
+            g.DrawEllipse(&pen, RectF(cx - 9, cy - 9, 18, 18));
+            g.FillEllipse(&brush, RectF(cx - 1.2f, cy - 5.2f, 2.4f, 2.4f));
+            g.FillRectangle(&brush, RectF(cx - 0.9f, cy - 1.5f, 1.8f, 6.5f));
+            break;
+        default:
+            break;
+    }
+}
+
+void DrawSidebar(Graphics& g) {
+    RectF bar(0, 0, kSidebar, kHeight);
+    LinearGradientBrush shade(PointF(0, -1), PointF(0, kHeight + 1), Rgb(0, 0, 0, 56), Rgb(0, 0, 0, 26));
+    g.FillRectangle(&shade, bar);
+    DrawEmblem(g, kAppIcon, RectF((kSidebar - 34) / 2, 20, 34, 34), false);
+    for (int i = 0; i < PAGE_COUNT; i++) {
+        RectF r((kSidebar - 38) / 2, 82 + i * 46.0f, 38, 38);
+        const bool selected = i == g_page, hover = g_hover == HOT_PAGE + i;
+        if (selected || hover) {
+            GraphicsPath path;
+            AddRoundRect(path, r, 10);
+            SolidBrush fill(White(selected ? 36 : 16));
+            g.FillPath(&fill, &path);
+        }
+        DrawSidebarIcon(g, i, r, selected ? kAccentStart : White(hover ? 230 : 185));
+        AddHot(r, HOT_PAGE + i);
+    }
+}
+
+void DrawBackground(Graphics& g) {
+    RectF all(0, 0, kWidth, kHeight);
+    LinearGradientBrush brush(all, kBackgroundTop, kBackgroundBottom, 55.0f, TRUE);
+    Color colors[] = {kBackgroundTop, kBackgroundMiddle, kBackgroundBottom};
+    REAL positions[] = {0.0f, 0.55f, 1.0f};
+    brush.SetInterpolationColors(colors, positions, 3);
+    g.FillRectangle(&brush, all);
+    const float rp = kWidth * 0.45f, rb = kWidth * 0.40f;
+    FillGlow(g, RectF(kWidth * 0.85f - rp, kHeight * 0.85f - rp, rp * 2, rp * 2), kGlowPink, 89);
+    FillGlow(g, RectF(kWidth * 0.25f - rb, kHeight * 0.05f - rb, rb * 2, rb * 2), kGlowBlue, 89);
+}
+
+// ---- pages ---------------------------------------------------------------------------
+
+std::wstring HotkeyText() { return g_settings->hotkey == HOTKEY_ALT_Z ? L"Alt+Z" : L"Ctrl+Shift"; }
+
+// A dashboard card: caption, emblem in the top-right corner, value, status line.
+void DrawStatCard(Graphics& g, const RectF& r, const wchar_t* caption, const std::wstring& value, float valueSize,
+                  const std::wstring& status, bool ok, const Emblem& emblem, float emblemSize, int id = HOT_NONE) {
+    DrawCard(g, r, id != HOT_NONE && g_hover == id);
+    Region old;
+    g.GetClip(&old);
+    GraphicsPath clip;
+    AddRoundRect(clip, r, 16);
+    g.SetClip(&clip, CombineModeIntersect);
+    DrawEmblem(g, emblem, RectF(r.GetRight() - emblemSize - 8, r.Y + 6, emblemSize, emblemSize));
+    g.SetClip(&old);
+
+    Label(g, caption, RectF(r.X + 16, r.Y + 14, r.Width - 32 - emblemSize * 0.7f, 20), 12, Weight::Semibold,
+             White(kSecondaryAlpha), StringAlignmentNear, StringAlignmentCenter);
+    const float statusY = r.GetBottom() - 39;
+    Label(g, value, RectF(r.X + 14, statusY - valueSize * 1.45f, r.Width - 28, valueSize * 1.45f), valueSize,
+             Weight::Bold, White(255), StringAlignmentNear, StringAlignmentFar);
+    DrawStatus(g, r.X + 16, statusY, r.Width - 32, status, ok);
+    if (id != HOT_NONE) AddHot(r, id);
+}
+
+void DrawDashboard(Graphics& g, const RectF& c, const PanelStatus& st) {
+    const Settings& s = *g_settings;
+    const float permissionWidth = (c.Width - 12) / 2.9f, modeWidth = c.Width - 12 - permissionWidth;
+    RectF mode(c.X, c.Y, modeWidth, 232), state(c.X + modeWidth + 12, c.Y, permissionWidth, 232);
+    DrawStatCard(g, mode, L"Chế độ gõ", s.vietnamese ? L"Tiếng Việt" : L"Tiếng Anh", 34,
+                 (s.vietnamese ? L"Đang bật · " : L"Đang tắt · ") + HotkeyText() + L" để chuyển", s.vietnamese,
+                 s.vietnamese ? kModeOn : kModeOff, 158, HOT_MODE);
+    if (st.imeActive) {
+        DrawStatCard(g, state, L"Trạng thái", L"Tạm nghỉ", 26, L"Bộ gõ Trung/Nhật/Hàn đang bật", false, kPaused, 116);
+    } else {
+        DrawStatCard(g, state, L"Trạng thái", L"Sẵn sàng", 26, L"Đang bắt phím", true, kReady, 116);
+    }
+
+    const float w = (c.Width - 24) / 3, y = c.Y + 244, h = 196;
+    DrawStatCard(g, RectF(c.X, y, w, h), L"Kiểu gõ", s.method == DOKEY_VNI ? L"VNI" : L"Telex", 26, L"Unicode dựng sẵn",
+                 true, kMethod, 96);
+    if (st.appName.empty()) {
+        DrawStatCard(g, RectF(c.X + w + 12, y, w, h), L"Ứng dụng đang dùng", L"—", 26, L"Chưa có", false, kApps, 96);
+    } else {
+        DrawStatCard(g, RectF(c.X + w + 12, y, w, h), L"Ứng dụng đang dùng", st.appName, 22,
+                     st.appChromium ? L"Nhóm: Trình duyệt, Electron" : L"Nhóm: Ứng dụng thường", true, kApps, 96);
+    }
+    wchar_t count[32];
+    wsprintfW(count, L"%u từ", st.markedWords);
+    DrawStatCard(g, RectF(c.X + (w + 12) * 2, y, w, h), L"Đã thêm dấu", count, 26, L"từ lúc mở Dokey", true, kCount, 96);
+}
+
+void DrawHero(Graphics& g, const RectF& r, const wchar_t* title, const wchar_t* subtitle, const Emblem& emblem) {
+    DrawCard(g, r);
+    Label(g, title, RectF(r.X + 20, r.Y + 22, r.Width - 160, 40), 28, Weight::Bold, White(255));
+    Label(g, subtitle, RectF(r.X + 21, r.Y + 64, r.Width - 160, 20), 13, Weight::Regular, White(kSecondaryAlpha));
+    const float size = r.Height - 8;
+    DrawEmblem(g, emblem, RectF(r.GetRight() - size - 14, r.Y + 4, size, size));
+}
+
+struct Row {
+    const wchar_t* title;
+    const wchar_t* detail;
+};
+
+// A glass card of rows; returns the vertical centre of each row for its control.
+std::vector<float> DrawSettingsCard(Graphics& g, const RectF& r, const std::vector<Row>& rows) {
+    DrawCard(g, r);
+    std::vector<float> centres;
+    const float rowHeight = (r.Height - 6) / rows.size();
+    for (size_t i = 0; i < rows.size(); i++) {
+        const float top = r.Y + 3 + i * rowHeight;
+        if (i > 0) {
+            SolidBrush line(White(18));
+            g.FillRectangle(&line, RectF(r.X + 1, top, r.Width - 2, 1));
+        }
+        Label(g, rows[i].title, RectF(r.X + 18, top + 9, r.Width - 280, 20), 13, Weight::Semibold, White(255));
+        Label(g, rows[i].detail, RectF(r.X + 18, top + 28, r.Width - 280, 18), 11, Weight::Regular,
+                 White(kSecondaryAlpha));
+        centres.push_back(top + rowHeight / 2);
+    }
+    return centres;
+}
+
+void DrawTypingPage(Graphics& g, const RectF& c) {
+    const Settings& s = *g_settings;
+    DrawHero(g, RectF(c.X, c.Y, c.Width, 112), L"Kiểu gõ", L"Chọn cách gõ dấu và cách Dokey xử lý chữ.", kMethod);
+    RectF card(c.X, c.Y + 124, c.Width, 4 * 52 + 6);
+    std::vector<float> y = DrawSettingsCard(g, card, {
+        {L"Kiểu gõ", L"Gõ dấu bằng chữ cái (Telex) hoặc chữ số (VNI)"},
+        {L"Kiểm tra chính tả", L"Giữ nguyên từ không phải tiếng Việt: windows, chrome…"},
+        {L"Đặt dấu kiểu mới", L"Bật: hoà, khoẻ, thuý · Tắt: hòa, khỏe, thúy"},
+        {L"Phím chuyển Anh/Việt", L"Dùng được ở mọi ứng dụng"},
+    });
+    const float right = card.GetRight() - 18;
+    const wchar_t* const methods[] = {L"Telex", L"VNI"};
+    DrawPills(g, right, y[0], 164, methods, 2, s.method == DOKEY_VNI ? 1 : 0, HOT_TELEX);
+    DrawToggle(g, right, y[1], s.checkSpelling, HOT_SPELLING);
+    DrawToggle(g, right, y[2], s.modernTone, HOT_TONE);
+    const wchar_t* const hotkeys[] = {L"Ctrl + Shift", L"Alt + Z"};
+    DrawPills(g, right, y[3], 200, hotkeys, 2, s.hotkey == HOTKEY_ALT_Z ? 1 : 0, HOT_CTRL_SHIFT);
+
+    const wchar_t* examples =
+        s.method == DOKEY_VNI
+            ? L"Ví dụ VNI:  Vie65t Nam → Việt Nam   ·   d9u7o7ng2 → đường   ·   1–5 = sắc huyền hỏi ngã nặng, "
+              L"6 = mũ, 7 = móc, 8 = trăng, 9 = đ"
+            : L"Ví dụ Telex:  Vieetj Nam → Việt Nam   ·   dduowngf → đường   ·   s f r x j = sắc huyền hỏi ngã nặng, "
+              L"aa ee oo = â ê ô, aw ow uw = ă ơ ư, dd = đ";
+    Label(g, examples, RectF(c.X + 2, card.GetBottom() + 12, c.Width - 4, 40), 12, Weight::Regular,
+             White(kSecondaryAlpha), StringAlignmentNear, StringAlignmentNear, true);
+}
+
+void DrawAppsPage(Graphics& g, const RectF& c, const PanelStatus& st) {
+    DrawHero(g, RectF(c.X, c.Y, c.Width, 112), L"Ứng dụng",
+             L"Dokey tự nhận biết trình duyệt, Electron và ứng dụng thường.", kApps);
+    RectF card(c.X, c.Y + 124, c.Width, 2 * 52 + 6);
+    std::vector<float> y = DrawSettingsCard(g, card, {
+        {L"Tương thích máy chậm", L"Nghỉ lâu hơn giữa phím xoá và chữ mới trong Chrome, Edge, Electron"},
+        {L"Khởi động cùng Windows", L"Tự chạy Dokey khi đăng nhập"},
+    });
+    const float right = card.GetRight() - 18;
+    DrawToggle(g, right, y[0], g_settings->chromiumPauseMs >= kSlowPauseMs, HOT_SLOW);
+    DrawToggle(g, right, y[1], IsStartupEnabled(), HOT_STARTUP);
+
+    const wchar_t* note =
+        L"Trình duyệt và ứng dụng Electron (Chrome, Edge, Cốc Cốc, VS Code, Zalo…): Dokey nghỉ một chút giữa phím "
+        L"xoá và chữ mới để trang web kịp xử lý. Ứng dụng thường (Notepad, Word, Excel…): Dokey xoá và gõ chữ mới "
+        L"trong một lần gửi phím.";
+    RectF noteRect(c.X + 2, card.GetBottom() + 12, c.Width - 4, 54);
+    Label(g, note, noteRect, 12, Weight::Regular, White(kSecondaryAlpha), StringAlignmentNear, StringAlignmentNear,
+             true);
+    if (!st.appName.empty()) {
+        std::wstring line = L"Ứng dụng vừa dùng: " + st.appName +
+                            (st.appChromium ? L" (trình duyệt, Electron)." : L" (ứng dụng thường).");
+        Label(g, line, RectF(c.X + 2, noteRect.GetBottom() + 6, c.Width - 4, 20), 12, Weight::Regular,
+                 White(kSecondaryAlpha));
+    }
+}
+
+void DrawAboutPage(Graphics& g, const RectF& c) {
+    const float cx = c.X + c.Width / 2;
+    DrawEmblem(g, kAbout, RectF(cx - 75, c.Y + 2, 150, 150));
+    float y = c.Y + 154;
+    Label(g, L"Dokey", RectF(c.X, y, c.Width, 44), 32, Weight::Bold, White(255), StringAlignmentCenter);
+    y += 46;
+    Label(g, std::wstring(L"Phiên bản ") + DOKEY_APP_VERSION_W, RectF(c.X, y, c.Width, 20), 13, Weight::Regular,
+             White(kSecondaryAlpha), StringAlignmentCenter);
+    y += 30;
+    Label(g,
+             L"Bộ gõ tiếng Việt cho Windows, chạy trên lõi Dokey Core.\n"
+             L"Mỗi phím, Dokey dựng lại cả từ và kiểm tra chính tả với 3.759 âm tiết,\n"
+             L"nên gõ đúng ngay lần đầu và giữ nguyên các từ tiếng Anh.",
+             RectF(c.X + c.Width * 0.1f, y, c.Width * 0.8f, 64), 13, Weight::Regular, White(kSecondaryAlpha),
+             StringAlignmentCenter, StringAlignmentNear, true);
+    y += 78;
+    DrawAccentButton(g, RectF(cx - 110, y, 220, 32), L"Trang dự án trên GitHub", HOT_GITHUB);
+    y += 46;
+    Label(g, L"© 2026 Do Huy Toan. All rights reserved.", RectF(c.X, y, c.Width, 18), 11, Weight::Regular,
+             White(115), StringAlignmentCenter);
+}
+
+// Draws the whole panel in 96-DPI units (the caller scales the Graphics).
+void Render(Graphics& g, const PanelStatus& st) {
+    g.SetSmoothingMode(SmoothingModeAntiAlias);
+    g.SetPixelOffsetMode(PixelOffsetModeHalf);
+    g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
+    g.SetCompositingQuality(CompositingQualityHighQuality);
+    g_hot.clear();
+
+    DrawBackground(g);
+    DrawSidebar(g);
+    Label(g, kTitles[g_page], RectF(kSidebar, 6, kWidth - kSidebar, 22), 13, Weight::Semibold, White(217),
+             StringAlignmentCenter, StringAlignmentCenter);
+    const RectF content(kSidebar + 22, 36, kWidth - kSidebar - 22 - 24, kHeight - 36 - 106);
+    switch (g_page) {
+        case PAGE_DASHBOARD: DrawDashboard(g, content, st); break;
+        case PAGE_TYPING: DrawTypingPage(g, content); break;
+        case PAGE_APPS: DrawAppsPage(g, content, st); break;
+        default: DrawAboutPage(g, content); break;
+    }
+    if (g_page != PAGE_ABOUT) {
+        const float cx = content.X + content.Width / 2;
+        DrawOrb(g, RectF(cx - 50, kHeight - 106, 100, 100), g_settings->vietnamese);
+    }
+}
+
+// ---- window --------------------------------------------------------------------------
+
+UINT DpiOf(HWND hwnd) {
+    using GetDpiForWindowFn = UINT(WINAPI*)(HWND);
+    static auto fn = reinterpret_cast<GetDpiForWindowFn>(
+        reinterpret_cast<void*>(GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForWindow")));
+    UINT dpi = fn ? fn(hwnd) : 96;
+    return dpi ? dpi : 96;
+}
+
+// Outer window rectangle for a 900x600 client area at `dpi`.
+SIZE WindowSizeFor(UINT dpi, DWORD style, DWORD exStyle) {
+    RECT r = {0, 0, MulDiv(static_cast<int>(kWidth), dpi, 96), MulDiv(static_cast<int>(kHeight), dpi, 96)};
+    using AdjustFn = BOOL(WINAPI*)(LPRECT, DWORD, BOOL, DWORD, UINT);
+    static auto adjust = reinterpret_cast<AdjustFn>(
+        reinterpret_cast<void*>(GetProcAddress(GetModuleHandleW(L"user32.dll"), "AdjustWindowRectExForDpi")));
+    if (adjust) {
+        adjust(&r, style, FALSE, exStyle, dpi);
+    } else {
+        AdjustWindowRectEx(&r, style, FALSE, exStyle);
+    }
+    return {r.right - r.left, r.bottom - r.top};
+}
+
+int HitTest(HWND hwnd, int x, int y) {
+    const float scale = DpiOf(hwnd) / 96.0f;
+    PointF p(x / scale, y / scale);
+    for (auto it = g_hot.rbegin(); it != g_hot.rend(); ++it) {
+        if (it->rect.Contains(p)) return it->id;
+    }
+    return HOT_NONE;
+}
+
+void Changed() {
+    if (g_callbacks.settingsChanged) g_callbacks.settingsChanged();
+    RefreshPanel();
+}
+
+void OnClick(int id) {
+    Settings& s = *g_settings;
+    if (id >= HOT_PAGE && id < HOT_PAGE + PAGE_COUNT) {
+        g_page = id - HOT_PAGE;
+        RefreshPanel();
+        return;
+    }
+    switch (id) {
+        case HOT_MODE:
+        case HOT_ORB: s.vietnamese = !s.vietnamese; break;
+        case HOT_TELEX: s.method = DOKEY_TELEX; break;
+        case HOT_VNI: s.method = DOKEY_VNI; break;
+        case HOT_SPELLING: s.checkSpelling = !s.checkSpelling; break;
+        case HOT_TONE: s.modernTone = !s.modernTone; break;
+        case HOT_CTRL_SHIFT: s.hotkey = HOTKEY_CTRL_SHIFT; break;
+        case HOT_ALT_Z: s.hotkey = HOTKEY_ALT_Z; break;
+        case HOT_SLOW: s.chromiumPauseMs = s.chromiumPauseMs >= kSlowPauseMs ? Settings().chromiumPauseMs : kSlowPauseMs; break;
+        case HOT_STARTUP:
+            SetStartupEnabled(!IsStartupEnabled());
+            RefreshPanel();
+            return;
+        case HOT_GITHUB:
+            ShellExecuteW(g_panel, L"open", L"https://github.com/dhtoan/Dokey", nullptr, nullptr, SW_SHOWNORMAL);
+            return;
+        default:
+            return;
+    }
+    Changed();
+}
+
+void Paint(HWND hwnd) {
+    PAINTSTRUCT ps;
+    HDC dc = BeginPaint(hwnd, &ps);
+    RECT client;
+    GetClientRect(hwnd, &client);
+    const int w = client.right, h = client.bottom;
+    if (w > 0 && h > 0) {
+        HDC memory = CreateCompatibleDC(dc);
+        HBITMAP bitmap = CreateCompatibleBitmap(dc, w, h);
+        HGDIOBJ old = SelectObject(memory, bitmap);
+        {
+            Graphics g(memory);
+            const float scale = DpiOf(hwnd) / 96.0f;
+            g.ScaleTransform(scale, scale);
+            Render(g, g_callbacks.status ? g_callbacks.status() : PanelStatus());
+        }
+        BitBlt(dc, 0, 0, w, h, memory, 0, 0, SRCCOPY);
+        SelectObject(memory, old);
+        DeleteObject(bitmap);
+        DeleteDC(memory);
+    }
+    EndPaint(hwnd, &ps);
+}
+
+LRESULT CALLBACK PanelProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_CREATE: {
+            // Dark title bar in the background's colour (Windows 11; ignored elsewhere).
+            BOOL dark = TRUE;
+            DwmSetWindowAttribute(hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &dark, sizeof(dark));
+            COLORREF caption = RGB(0x29, 0x10, 0x61), text = RGB(255, 255, 255);
+            DwmSetWindowAttribute(hwnd, 35 /* DWMWA_CAPTION_COLOR */, &caption, sizeof(caption));
+            DwmSetWindowAttribute(hwnd, 36 /* DWMWA_TEXT_COLOR */, &text, sizeof(text));
+            SetTimer(hwnd, kRefreshTimer, kRefreshMs, nullptr);
+            return 0;
+        }
+        case WM_PAINT:
+            Paint(hwnd);
+            return 0;
+        case WM_ERASEBKGND:
+            return 1;
+        case WM_MOUSEMOVE: {
+            if (!g_trackingMouse) {
+                TRACKMOUSEEVENT track = {sizeof(track), TME_LEAVE, hwnd, 0};
+                g_trackingMouse = TrackMouseEvent(&track) != FALSE;
+            }
+            int hot = HitTest(hwnd, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+            if (hot != g_hover) {
+                g_hover = hot;
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
+            return 0;
+        }
+        case WM_MOUSELEAVE:
+            g_trackingMouse = false;
+            if (g_hover != HOT_NONE) {
+                g_hover = HOT_NONE;
+                InvalidateRect(hwnd, nullptr, FALSE);
+            }
+            return 0;
+        case WM_SETCURSOR:
+            if (LOWORD(lParam) == HTCLIENT && g_hover != HOT_NONE) {
+                SetCursor(LoadCursorW(nullptr, IDC_HAND));
+                return TRUE;
+            }
+            break;
+        case WM_LBUTTONDOWN: {
+            int hot = HitTest(hwnd, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+            if (hot != HOT_NONE) OnClick(hot);
+            return 0;
+        }
+        case WM_KEYDOWN:
+            if (wParam == VK_ESCAPE) DestroyWindow(hwnd);
+            return 0;
+        case WM_TIMER:
+            if (wParam == kRefreshTimer && !IsIconic(hwnd)) InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        case WM_DPICHANGED: {
+            const RECT* r = reinterpret_cast<const RECT*>(lParam);
+            SetWindowPos(hwnd, nullptr, r->left, r->top, r->right - r->left, r->bottom - r->top,
+                         SWP_NOZORDER | SWP_NOACTIVATE);
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
+        case WM_DESTROY:
+            KillTimer(hwnd, kRefreshTimer);
+            g_panel = nullptr;
+            g_hover = HOT_NONE;
+            g_trackingMouse = false;
+            return 0;
+        default:
+            break;
+    }
+    return DefWindowProcW(hwnd, msg, wParam, lParam);
+}
+
+bool EncoderFor(const wchar_t* mime, CLSID* clsid) {
+    UINT count = 0, size = 0;
+    if (GetImageEncodersSize(&count, &size) != Ok || size == 0) return false;
+    std::vector<BYTE> buffer(size);
+    auto* codecs = reinterpret_cast<ImageCodecInfo*>(buffer.data());
+    if (GetImageEncoders(count, size, codecs) != Ok) return false;
+    for (UINT i = 0; i < count; i++) {
+        if (wcscmp(codecs[i].MimeType, mime) == 0) {
+            *clsid = codecs[i].Clsid;
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+bool InitPanel(HINSTANCE instance, Settings* settings, const PanelCallbacks& callbacks) {
+    GdiplusStartupInput input;
+    if (GdiplusStartup(&g_gdiplusToken, &input, nullptr) != Ok) return false;
+    g_instance = instance;
+    g_settings = settings;
+    g_callbacks = callbacks;
+    WNDCLASSEXW wc = {};
+    wc.cbSize = sizeof(wc);
+    wc.lpfnWndProc = PanelProc;
+    wc.hInstance = instance;
+    wc.hIcon = LoadIconW(instance, MAKEINTRESOURCEW(IDI_DOKEY));
+    wc.hIconSm = static_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(IDI_DOKEY), IMAGE_ICON,
+                                               GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), 0));
+    wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    wc.lpszClassName = kPanelClass;
+    RegisterClassExW(&wc);
+    return true;
+}
+
+void ShowPanel(int page) {
+    if (page >= 0 && page < PAGE_COUNT) g_page = page;
+    if (!g_panel) {
+        const DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+        const DWORD exStyle = WS_EX_APPWINDOW;
+        g_panel = CreateWindowExW(exStyle, kPanelClass, L"Dokey", style, CW_USEDEFAULT, CW_USEDEFAULT, 100, 100, nullptr,
+                                  nullptr, g_instance, nullptr);
+        if (!g_panel) return;
+        // Size for the DPI of the monitor the window landed on, centred in its work area.
+        SIZE size = WindowSizeFor(DpiOf(g_panel), style, exStyle);
+        MONITORINFO mi = {sizeof(mi)};
+        GetMonitorInfoW(MonitorFromWindow(g_panel, MONITOR_DEFAULTTOPRIMARY), &mi);
+        const RECT& work = mi.rcWork;
+        int x = work.left + std::max(0L, (work.right - work.left - size.cx) / 2);
+        int y = work.top + std::max(0L, (work.bottom - work.top - size.cy) / 2);
+        SetWindowPos(g_panel, nullptr, x, y, size.cx, size.cy, SWP_NOZORDER | SWP_NOACTIVATE);
+        ShowWindow(g_panel, SW_SHOW);
+    } else if (IsIconic(g_panel)) {
+        ShowWindow(g_panel, SW_RESTORE);
+    }
+    InvalidateRect(g_panel, nullptr, FALSE);
+    SetForegroundWindow(g_panel);
+}
+
+void RefreshPanel() {
+    if (g_panel) InvalidateRect(g_panel, nullptr, FALSE);
+}
+
+void ShutdownPanel() {
+    if (g_panel) DestroyWindow(g_panel);
+    if (g_gdiplusToken) GdiplusShutdown(g_gdiplusToken);
+    g_gdiplusToken = 0;
+}
+
+int RenderPanelImages(const wchar_t* prefix) {
+    CLSID png;
+    if (!EncoderFor(L"image/png", &png)) return 2;
+    PanelStatus demo;
+    demo.appName = L"Google Chrome";
+    demo.appChromium = true;
+    demo.markedWords = 128;
+    const Settings saved = *g_settings;
+    struct Shot {
+        int page;
+        float scale;
+        bool english;
+        bool ime;
+    };
+    // The four pages, the dashboard in English with an IME on, and at 150% scale.
+    const Shot shots[] = {{0, 1, false, false}, {1, 1, false, false}, {2, 1, false, false}, {3, 1, false, false},
+                          {0, 1, true, true},   {0, 1.5f, false, false}};
+    int failures = 0, n = 0;
+    for (const Shot& shot : shots) {
+        g_page = shot.page;
+        g_settings->vietnamese = !shot.english;
+        demo.imeActive = shot.ime;
+        Bitmap bitmap(static_cast<INT>(kWidth * shot.scale), static_cast<INT>(kHeight * shot.scale), PixelFormat32bppARGB);
+        {
+            Graphics g(&bitmap);
+            g.ScaleTransform(shot.scale, shot.scale);
+            Render(g, demo);
+        }
+        wchar_t path[MAX_PATH];
+        wsprintfW(path, L"%s-%d.png", prefix, ++n);
+        if (bitmap.Save(path, &png, nullptr) != Ok) failures++;
+    }
+    *g_settings = saved;
+    g_page = PAGE_DASHBOARD;
+    return failures ? 2 : 0;
+}
+
+} // namespace dokey_win

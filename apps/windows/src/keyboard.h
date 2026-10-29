@@ -19,5 +19,7 @@ void StopKeyboard();
 void UpdateKeyboard(const Settings& settings);
 // Set by the UI thread after asking the focused window's IME (see main.cpp).
 void SetImeActive(bool active);
+// Words Dokey added marks to since it started (for the control panel).
+unsigned MarkedWordCount();
 
 } // namespace dokey_win

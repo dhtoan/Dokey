@@ -50,7 +50,7 @@ New-Item -Path HKCU:\Software\Dokey -Force | Out-Null
 Set-ItemProperty -Path HKCU:\Software\Dokey -Name Vietnamese -Value 1 -Type DWord
 Set-ItemProperty -Path HKCU:\Software\Dokey -Name Method -Value 0 -Type DWord
 
-$dokey = Start-Process -FilePath $Exe -PassThru
+$dokey = Start-Process -FilePath $Exe -ArgumentList '--background' -PassThru
 Start-Sleep -Seconds 2
 $notepad = Start-Process -FilePath notepad.exe -PassThru
 $notepad.WaitForInputIdle() | Out-Null

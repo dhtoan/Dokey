@@ -39,12 +39,13 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../.." dokey_core EXCLUDE_FROM_ALL
 add_executable(Dokey WIN32
     src/main.cpp
     src/keyboard.cpp
+    src/panel.cpp
     src/settings.cpp
     res/dokey.rc
     res/dokey.manifest
 )
 target_include_directories(Dokey PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated" "${CMAKE_CURRENT_SOURCE_DIR}/res")
-target_link_libraries(Dokey PRIVATE dokey_core imm32 user32 gdi32 shell32 advapi32)
+target_link_libraries(Dokey PRIVATE dokey_core imm32 user32 gdi32 gdiplus dwmapi shell32 advapi32 version)
 target_compile_definitions(Dokey PRIVATE
     UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00)
 if(MSVC)

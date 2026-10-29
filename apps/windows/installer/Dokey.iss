@@ -57,7 +57,7 @@ Name: "{group}\Uninstall Dokey"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Dokey"; Filename: "{app}\Dokey.exe"; Tasks: desktopicon
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Dokey"; ValueData: """{app}\Dokey.exe"""; Tasks: startup; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Dokey"; ValueData: """{app}\Dokey.exe"" --background"; Tasks: startup; Flags: uninsdeletevalue
 
 [Run]
 Filename: "{app}\Dokey.exe"; Description: "{cm:LaunchProgram,Dokey}"; Flags: nowait postinstall skipifsilent

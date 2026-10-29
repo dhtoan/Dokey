@@ -73,8 +73,8 @@ void SetStartupEnabled(bool enabled) {
         wchar_t path[MAX_PATH];
         DWORD n = GetModuleFileNameW(nullptr, path, MAX_PATH);
         if (n > 0 && n < MAX_PATH) {
-            wchar_t command[MAX_PATH + 3];
-            wsprintfW(command, L"\"%s\"", path);
+            wchar_t command[MAX_PATH + 32];
+            wsprintfW(command, L"\"%s\" --background", path);  // start in the tray, no panel
             RegSetValueExW(key, kRunValue, 0, REG_SZ, reinterpret_cast<const BYTE*>(command),
                            static_cast<DWORD>((lstrlenW(command) + 1) * sizeof(wchar_t)));
         }
