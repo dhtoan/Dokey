@@ -10,7 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
     private var permissionWindow: PermissionWindowController?
     private var controlPanel: ControlPanelController?
     private var watchdog: Timer?
-    private var frontApp: (bundleID: String, name: String, kind: AppKind)?
+    private var frontApp: (bundleID: String, name: String, kind: AppKind, icon: NSImage?)?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -109,9 +109,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
 
     func panelShowPermission() { showPermissionGuide() }
 
-    var panelFrontApp: (name: String, kind: AppKind)? {
-        frontApp.map { ($0.name, $0.kind) }
+    var panelFrontApp: (name: String, kind: AppKind, icon: NSImage?)? {
+        frontApp.map { ($0.name, $0.kind, $0.icon) }
     }
+
+    var panelEditCount: Int { tap.editedWords }
 
     var panelTapRunning: Bool { tap.isRunning }
 
@@ -169,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         engine.reset()
         guard app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
         let id = app.bundleIdentifier ?? ""
-        frontApp = (id, app.localizedName ?? id, AppClassifier.classify(app))
+        frontApp = (id, app.localizedName ?? id, AppClassifier.classify(app), app.icon)
         if settings.rememberModePerApp, !id.isEmpty, let saved = settings.savedMode(forApp: id),
            saved != settings.vietnamese {
             setVietnamese(saved, remember: false)

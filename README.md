@@ -81,6 +81,7 @@ Xin chào các bạn, Dokey gõ tiếng Việt không nhảy chữ.
 - **0.3.2:**
   - Hết mất chữ khi gõ nhanh (`Haxy` → `Hy`): chữ thay thế không còn gửi kèm mã phím A, phím có thể vẫn đang được giữ.
   - Gõ `dduocwj` ra "được" mà chữ không nhảy qua lại `đ` ↔ `dd`.
+- **0.3.3:** bảng điều khiển thiết kế lại theo phong cách CleanMyMac: thẻ kính mờ, biểu tượng 3D, nút tròn phát sáng, thống kê số từ đã thêm dấu.
 
 Build bằng Command Line Tools, không cần Xcode:
 

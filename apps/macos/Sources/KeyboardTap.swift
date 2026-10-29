@@ -55,6 +55,19 @@ final class KeyboardTap {
 
     var isRunning: Bool { port != nil }
 
+    /// Words Dokey has changed (added marks to) since it started.
+    var editedWords: Int {
+        stateLock.lock(); defer { stateLock.unlock() }
+        return _editedWords
+    }
+    private var _editedWords = 0
+    private var wordCounted = false  // tap thread only
+
+    private func newWord() {
+        wordCounted = false
+        engine.reset()
+    }
+
     var isEnabled: Bool {
         guard let port = port else { return false }
         return CGEvent.tapIsEnabled(tap: port)
@@ -98,7 +111,7 @@ final class KeyboardTap {
     @discardableResult
     func ensureEnabled() -> Bool {
         guard let port = port, !CGEvent.tapIsEnabled(tap: port) else { return false }
-        engine.reset()
+        newWord()
         CGEvent.tapEnable(tap: port, enable: true)
         return true
     }
@@ -109,12 +122,12 @@ final class KeyboardTap {
         let pass = Unmanaged.passUnretained(event)
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
-            engine.reset()
+            newWord()
             if let port = port { CGEvent.tapEnable(tap: port, enable: true) }
             return pass
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
             modifierHotkeyArmed = false
-            engine.reset()
+            newWord()
             return pass
         case .flagsChanged:
             if modifierHotkeyReleased(event.flags) { requestToggle() }
@@ -145,12 +158,12 @@ final class KeyboardTap {
 
         // Holding a key down: treat what follows as a new word.
         if event.getIntegerValueField(.keyboardEventAutorepeat) != 0 {
-            engine.reset()
+            newWord()
             return pass
         }
         // Shortcuts (⌘, ⌃, ⌥ layers) never go to the engine.
         if !flags.intersection([.maskCommand, .maskControl, .maskAlternate]).isEmpty {
-            engine.reset()
+            newWord()
             return pass
         }
 
@@ -167,20 +180,25 @@ final class KeyboardTap {
             deliver(edit, typedKey: keyCode, proxy: proxy, state: current, then: event)
             return nil
         case KeyCode.escape, KeyCode.forwardDelete:
-            engine.reset()
+            newWord()
             return pass
         default:
             if KeyCode.caretMovers.contains(keyCode) {
-                engine.reset()
+                newWord()
                 return pass
             }
         }
 
         guard let ch = typedCharacter(event) else {
-            engine.reset()
+            newWord()
             return pass
         }
+        if !(ch >= 0x41 && ch <= 0x5A) && !(ch >= 0x61 && ch <= 0x7A) { wordCounted = false }
         guard let edit = engine.key(ch) else { return pass }
+        if !wordCounted && !edit.text.isEmpty {
+            wordCounted = true
+            stateLock.lock(); _editedWords += 1; stateLock.unlock()
+        }
         deliver(edit, typedKey: keyCode, proxy: proxy, state: current, then: nil)
         return nil
     }
@@ -202,7 +220,7 @@ final class KeyboardTap {
     }
 
     private func requestToggle() {
-        engine.reset()
+        newWord()
         DispatchQueue.main.async { [weak self] in self?.onToggle?() }
     }
 

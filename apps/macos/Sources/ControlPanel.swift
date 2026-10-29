@@ -7,8 +7,61 @@ protocol ControlPanelDelegate: AnyObject {
     /// Settings changed in the panel: apply them to the engine and the tap.
     func panelSettingsChanged()
     func panelShowPermission()
-    var panelFrontApp: (name: String, kind: AppKind)? { get }
+    var panelFrontApp: (name: String, kind: AppKind, icon: NSImage?)? { get }
     var panelTapRunning: Bool { get }
+    /// Words Dokey has added marks to since it started.
+    var panelEditCount: Int { get }
+}
+
+/// A glass card with a caption, a big value, a status line and a glossy
+/// emblem peeking in from the top-right corner.
+final class StatCard: GlassCard {
+    let caption = label("", size: 12, weight: .semibold, color: Palette.secondaryText)
+    let value = label("", size: 26, weight: .bold)
+    let status = label("", size: 12, weight: .medium, color: Palette.success)
+    let badge: GlossyBadge
+    private let accessory = NSStackView()
+
+    init(caption text: String, badge: GlossyBadge, badgeSize: CGFloat, valueSize: CGFloat = 26) {
+        self.badge = badge
+        super.init(frame: .zero)
+        caption.stringValue = text
+        value.font = .systemFont(ofSize: valueSize, weight: .bold)
+        value.lineBreakMode = .byTruncatingTail
+        value.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        accessory.orientation = .horizontal
+        for v in [badge, caption, value, status, accessory] as [NSView] {
+            v.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(v)
+        }
+        NSLayoutConstraint.activate([
+            badge.widthAnchor.constraint(equalToConstant: badgeSize),
+            badge.heightAnchor.constraint(equalToConstant: badgeSize),
+            badge.trailingAnchor.constraint(equalTo: trailingAnchor, constant: badgeSize * 0.18),
+            badge.topAnchor.constraint(equalTo: topAnchor, constant: -badgeSize * 0.14),
+            caption.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            caption.topAnchor.constraint(equalTo: topAnchor, constant: 17),
+            value.leadingAnchor.constraint(equalTo: caption.leadingAnchor),
+            value.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -14),
+            status.leadingAnchor.constraint(equalTo: caption.leadingAnchor),
+            status.topAnchor.constraint(equalTo: value.bottomAnchor, constant: 2),
+            accessory.leadingAnchor.constraint(equalTo: caption.leadingAnchor),
+            accessory.topAnchor.constraint(equalTo: status.bottomAnchor, constant: 8),
+            accessory.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    func setAccessory(_ view: NSView?) {
+        accessory.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        if let view = view { accessory.addArrangedSubview(view) }
+    }
+
+    func setStatus(_ text: String, ok: Bool) {
+        status.stringValue = (ok ? "✓  " : "●  ") + text
+        status.textColor = ok ? Palette.success : Palette.warning
+    }
 }
 
 final class ControlPanelController: NSWindowController, NSWindowDelegate {
@@ -17,19 +70,35 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
 
     private let settings = Settings.shared
     private let content = NSView()
+    private let pageTitle = label("", size: 13, weight: .semibold, color: NSColor(white: 1, alpha: 0.85))
     private var pages: [NSView] = []
     private var sidebarButtons: [SidebarButton] = []
+    private let titles = ["Bảng điều khiển", "Kiểu gõ", "Ứng dụng", "Giới thiệu"]
+    private let orb = OrbButton()
+    private var timer: Timer?
 
     // Dashboard
-    private let power = PowerButton()
-    private let modeTitle = label("", size: 24, weight: .bold)
-    private let modeSubtitle = label("", size: 13, color: Palette.secondaryText)
-    private let permissionValue = label("", size: 14, weight: .semibold)
+    private let modeCard = StatCard(caption: "Chế độ gõ",
+                                    badge: GlossyBadge(shape: .squircle, top: NSColor(red: 0.98, green: 0.45, blue: 0.86, alpha: 1),
+                                                       bottom: NSColor(red: 0.62, green: 0.16, blue: 0.80, alpha: 1), symbol: .text("V")),
+                                    badgeSize: 190, valueSize: 34)
+    private let permissionCard = StatCard(caption: "Quyền Trợ năng",
+                                          badge: GlossyBadge(shape: .shield, top: NSColor(red: 0.40, green: 0.92, blue: 0.62, alpha: 1),
+                                                             bottom: NSColor(red: 0.05, green: 0.55, blue: 0.40, alpha: 1), symbol: .check),
+                                          badgeSize: 130)
+    private let methodCard = StatCard(caption: "Kiểu gõ",
+                                      badge: GlossyBadge(shape: .hexagon, top: NSColor(red: 1.0, green: 0.68, blue: 0.40, alpha: 1),
+                                                         bottom: NSColor(red: 0.85, green: 0.30, blue: 0.20, alpha: 1), symbol: .keycap),
+                                      badgeSize: 112)
+    private let appCard = StatCard(caption: "Ứng dụng đang dùng",
+                                   badge: GlossyBadge(shape: .hexagon, top: NSColor(red: 0.42, green: 0.62, blue: 1.0, alpha: 1),
+                                                      bottom: NSColor(red: 0.18, green: 0.25, blue: 0.85, alpha: 1), symbol: .grid),
+                                   badgeSize: 112)
+    private let countCard = StatCard(caption: "Đã thêm dấu",
+                                     badge: GlossyBadge(shape: .circle, top: NSColor(red: 0.35, green: 0.95, blue: 0.90, alpha: 1),
+                                                        bottom: NSColor(red: 0.05, green: 0.55, blue: 0.70, alpha: 1), symbol: .bolt),
+                                     badgeSize: 112)
     private let permissionButton = AccentButton(title: "Cấp quyền")
-    private let appValue = label("", size: 14, weight: .semibold)
-    private let appDetail = label("", size: 11, color: Palette.secondaryText)
-    private let methodValue = label("", size: 14, weight: .semibold)
-    private let methodDetail = label("", size: 11, color: Palette.secondaryText)
 
     // Typing
     private let methodPicker = PillPicker(options: ["Telex", "VNI"])
@@ -46,7 +115,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     private let currentAppLine = label("", size: 12, color: Palette.secondaryText, wrapping: true)
 
     convenience init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 540),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
                               styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
         window.titlebarAppearsTransparent = true
@@ -70,16 +139,18 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         guard let window = window else { return }
         let background = GradientView()
         background.colors = [Palette.backgroundTop, Palette.backgroundMiddle, Palette.backgroundBottom]
+        background.wantsLayer = true
         window.contentView = background
 
         let sidebar = GradientView()
-        sidebar.colors = [NSColor(white: 0, alpha: 0.30), NSColor(white: 0, alpha: 0.18)]
+        sidebar.glows = false
+        sidebar.colors = [NSColor(white: 0, alpha: 0.22), NSColor(white: 0, alpha: 0.10)]
         sidebar.angle = -90
-        let divider = NSView()
-        divider.wantsLayer = true
-        divider.layer?.backgroundColor = NSColor(white: 1, alpha: 0.08).cgColor
 
-        for view in [sidebar, divider, content] {
+        orb.target = self
+        orb.action = #selector(orbClicked)
+
+        for view in [sidebar, content, pageTitle, orb] {
             view.translatesAutoresizingMaskIntoConstraints = false
             background.addSubview(view)
         }
@@ -87,15 +158,17 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
             sidebar.leadingAnchor.constraint(equalTo: background.leadingAnchor),
             sidebar.topAnchor.constraint(equalTo: background.topAnchor),
             sidebar.bottomAnchor.constraint(equalTo: background.bottomAnchor),
-            sidebar.widthAnchor.constraint(equalToConstant: 210),
-            divider.leadingAnchor.constraint(equalTo: sidebar.trailingAnchor),
-            divider.topAnchor.constraint(equalTo: background.topAnchor),
-            divider.bottomAnchor.constraint(equalTo: background.bottomAnchor),
-            divider.widthAnchor.constraint(equalToConstant: 1),
-            content.leadingAnchor.constraint(equalTo: divider.trailingAnchor),
-            content.trailingAnchor.constraint(equalTo: background.trailingAnchor),
-            content.topAnchor.constraint(equalTo: background.topAnchor),
-            content.bottomAnchor.constraint(equalTo: background.bottomAnchor),
+            sidebar.widthAnchor.constraint(equalToConstant: 68),
+            pageTitle.centerXAnchor.constraint(equalTo: background.centerXAnchor),
+            pageTitle.topAnchor.constraint(equalTo: background.topAnchor, constant: 7),
+            content.leadingAnchor.constraint(equalTo: sidebar.trailingAnchor, constant: 22),
+            content.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -24),
+            content.topAnchor.constraint(equalTo: background.topAnchor, constant: 44),
+            content.bottomAnchor.constraint(equalTo: orb.topAnchor, constant: 2),
+            orb.centerXAnchor.constraint(equalTo: content.centerXAnchor),
+            orb.bottomAnchor.constraint(equalTo: background.bottomAnchor, constant: -8),
+            orb.widthAnchor.constraint(equalToConstant: 100),
+            orb.heightAnchor.constraint(equalToConstant: 100),
         ])
         buildSidebar(in: sidebar)
 
@@ -104,58 +177,46 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
             page.translatesAutoresizingMaskIntoConstraints = false
             content.addSubview(page)
             NSLayoutConstraint.activate([
-                page.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 32),
-                page.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -32),
-                page.topAnchor.constraint(equalTo: content.topAnchor, constant: 52),
-                page.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -24),
+                page.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+                page.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+                page.topAnchor.constraint(equalTo: content.topAnchor),
+                page.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor),
             ])
         }
-        select(page: 0)
+        select(page: 0, animated: false)
     }
 
     private func buildSidebar(in sidebar: NSView) {
         let icon = NSImageView(image: NSApp.applicationIconImage ?? NSImage())
         icon.imageScaling = .scaleProportionallyUpOrDown
-        let name = label("Dokey", size: 17, weight: .bold)
-        let version = label("Phiên bản \(Self.version)", size: 11, color: Palette.secondaryText)
-        let titles = [("Bảng điều khiển", "◉"), ("Kiểu gõ", "Aa"), ("Ứng dụng", "▦"), ("Giới thiệu", "ⓘ")]
         let stack = NSStackView()
         stack.orientation = .vertical
-        stack.alignment = .leading
-        stack.spacing = 4
-        for (i, item) in titles.enumerated() {
-            let b = SidebarButton(title: item.0, glyph: item.1)
+        stack.spacing = 8
+        let icons: [SidebarButton.Icon] = [.dashboard, .keyboard, .apps, .info]
+        for (i, kind) in icons.enumerated() {
+            let b = SidebarButton(icon: kind, tooltip: titles[i])
             b.tag = i
             b.target = self
             b.action = #selector(sidebarClicked(_:))
             sidebarButtons.append(b)
             stack.addArrangedSubview(b)
-            b.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         }
-        let footer = label("© 2026 Do Huy Toan", size: 10, color: NSColor(white: 1, alpha: 0.4))
-
-        for view in [icon, name, version, stack, footer] {
+        for view in [icon, stack] {
             view.translatesAutoresizingMaskIntoConstraints = false
             sidebar.addSubview(view)
         }
         NSLayoutConstraint.activate([
-            icon.topAnchor.constraint(equalTo: sidebar.topAnchor, constant: 44),
-            icon.leadingAnchor.constraint(equalTo: sidebar.leadingAnchor, constant: 18),
-            icon.widthAnchor.constraint(equalToConstant: 44),
-            icon.heightAnchor.constraint(equalToConstant: 44),
-            name.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 10),
-            name.topAnchor.constraint(equalTo: icon.topAnchor, constant: 3),
-            version.leadingAnchor.constraint(equalTo: name.leadingAnchor),
-            version.topAnchor.constraint(equalTo: name.bottomAnchor, constant: 1),
-            stack.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 28),
-            stack.leadingAnchor.constraint(equalTo: sidebar.leadingAnchor, constant: 12),
-            stack.trailingAnchor.constraint(equalTo: sidebar.trailingAnchor, constant: -12),
-            footer.leadingAnchor.constraint(equalTo: sidebar.leadingAnchor, constant: 18),
-            footer.bottomAnchor.constraint(equalTo: sidebar.bottomAnchor, constant: -16),
+            icon.topAnchor.constraint(equalTo: sidebar.topAnchor, constant: 40),
+            icon.centerXAnchor.constraint(equalTo: sidebar.centerXAnchor),
+            icon.widthAnchor.constraint(equalToConstant: 38),
+            icon.heightAnchor.constraint(equalToConstant: 38),
+            stack.topAnchor.constraint(equalTo: icon.bottomAnchor, constant: 22),
+            stack.centerXAnchor.constraint(equalTo: sidebar.centerXAnchor),
         ])
     }
 
-    private func vertical(_ views: [NSView], spacing: CGFloat = 14, alignment: NSLayoutConstraint.Attribute = .leading) -> NSStackView {
+    private func vertical(_ views: [NSView], spacing: CGFloat = 14,
+                          alignment: NSLayoutConstraint.Attribute = .leading) -> NSStackView {
         let stack = NSStackView(views: views)
         stack.orientation = .vertical
         stack.alignment = alignment
@@ -163,15 +224,44 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         return stack
     }
 
-    /// A card holding rows of "title + explanation ... control".
-    private func settingsCard(_ rows: [(String, String, NSView)]) -> CardView {
-        let card = CardView()
+    private func horizontal(_ views: [NSView], spacing: CGFloat = 12) -> NSStackView {
+        let stack = NSStackView(views: views)
+        stack.orientation = .horizontal
+        stack.alignment = .top
+        stack.spacing = spacing
+        return stack
+    }
+
+    /// A page header card: big title and subtitle with a glossy emblem.
+    private func heroCard(_ title: String, _ subtitle: String, badge: GlossyBadge) -> GlassCard {
+        let card = GlassCard()
+        let text = vertical([label(title, size: 28, weight: .bold),
+                             label(subtitle, size: 13, color: Palette.secondaryText)], spacing: 4)
+        for v in [badge, text] as [NSView] {
+            v.translatesAutoresizingMaskIntoConstraints = false
+            card.addSubview(v)
+        }
+        NSLayoutConstraint.activate([
+            card.heightAnchor.constraint(equalToConstant: 112),
+            text.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 20),
+            text.centerYAnchor.constraint(equalTo: card.centerYAnchor),
+            badge.widthAnchor.constraint(equalToConstant: 150),
+            badge.heightAnchor.constraint(equalToConstant: 150),
+            badge.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: 10),
+            badge.centerYAnchor.constraint(equalTo: card.centerYAnchor, constant: 8),
+        ])
+        return card
+    }
+
+    /// A glass card holding rows of "title + explanation ... control".
+    private func settingsCard(_ rows: [(String, String, NSView)]) -> GlassCard {
+        let card = GlassCard()
         let stack = vertical([], spacing: 0)
         for (i, row) in rows.enumerated() {
             if i > 0 {
                 let line = NSView()
                 line.wantsLayer = true
-                line.layer?.backgroundColor = NSColor(white: 1, alpha: 0.08).cgColor
+                line.layer?.backgroundColor = NSColor(white: 1, alpha: 0.07).cgColor
                 line.heightAnchor.constraint(equalToConstant: 1).isActive = true
                 stack.addArrangedSubview(line)
                 line.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
@@ -183,7 +273,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
             let line = NSStackView(views: [text, spacer, row.2])
             line.orientation = .horizontal
             line.alignment = .centerY
-            line.edgeInsets = NSEdgeInsets(top: 12, left: 18, bottom: 12, right: 18)
+            line.edgeInsets = NSEdgeInsets(top: 11, left: 18, bottom: 11, right: 18)
             stack.addArrangedSubview(line)
             line.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         }
@@ -192,14 +282,10 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: card.leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-            stack.topAnchor.constraint(equalTo: card.topAnchor, constant: 4),
-            stack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -4),
+            stack.topAnchor.constraint(equalTo: card.topAnchor, constant: 3),
+            stack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -3),
         ])
         return card
-    }
-
-    private func pageHeader(_ title: String, _ subtitle: String) -> NSView {
-        vertical([label(title, size: 26, weight: .bold), label(subtitle, size: 13, color: Palette.secondaryText)], spacing: 4)
     }
 
     private func fullWidth(_ views: [NSView], in stack: NSStackView) {
@@ -209,41 +295,24 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     // MARK: - Pages
 
     private func dashboardPage() -> NSView {
-        power.target = self
-        power.action = #selector(powerClicked)
-        power.widthAnchor.constraint(equalToConstant: 190).isActive = true
-        power.heightAnchor.constraint(equalToConstant: 190).isActive = true
-
         permissionButton.target = self
         permissionButton.action = #selector(permissionClicked)
+        modeCard.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(orbClicked)))
+        modeCard.toolTip = "Bấm để chuyển Anh/Việt"
 
-        func statusCard(_ caption: String, _ value: NSTextField, _ detail: NSView) -> CardView {
-            let card = CardView()
-            let stack = vertical([label(caption, size: 11, weight: .semibold, color: Palette.secondaryText),
-                                  value, detail], spacing: 6)
-            stack.translatesAutoresizingMaskIntoConstraints = false
-            card.addSubview(stack)
-            NSLayoutConstraint.activate([
-                stack.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
-                stack.trailingAnchor.constraint(lessThanOrEqualTo: card.trailingAnchor, constant: -12),
-                stack.topAnchor.constraint(equalTo: card.topAnchor, constant: 14),
-                stack.bottomAnchor.constraint(lessThanOrEqualTo: card.bottomAnchor, constant: -14),
-                card.heightAnchor.constraint(equalToConstant: 112),
-            ])
-            return card
-        }
-        let cards = NSStackView(views: [
-            statusCard("Quyền Trợ năng", permissionValue, permissionButton),
-            statusCard("Ứng dụng đang dùng", appValue, appDetail),
-            statusCard("Kiểu gõ", methodValue, methodDetail),
+        let top = horizontal([modeCard, permissionCard])
+        let bottom = horizontal([methodCard, appCard, countCard])
+        bottom.distribution = .fillEqually
+        let page = vertical([top, bottom], spacing: 12)
+        fullWidth([top, bottom], in: page)
+        NSLayoutConstraint.activate([
+            modeCard.heightAnchor.constraint(equalToConstant: 232),
+            permissionCard.heightAnchor.constraint(equalTo: modeCard.heightAnchor),
+            modeCard.widthAnchor.constraint(equalTo: permissionCard.widthAnchor, multiplier: 1.9),
+            methodCard.heightAnchor.constraint(equalToConstant: 196),
+            appCard.heightAnchor.constraint(equalTo: methodCard.heightAnchor),
+            countCard.heightAnchor.constraint(equalTo: methodCard.heightAnchor),
         ])
-        cards.orientation = .horizontal
-        cards.distribution = .fillEqually
-        cards.spacing = 12
-
-        let hero = vertical([power, modeTitle, modeSubtitle], spacing: 8, alignment: .centerX)
-        let page = vertical([hero, cards], spacing: 26, alignment: .centerX)
-        cards.widthAnchor.constraint(equalTo: page.widthAnchor).isActive = true
         return page
     }
 
@@ -263,24 +332,18 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         hotkeyPopup.action = #selector(hotkeyChanged)
         hotkeyPopup.widthAnchor.constraint(equalToConstant: 240).isActive = true
 
+        let hero = heroCard("Kiểu gõ", "Chọn cách gõ dấu và cách Dokey xử lý chữ.",
+                            badge: GlossyBadge(shape: .hexagon, top: NSColor(red: 1.0, green: 0.68, blue: 0.40, alpha: 1),
+                                               bottom: NSColor(red: 0.85, green: 0.30, blue: 0.20, alpha: 1), symbol: .keycap))
         let card = settingsCard([
-            ("Kiểu gõ", "Cách gõ dấu bằng chữ cái (Telex) hoặc chữ số (VNI)", methodPicker),
+            ("Kiểu gõ", "Gõ dấu bằng chữ cái (Telex) hoặc chữ số (VNI)", methodPicker),
             ("Bảng mã", "Dựng sẵn hợp với mọi ứng dụng; tổ hợp tách riêng dấu thanh", encodingPicker),
             ("Kiểm tra chính tả", "Giữ nguyên từ không phải tiếng Việt: windows, chrome…", spellingSwitch),
             ("Đặt dấu kiểu mới", "Bật: hoà, khoẻ, thuý · Tắt: hòa, khỏe, thúy", toneSwitch),
             ("Phím chuyển Anh/Việt", "Dùng được ở mọi ứng dụng", hotkeyPopup),
         ])
-        let exampleCard = CardView()
-        examples.translatesAutoresizingMaskIntoConstraints = false
-        exampleCard.addSubview(examples)
-        NSLayoutConstraint.activate([
-            examples.leadingAnchor.constraint(equalTo: exampleCard.leadingAnchor, constant: 18),
-            examples.trailingAnchor.constraint(equalTo: exampleCard.trailingAnchor, constant: -18),
-            examples.topAnchor.constraint(equalTo: exampleCard.topAnchor, constant: 12),
-            examples.bottomAnchor.constraint(equalTo: exampleCard.bottomAnchor, constant: -12),
-        ])
-        let page = vertical([pageHeader("Kiểu gõ", "Chọn cách gõ và cách Dokey xử lý chữ."), card, exampleCard], spacing: 16)
-        fullWidth([card, exampleCard], in: page)
+        let page = vertical([hero, card, examples], spacing: 12)
+        fullWidth([hero, card, examples], in: page)
         return page
     }
 
@@ -292,40 +355,28 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         loginSwitch.target = self
         loginSwitch.action = #selector(loginChanged)
 
+        let hero = heroCard("Ứng dụng", "Dokey tự nhận biết trình duyệt, Electron và ứng dụng thường.",
+                            badge: GlossyBadge(shape: .hexagon, top: NSColor(red: 0.42, green: 0.62, blue: 1.0, alpha: 1),
+                                               bottom: NSColor(red: 0.18, green: 0.25, blue: 0.85, alpha: 1), symbol: .grid))
         let card = settingsCard([
             ("Nhớ chế độ theo ứng dụng", "Mỗi ứng dụng giữ chế độ Anh/Việt của riêng nó", perAppSwitch),
-            ("Tương thích máy chậm", "Gửi phím chậm hơn trong Chrome, Edge, Claude, VS Code…", slowSwitch),
+            ("Tương thích máy chậm", "Thêm 2 ms nghỉ trong Chrome, Edge, Claude, VS Code…", slowSwitch),
             ("Khởi động cùng macOS", "Tự chạy Dokey khi đăng nhập", loginSwitch),
         ])
-        let info = CardView()
-        let infoText = vertical([
-            label("Dokey tự nhận biết ứng dụng", size: 13, weight: .semibold),
-            label("""
-            • Trình duyệt (Chrome, Edge, Cốc Cốc, Brave, Arc, Firefox) và \
-            ứng dụng Electron/IDE (Claude, VS Code, Slack, Zalo…): Dokey bôi đen chữ cũ rồi gõ đè, \
-            gửi từng ký tự và nghỉ rất ngắn giữa các phím, để không mất hay lặp chữ.
-            • Ứng dụng thường (TextEdit, Notes, Pages, Terminal…): gửi Backspace và chữ mới ngay.
-            """, size: 12, color: Palette.secondaryText, wrapping: true),
-            currentAppLine,
-        ], spacing: 8)
-        infoText.translatesAutoresizingMaskIntoConstraints = false
-        info.addSubview(infoText)
-        NSLayoutConstraint.activate([
-            infoText.leadingAnchor.constraint(equalTo: info.leadingAnchor, constant: 18),
-            infoText.trailingAnchor.constraint(equalTo: info.trailingAnchor, constant: -18),
-            infoText.topAnchor.constraint(equalTo: info.topAnchor, constant: 14),
-            infoText.bottomAnchor.constraint(equalTo: info.bottomAnchor, constant: -14),
-        ])
-        let page = vertical([pageHeader("Ứng dụng", "Dokey làm việc thế nào với từng ứng dụng."), card, info], spacing: 16)
-        fullWidth([card, info], in: page)
+        let note = label("""
+        Trình duyệt và ứng dụng Electron/IDE (Claude, VS Code, Slack, Zalo…): Dokey bôi đen chữ cũ rồi gõ đè cả cụm chữ mới. \
+        Ứng dụng thường (TextEdit, Notes, Terminal…): Dokey dùng Backspace.
+        """, size: 12, color: Palette.secondaryText, wrapping: true)
+        let page = vertical([hero, card, note, currentAppLine], spacing: 12)
+        fullWidth([hero, card, note, currentAppLine], in: page)
         return page
     }
 
     private func aboutPage() -> NSView {
-        let icon = NSImageView(image: NSApp.applicationIconImage ?? NSImage())
-        icon.imageScaling = .scaleProportionallyUpOrDown
-        icon.widthAnchor.constraint(equalToConstant: 112).isActive = true
-        icon.heightAnchor.constraint(equalToConstant: 112).isActive = true
+        let badge = GlossyBadge(shape: .squircle, top: NSColor(red: 0.98, green: 0.45, blue: 0.86, alpha: 1),
+                                bottom: NSColor(red: 0.45, green: 0.20, blue: 0.95, alpha: 1), symbol: .text("đ"))
+        badge.widthAnchor.constraint(equalToConstant: 150).isActive = true
+        badge.heightAnchor.constraint(equalToConstant: 150).isActive = true
         let text = label("""
         Bộ gõ tiếng Việt cho macOS, chạy trên lõi Dokey Core.
         Mỗi phím, Dokey dựng lại cả từ và kiểm tra chính tả với 3.759 âm tiết,
@@ -335,13 +386,13 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         let link = AccentButton(title: "Trang dự án trên GitHub")
         link.target = self
         link.action = #selector(openGitHub)
-        let page = vertical([icon, label("Dokey", size: 30, weight: .bold),
+        let page = vertical([badge, label("Dokey", size: 32, weight: .bold),
                              label("Phiên bản \(Self.version)", size: 13, color: Palette.secondaryText),
                              text, link,
                              label("© 2026 Do Huy Toan. All rights reserved.", size: 11, color: NSColor(white: 1, alpha: 0.45))],
-                            spacing: 10, alignment: .centerX)
-        page.setCustomSpacing(18, after: text)
-        text.widthAnchor.constraint(equalTo: page.widthAnchor, multiplier: 0.85).isActive = true
+                            spacing: 8, alignment: .centerX)
+        page.setCustomSpacing(16, after: text)
+        text.widthAnchor.constraint(equalTo: page.widthAnchor, multiplier: 0.8).isActive = true
         return page
     }
 
@@ -354,41 +405,63 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     func refresh() {
         guard isWindowLoaded else { return }
         let vietnamese = settings.vietnamese
-        power.isOn = vietnamese
-        modeTitle.stringValue = vietnamese ? "Đang gõ tiếng Việt" : "Đang gõ tiếng Anh"
-        modeSubtitle.stringValue = "Bấm vào nút tròn hoặc \(settings.hotkey.shortTitle) để chuyển"
+        orb.isLit = vietnamese
+        orb.title = vietnamese ? "Tắt" : "Bật"
+        orb.toolTip = vietnamese ? "Chuyển sang gõ tiếng Anh" : "Chuyển sang gõ tiếng Việt"
+        modeCard.value.stringValue = vietnamese ? "Tiếng Việt" : "Tiếng Anh"
+        modeCard.badge.symbol = .text(vietnamese ? "V" : "E")
+        modeCard.setStatus(vietnamese ? "Đang bật · \(settings.hotkey.shortTitle) để chuyển" : "Đang tắt · \(settings.hotkey.shortTitle) để bật", ok: vietnamese)
 
         let ready = Accessibility.isTrusted && (delegate?.panelTapRunning ?? false)
-        permissionValue.stringValue = ready ? "✓ Đã sẵn sàng" : "Chưa có quyền"
-        permissionValue.textColor = ready ? Palette.accentStart : Palette.warning
-        permissionButton.isHidden = ready
-
-        if let app = delegate?.panelFrontApp {
-            appValue.stringValue = app.name
-            appDetail.stringValue = "Nhóm: \(app.kind.title)"
-            currentAppLine.stringValue = "Ứng dụng vừa dùng: \(app.name) (\(app.kind.title))."
-        } else {
-            appValue.stringValue = "—"
-            appDetail.stringValue = ""
-            currentAppLine.stringValue = ""
-        }
+        permissionCard.value.stringValue = ready ? "Sẵn sàng" : "Chưa cấp"
+        permissionCard.setStatus(ready ? "Dokey đang nghe bàn phím" : "Cần quyền để gõ tiếng Việt", ok: ready)
+        permissionCard.setAccessory(ready ? nil : permissionButton)
+        permissionCard.badge.symbol = ready ? .check : .text("!")
+        permissionCard.badge.top = ready ? NSColor(red: 0.40, green: 0.92, blue: 0.62, alpha: 1)
+                                         : NSColor(red: 1.0, green: 0.78, blue: 0.40, alpha: 1)
+        permissionCard.badge.bottom = ready ? NSColor(red: 0.05, green: 0.55, blue: 0.40, alpha: 1)
+                                            : NSColor(red: 0.90, green: 0.40, blue: 0.10, alpha: 1)
 
         let vni = settings.method == Int32(DOKEY_VNI)
         let combining = settings.encoding == Int32(DOKEY_UNICODE_COMBINING)
-        methodValue.stringValue = vni ? "VNI" : "Telex"
-        methodDetail.stringValue = combining ? "Unicode tổ hợp" : "Unicode dựng sẵn"
+        methodCard.value.stringValue = vni ? "VNI" : "Telex"
+        methodCard.setStatus(combining ? "Unicode tổ hợp" : "Unicode dựng sẵn", ok: true)
+
+        if let app = delegate?.panelFrontApp {
+            appCard.value.stringValue = app.name
+            appCard.setStatus("Nhóm: \(app.kind.title)", ok: true)
+            appCard.badge.symbol = app.icon.map { .image($0) } ?? .grid
+            currentAppLine.stringValue = "Ứng dụng vừa dùng: \(app.name) (\(app.kind.title))."
+        } else {
+            appCard.value.stringValue = "—"
+            appCard.setStatus("Chưa có", ok: false)
+            appCard.badge.symbol = .grid
+            currentAppLine.stringValue = ""
+        }
+
+        let count = delegate?.panelEditCount ?? 0
+        countCard.value.stringValue = "\(Self.grouped(count)) từ"
+        countCard.setStatus("từ lúc mở Dokey", ok: true)
+
         methodPicker.selectedIndex = vni ? 1 : 0
         encodingPicker.selectedIndex = combining ? 1 : 0
         spellingSwitch.isOn = settings.checkSpelling
         toneSwitch.isOn = settings.modernToneStyle
         hotkeyPopup.selectItem(at: settings.hotkey.rawValue)
         examples.stringValue = vni
-            ? "Ví dụ VNI:  Vie65t Nam → Việt Nam   ·   d9u7o7ng2 → đường   ·   1 2 3 4 5 = sắc huyền hỏi ngã nặng, 6 = mũ, 7 = móc, 8 = trăng, 9 = đ"
+            ? "Ví dụ VNI:  Vie65t Nam → Việt Nam   ·   d9u7o7ng2 → đường   ·   1–5 = sắc huyền hỏi ngã nặng, 6 = mũ, 7 = móc, 8 = trăng, 9 = đ"
             : "Ví dụ Telex:  Vieetj Nam → Việt Nam   ·   dduowngf → đường   ·   s f r x j = sắc huyền hỏi ngã nặng, aa ee oo = â ê ô, aw ow uw = ă ơ ư, dd = đ"
 
         perAppSwitch.isOn = settings.rememberModePerApp
         slowSwitch.isOn = settings.slowMachineMode
         loginSwitch.isOn = LoginItem.isEnabled
+    }
+
+    private static func grouped(_ n: Int) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.groupingSeparator = "."
+        return f.string(from: NSNumber(value: n)) ?? "\(n)"
     }
 
     func present() {
@@ -397,24 +470,41 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
+        modeCard.badge.startFloating()
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in self?.refresh() }
     }
 
     func windowWillClose(_ notification: Notification) {
+        timer?.invalidate()
+        timer = nil
         onClose?()
     }
 
-    func showPage(_ index: Int) { select(page: index) }
+    func showPage(_ index: Int) { select(page: index, animated: false) }
 
-    private func select(page index: Int) {
+    private func select(page index: Int, animated: Bool = true) {
         for (i, page) in pages.enumerated() { page.isHidden = i != index }
         for (i, b) in sidebarButtons.enumerated() { b.isSelected = i == index }
+        pageTitle.stringValue = titles[index]
+        orb.isHidden = index == 3
+        guard let page = pages[safe: index] else { return }
+        guard animated else {
+            page.alphaValue = 1
+            return
+        }
+        page.alphaValue = 0
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.22
+            page.animator().alphaValue = 1
+        }, completionHandler: nil)
     }
 
     // MARK: - Actions
 
     @objc private func sidebarClicked(_ sender: SidebarButton) { select(page: sender.tag) }
 
-    @objc private func powerClicked() {
+    @objc private func orbClicked() {
         delegate?.panelToggleMode()
         refresh()
     }
@@ -474,4 +564,8 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         delegate?.panelSettingsChanged()
         refresh()
     }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
 }

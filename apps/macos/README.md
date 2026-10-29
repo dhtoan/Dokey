@@ -12,19 +12,19 @@ Chỉ cần **Command Line Tools** (`xcode-select --install`), không cần Xcod
 
 ```bash
 apps/macos/build.sh          # -> apps/macos/build/Dokey.app
-apps/macos/build.sh --dmg    # thêm apps/macos/build/Dokey-0.3.2.dmg
+apps/macos/build.sh --dmg    # thêm apps/macos/build/Dokey-0.3.3.dmg
 ```
 
 Script biên dịch Dokey Core bằng `clang++` cho từng kiến trúc, biên dịch app bằng `swiftc`, gộp bằng `lipo`, vẽ biểu tượng, nhúng thư viện Swift cho macOS 10.13 – 10.14.3, ký ad-hoc, rồi chạy `Dokey --self-test`.
 
-Biến môi trường: `VERSION` (mặc định `0.3.2`), `ARCHS` (mặc định `"x86_64 arm64"`).
+Biến môi trường: `VERSION` (mặc định `0.3.3`), `ARCHS` (mặc định `"x86_64 arm64"`).
 
 ## Cài đặt và cấp quyền
 
 1. Cài bằng script, macOS sẽ không hiện cảnh báo:
    ```bash
    bash install-macos.sh                                  # bản mới nhất (cần gh auth login)
-   bash install-macos.sh ~/Downloads/Dokey-0.3.2.dmg      # file .dmg đã tải
+   bash install-macos.sh ~/Downloads/Dokey-0.3.3.dmg      # file .dmg đã tải
    ```
    Script (`apps/macos/install.sh`, phát hành với tên `install-macos.sh`) cài vào `/Applications`, gỡ cờ cách ly rồi mở Dokey.
    Nếu kéo thả từ `.dmg` bằng tay: Dokey ký ad-hoc, chưa được Apple công chứng (notarize), nên lần đầu phải chuột phải vào Dokey.app, chọn **Open**. Hoặc chạy `xattr -dr com.apple.quarantine /Applications/Dokey.app`.
@@ -55,10 +55,12 @@ Nhật ký có chứa các từ bạn gõ, chỉ nằm trên máy, mặc định
 
 Bấm vào Dokey.app (Finder, Launchpad, Spotlight), hoặc chọn **Mở bảng điều khiển…** trên thanh menu.
 
+Thiết kế theo phong cách các tiện ích Mac hiện đại: nền tím violet, thẻ kính mờ, biểu tượng 3D bóng loáng vẽ bằng mã, nút tròn phát sáng ở đáy cửa sổ.
+
 | Trang | Nội dung |
 |---|---|
-| Bảng điều khiển | Nút tròn lớn để bật/tắt tiếng Việt; trạng thái quyền Trợ năng, ứng dụng đang dùng, kiểu gõ |
-| Kiểu gõ | Telex/VNI, bảng mã, kiểm tra chính tả, kiểu đặt dấu, phím chuyển, bảng ví dụ |
+| Bảng điều khiển | Thẻ chế độ gõ (bấm để chuyển Anh/Việt), quyền Trợ năng, kiểu gõ, ứng dụng đang dùng (kèm biểu tượng), số từ đã thêm dấu; nút tròn **Tắt/Bật** |
+| Kiểu gõ | Telex/VNI, bảng mã, kiểm tra chính tả, kiểu đặt dấu, phím chuyển, ví dụ |
 | Ứng dụng | Nhớ chế độ theo ứng dụng, tương thích máy chậm, khởi động cùng macOS |
 | Giới thiệu | Phiên bản, bản quyền |
 
