@@ -45,4 +45,22 @@ enum SelfTest {
         print(failures == 0 ? "All self-tests passed." : "\(failures) self-test(s) failed.")
         return failures == 0 ? 0 : 1
     }
+
+    /// Draws every control panel page into PNG files (for design review): <prefix>-1.png …
+    static func renderPanel(to prefix: String) -> Int32 {
+        _ = NSApplication.shared
+        NSApp.setActivationPolicy(.prohibited)
+        let panel = ControlPanelController()
+        panel.refresh()
+        guard let window = panel.window, let view = window.contentView else { return 1 }
+        for page in 0..<4 {
+            panel.showPage(page)
+            view.layoutSubtreeIfNeeded()
+            guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return 1 }
+            view.cacheDisplay(in: view.bounds, to: rep)
+            guard let png = rep.representation(using: .png, properties: [:]) else { return 1 }
+            do { try png.write(to: URL(fileURLWithPath: "\(prefix)-\(page + 1).png")) } catch { return 1 }
+        }
+        return 0
+    }
 }

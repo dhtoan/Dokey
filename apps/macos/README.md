@@ -12,12 +12,12 @@ Chỉ cần **Command Line Tools** (`xcode-select --install`), không cần Xcod
 
 ```bash
 apps/macos/build.sh          # -> apps/macos/build/Dokey.app
-apps/macos/build.sh --dmg    # thêm apps/macos/build/Dokey-0.2.0.dmg
+apps/macos/build.sh --dmg    # thêm apps/macos/build/Dokey-0.3.1.dmg
 ```
 
 Script biên dịch Dokey Core bằng `clang++` cho từng kiến trúc, biên dịch app bằng `swiftc`, gộp bằng `lipo`, vẽ biểu tượng, nhúng thư viện Swift cho macOS 10.13 – 10.14.3, ký ad-hoc, rồi chạy `Dokey --self-test`.
 
-Biến môi trường: `VERSION` (mặc định `0.2.0`), `ARCHS` (mặc định `"x86_64 arm64"`).
+Biến môi trường: `VERSION` (mặc định `0.3.1`), `ARCHS` (mặc định `"x86_64 arm64"`).
 
 ## Cài đặt và cấp quyền
 
@@ -25,6 +25,21 @@ Biến môi trường: `VERSION` (mặc định `0.2.0`), `ARCHS` (mặc định
    Bản ký ad-hoc chưa được Apple công chứng (notarize). Lần đầu mở: chuột phải vào Dokey.app, chọn **Open**, rồi chọn **Open** lần nữa. Hoặc chạy `xattr -dr com.apple.quarantine /Applications/Dokey.app`.
 2. Dokey mở cửa sổ hướng dẫn cấp quyền **Trợ năng** (System Settings › Privacy & Security › Accessibility). Bật Dokey trong danh sách; Dokey tự nhận quyền, không cần mở lại.
 3. Sau khi cập nhật bản mới mà không gõ được dấu: xoá Dokey khỏi danh sách Trợ năng rồi thêm lại. Mỗi bản ký ad-hoc có chữ ký khác nhau nên macOS coi là ứng dụng mới.
+
+## Bảng điều khiển
+
+Bấm vào Dokey.app (Finder, Launchpad, Spotlight), hoặc chọn **Mở bảng điều khiển…** trên thanh menu.
+
+| Trang | Nội dung |
+|---|---|
+| Bảng điều khiển | Nút tròn lớn để bật/tắt tiếng Việt; trạng thái quyền Trợ năng, ứng dụng đang dùng, kiểu gõ |
+| Kiểu gõ | Telex/VNI, bảng mã, kiểm tra chính tả, kiểu đặt dấu, phím chuyển, bảng ví dụ |
+| Ứng dụng | Nhớ chế độ theo ứng dụng, tương thích máy chậm, khởi động cùng macOS |
+| Giới thiệu | Phiên bản, bản quyền |
+
+Khi Dokey tự chạy lúc đăng nhập, bảng điều khiển không hiện ra; Dokey chỉ nằm trên thanh menu. Khi cửa sổ đang mở, Dokey có biểu tượng trên Dock và trong ⌘-Tab.
+
+`Dokey --render-panel <tiền tố>` vẽ bốn trang ra `<tiền tố>-1.png` … `-4.png` để xem thiết kế mà không cần mở cửa sổ.
 
 ## Menu
 
@@ -50,13 +65,14 @@ phím ─▶ CGEventTap (session, luồng riêng) ─▶ dokey_key()
 
 - **Luồng riêng cho event tap.** Tap chạy trên run loop của một luồng riêng, nên menu hay cửa sổ đang mở không làm chậm việc gõ.
 - **Thứ tự sự kiện.** Phím tổng hợp được chèn bằng `CGEventTapPostEvent` ngay sau tap. Chúng luôn đến ứng dụng trước phím tiếp theo của người dùng.
+- **Bôi đen rồi gõ đè** (trình duyệt và Electron/IDE). Thay vì N lần Backspace, Dokey gửi N lần Shift+← rồi gõ chữ mới đè lên. Trình soạn thảo ProseMirror/Tiptap (ô chat của Claude, Notion…) bỏ qua Backspace tổng hợp, và thanh địa chỉ trình duyệt dùng mất một Backspace để xoá phần gợi ý. Bôi đen rồi gõ đè đúng trong cả hai trường hợp. Ứng dụng thường vẫn dùng Backspace (trong Terminal, Shift+← không bôi đen chữ).
 - **Đánh dấu sự kiện của chính mình.** Mọi phím Dokey gửi đi mang giá trị `eventSourceUserData` riêng, nên tap không xử lý lại. Nguồn sự kiện ở trạng thái riêng (`privateState`) và cờ phím bị xoá, nên phím Shift đang giữ không biến Backspace thành Shift-Backspace.
 - **Ba nhóm ứng dụng.** Dokey nhớ ứng dụng đang ở trước mỗi khi đổi ứng dụng, rồi phân loại theo bundle id. Với ứng dụng lạ, Dokey xem thư mục `Contents/Frameworks` có `Electron Framework.framework` hay framework Chromium không.
 
   | Nhóm | Ví dụ | Cách gửi phím |
   |---|---|---|
-  | Trình duyệt | Chrome, Edge, Brave, Cốc Cốc, Arc, Firefox | 1 ký tự mỗi sự kiện, nghỉ 1,5 ms mỗi phím và 4 ms sau loạt Backspace |
-  | Electron/IDE | Claude, VS Code, Cursor, Slack, Zalo, JetBrains | 1 ký tự mỗi sự kiện, nghỉ 1 ms và 3 ms |
+  | Trình duyệt | Chrome, Edge, Brave, Cốc Cốc, Arc, Firefox | Bôi đen rồi gõ đè, 1 ký tự mỗi sự kiện, nghỉ 1,5 ms mỗi phím và 4 ms trước khi gõ |
+  | Electron/IDE | Claude, VS Code, Cursor, Slack, Zalo, JetBrains | Bôi đen rồi gõ đè, 1 ký tự mỗi sự kiện, nghỉ 1 ms và 3 ms |
   | Thường | TextEdit, Notes, Pages… | tối đa 20 ký tự mỗi sự kiện, không nghỉ |
 
   Bật **Tương thích máy chậm** để nhân đôi các khoảng nghỉ.
@@ -73,6 +89,8 @@ phím ─▶ CGEventTap (session, luồng riêng) ─▶ dokey_key()
 | `Sources/Engine.swift` | Lớp bọc API C, an toàn khi dùng từ nhiều luồng |
 | `Sources/AppClassifier.swift` | Phân loại trình duyệt / Electron / thường, khoảng nghỉ |
 | `Sources/AppDelegate.swift` | Thanh menu, chế độ theo ứng dụng, watchdog |
+| `Sources/ControlPanel.swift` | Cửa sổ bảng điều khiển |
+| `Sources/PanelControls.swift` | Nút gạt, nút tròn, thanh bên… vẽ bằng mã |
 | `Sources/Settings.swift` | Tuỳ chọn người dùng, phím chuyển |
 | `Sources/PermissionWindow.swift` | Cửa sổ hướng dẫn cấp quyền Trợ năng |
 | `Sources/LoginItem.swift` | Khởi động cùng macOS |

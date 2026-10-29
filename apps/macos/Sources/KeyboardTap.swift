@@ -13,6 +13,7 @@ enum KeyCode {
     static let escape: CGKeyCode = 53
     static let keypadEnter: CGKeyCode = 76
     static let forwardDelete: CGKeyCode = 117
+    static let leftArrow: CGKeyCode = 123
     /// Arrows, Home, End, Page Up, Page Down: the caret moves, so the word ends.
     static let caretMovers: Set<CGKeyCode> = [115, 116, 119, 121, 123, 124, 125, 126]
 }
@@ -26,6 +27,7 @@ struct TapState {
     var appKind = AppKind.normal
     var slowMachine = false
     var hotkey = SwitchHotkey.controlShift
+    var encoding = Int32(DOKEY_UNICODE)
 }
 
 final class KeyboardTap {
@@ -222,8 +224,18 @@ final class KeyboardTap {
     /// the events right after this tap, ahead of any key the user types next.
     private func deliver(_ edit: EngineEdit, proxy: CGEventTapProxy, state: TapState, then original: CGEvent?) {
         let delays = state.appKind.delays(slowMachine: state.slowMachine)
+        // Rich editors (ProseMirror/Tiptap in Claude, Notion…) can ignore synthetic
+        // Backspaces, and browser address bars spend the first one on the inline
+        // suggestion. Selecting the old letters with Shift+← and typing over them
+        // works in both. Combining marks are skipped: ← moves by whole character.
+        let select = state.appKind.selectsBeforeReplacing && !edit.text.isEmpty
+            && state.encoding != Int32(DOKEY_UNICODE_COMBINING)
         for _ in 0..<edit.backspaces {
-            postKey(KeyCode.backspace, proxy: proxy)
+            if select {
+                postKey(KeyCode.leftArrow, flags: [.maskShift, .maskSecondaryFn, .maskNumericPad], proxy: proxy)
+            } else {
+                postKey(KeyCode.backspace, proxy: proxy)
+            }
             pause(delays.step)
         }
         if edit.backspaces > 0 && !edit.text.isEmpty { pause(delays.settle) }
@@ -245,10 +257,10 @@ final class KeyboardTap {
         }
     }
 
-    private func postKey(_ key: CGKeyCode, proxy: CGEventTapProxy) {
+    private func postKey(_ key: CGKeyCode, flags: CGEventFlags = [], proxy: CGEventTapProxy) {
         for down in [true, false] {
             guard let e = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down) else { continue }
-            e.flags = []  // a held Shift must not turn Backspace into Shift-Backspace
+            e.flags = flags  // a held Shift must not turn Backspace into Shift-Backspace
             e.setIntegerValueField(.eventSourceUserData, value: dokeyEventTag)
             e.tapPostEvent(proxy)
         }

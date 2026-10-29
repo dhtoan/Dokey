@@ -2,12 +2,13 @@
 // Copyright (c) 2026 Do Huy Toan. All rights reserved.
 import Cocoa
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, ControlPanelDelegate {
     private let settings = Settings.shared
     private lazy var engine = Engine(options: settings.engineOptions)
     private lazy var tap = KeyboardTap(engine: engine)
     private var statusItem: NSStatusItem!
     private var permissionWindow: PermissionWindowController?
+    private var controlPanel: ControlPanelController?
     private var watchdog: Timer?
     private var frontApp: (bundleID: String, name: String, kind: AppKind)?
 
@@ -27,20 +28,91 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             name: NSWorkspace.didActivateApplicationNotification, object: nil)
         if let app = NSWorkspace.shared.frontmostApplication { activate(app) }
 
+        installMainMenu()
         if !tap.start() {
             showPermissionGuide()
+        } else if !launchedAtLogin {
+            showControlPanel()
         }
         // Watchdog: start the tap once permission arrives, and switch it back
         // on if macOS disabled it (timeouts, secure input in password fields).
         watchdog = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             if !self.tap.isRunning {
-                if Accessibility.isTrusted { self.tap.start() }
+                if Accessibility.isTrusted, self.tap.start() { self.controlPanel?.refresh() }
             } else {
                 self.tap.ensureEnabled()
             }
         }
     }
+
+    /// Opening Dokey.app again (Finder, Launchpad, Spotlight) shows the control panel.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showControlPanel()
+        return false
+    }
+
+    /// Started by the login item: stay quietly in the menu bar.
+    private var launchedAtLogin: Bool {
+        if let event = NSAppleEventManager.shared().currentAppleEvent,
+           event.eventID == kAEOpenApplication,
+           event.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem {
+            return true
+        }
+        return ProcessInfo.processInfo.systemUptime < 120
+    }
+
+    // MARK: - Control panel
+
+    private func showControlPanel() {
+        if controlPanel == nil {
+            let panel = ControlPanelController()
+            panel.delegate = self
+            panel.onClose = {
+                // Back to a menu-bar-only app once the window is gone.
+                DispatchQueue.main.async { NSApp.setActivationPolicy(.accessory) }
+            }
+            controlPanel = panel
+        }
+        // A Dock icon and ⌘-Tab entry while the window is open, like other apps.
+        NSApp.setActivationPolicy(.regular)
+        controlPanel?.present()
+    }
+
+    /// ⌘W, ⌘M and ⌘Q for the control panel.
+    private func installMainMenu() {
+        let main = NSMenu()
+        let appItem = NSMenuItem()
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "Giới thiệu Dokey", action: #selector(menuAbout), keyEquivalent: "").target = self
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Ẩn Dokey", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "Thoát Dokey", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appItem.submenu = appMenu
+        main.addItem(appItem)
+        let windowItem = NSMenuItem()
+        let windowMenu = NSMenu(title: "Cửa sổ")
+        windowMenu.addItem(withTitle: "Đóng", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windowMenu.addItem(withTitle: "Thu nhỏ", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowItem.submenu = windowMenu
+        main.addItem(windowItem)
+        NSApp.mainMenu = main
+    }
+
+    func panelToggleMode() { toggleMode() }
+
+    func panelSettingsChanged() {
+        engineOptionsChanged()
+        updateIcon()
+    }
+
+    func panelShowPermission() { showPermissionGuide() }
+
+    var panelFrontApp: (name: String, kind: AppKind)? {
+        frontApp.map { ($0.name, $0.kind) }
+    }
+
+    var panelTapRunning: Bool { tap.isRunning }
 
     // MARK: - State
 
@@ -49,8 +121,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         state.vietnamese = settings.vietnamese
         state.slowMachine = settings.slowMachineMode
         state.hotkey = settings.hotkey
+        state.encoding = settings.encoding
         state.appKind = frontApp?.kind ?? .normal
         tap.state = state
+        controlPanel?.refresh()
     }
 
     private func updateIcon() {
@@ -65,6 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         engine.reset()
         pushState()
         updateIcon()
+        controlPanel?.refresh()
     }
 
     private func toggleMode() {
@@ -73,6 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func engineOptionsChanged() {
         engine.setOptions(settings.engineOptions)
+        pushState()
     }
 
     @objc private func appActivated(_ note: Notification) {
@@ -91,6 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             pushState()
         }
+        controlPanel?.refresh()
     }
 
     // MARK: - Menu
@@ -98,6 +175,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
+        menu.addItem(item("Mở bảng điều khiển…", #selector(menuControlPanel)))
+        menu.addItem(.separator())
         let mode = item("Gõ tiếng Việt", #selector(menuToggleMode), key: "")
         mode.state = settings.vietnamese ? .on : .off
         menu.addItem(mode)
@@ -183,6 +262,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func menuToggleMode() { toggleMode() }
 
+    @objc private func menuControlPanel() { showControlPanel() }
+
     @objc private func menuSetMethod(_ sender: NSMenuItem) {
         settings.method = Int32(sender.tag)
         engineOptionsChanged()
@@ -234,6 +315,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let controller = PermissionWindowController()
             controller.onGranted = { [weak self] in
                 if self?.tap.isRunning == false { self?.tap.start() }
+                self?.controlPanel?.refresh()
             }
             permissionWindow = controller
         }

@@ -34,6 +34,13 @@ enum AppKind: String {
         return base
     }
 
+    /// Replace letters by selecting them (Shift+←) and typing over the
+    /// selection, instead of Backspace. Not for normal apps: in Terminal,
+    /// Shift+← is an escape sequence, not a selection.
+    var selectsBeforeReplacing: Bool {
+        self != .normal
+    }
+
     /// How many UTF-16 units may share one synthetic key event.
     var unitsPerEvent: Int {
         self == .normal ? 20 : 1

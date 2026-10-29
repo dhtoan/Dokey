@@ -74,6 +74,7 @@ Xin chào các bạn, Dokey gõ tiếng Việt không nhảy chữ.
 - Nhớ chế độ Anh/Việt theo từng ứng dụng; khởi động cùng macOS.
 - **Chống nhảy chữ trong Chrome, Edge, Claude và ứng dụng Electron:** event tap chạy trên luồng riêng; ứng dụng được chia thành ba nhóm (trình duyệt, Electron/IDE, thường); với hai nhóm đầu, Dokey gửi từng ký tự và nghỉ ngắn giữa các phím. Có chế độ **Tương thích máy chậm**.
 - Tự bật lại event tap khi macOS tắt nó; giữ phím (autorepeat) thì bắt đầu từ mới.
+- **0.3.1:** bảng điều khiển mở ra khi bấm vào Dokey.app. Trong trình duyệt và ứng dụng Electron, Dokey bôi đen chữ cũ (Shift+←) rồi gõ đè, thay vì gửi Backspace. Cách này sửa lỗi mất chữ trong trình soạn thảo ProseMirror (ô chat của Claude, Notion…) và ở thanh địa chỉ.
 
 Build bằng Command Line Tools, không cần Xcode:
 
@@ -89,13 +90,16 @@ Chi tiết cách cài, cấp quyền Trợ năng và cơ chế hoạt động: [
 |---|---|
 | `build.sh` tạo `Dokey.app` Universal (x86_64 + arm64) và `.dmg` trên MacBook Intel, macOS 14, chỉ có Command Line Tools | ✅ Đã chạy |
 | `Dokey --self-test`: gọi engine qua API C từ Swift (Telex, VNI, giữ từ tiếng Anh, tự sửa cuối từ, kiểu dấu cũ), phân loại ứng dụng, vẽ biểu tượng | ✅ Chạy trong mỗi lần build và trên CI (macOS 14, Apple Silicon) |
-| Ứng dụng khởi động và chạy không lỗi khi chưa có quyền Trợ năng | ✅ Đã chạy thử trên máy Intel (chưa kiểm tra giao diện bằng mắt) |
-| **Gõ thật** trong TextEdit, Chrome, Edge, Claude, VS Code… | ❌ **Chưa kiểm thử.** Cần quyền Trợ năng, mà chỉ chủ máy mới cấp được |
+| Ứng dụng khởi động và chạy không lỗi khi chưa có quyền Trợ năng; các trang của bảng điều khiển được vẽ ra ảnh để xem lại (`Dokey --render-panel`) | ✅ Máy Intel, macOS 14 |
+| Gõ bằng bản 0.3.0 (có quyền Trợ năng), phím giả lập ở mức HID, 8–120 ms/phím, đọc lại chữ: TextEdit, Terminal, textarea và contenteditable trong Edge | ✅ Đúng hết (`Hãy Việt tiếng đường người`) |
+| Bản 0.3.0 trong trình soạn thảo ProseMirror (trên Edge) và thanh địa chỉ Edge | ❌ Lỗi: ProseMirror bỏ qua Backspace tổng hợp (`Hayãy`); thanh địa chỉ đôi khi ra `Haãy` |
+| Cách gửi phím của 0.3.1 (bôi đen rồi gõ đè), thử bằng chuỗi sự kiện y hệt: ProseMirror, textarea, contenteditable, thanh địa chỉ Edge | ✅ Đúng hết (`Hãy`) |
+| Bản 0.3.1 hoàn chỉnh gõ thật trong ứng dụng Claude, Chrome, VS Code | ❌ Chưa kiểm thử. Ứng dụng Claude chưa thử trực tiếp; ProseMirror trên Edge được dùng thay |
 | Chống nhảy chữ trên máy chậm (MacBook Pro 2015, 8 GB RAM) | ❌ Chưa kiểm thử. Khoảng nghỉ hiện tại là ước lượng ban đầu, sẽ chỉnh theo kết quả gõ thật |
 | Chạy trên macOS 10.13 – 10.15 và trên máy Apple Silicon thật | ❌ Chưa kiểm thử. Bản build có thư viện Swift cho macOS cũ, nhưng chưa thử trên máy thật |
 | Khởi động cùng macOS, nhớ chế độ theo ứng dụng, các phím chuyển | ❌ Chưa kiểm thử bằng tay |
 
-Hạn chế đã biết: thanh địa chỉ của trình duyệt có thể tự gợi ý và bôi đen phần còn lại của địa chỉ, khiến Backspace xoá phần gợi ý thay vì chữ vừa gõ. Dokey 0.2 chưa xử lý riêng trường hợp này.
+Hạn chế đã biết: trong ứng dụng Electron có cửa sổ dòng lệnh (terminal của VS Code), Shift+← không bôi đen chữ, nên có thể gõ sai dấu ở đó. Với bảng mã Unicode tổ hợp, Dokey vẫn dùng Backspace.
 
 ## Ứng dụng Windows
 
@@ -218,7 +222,7 @@ dokey_destroy(engine);
 | Phiên bản | Nội dung | Trạng thái |
 |---|---|---|
 | **0.1** | Dokey Core: Telex, VNI, kiểm tra chính tả, API C/C++, công cụ dòng lệnh | ✅ Phát hành |
-| **0.2** | Ứng dụng macOS (Swift + AppKit, macOS 10.13+, Intel và Apple Silicon) | 🧪 Đã build, chờ thử gõ thật |
+| **0.2** | Ứng dụng macOS (Swift + AppKit, macOS 10.13+, Intel và Apple Silicon) | ✅ Phát hành cùng 0.3 |
 | **0.3** | Ứng dụng Windows (Windows 10/11, x86, x64, ARM64), bộ cài Setup.exe | 🧪 Đã phát hành, chưa thử trên máy Windows thật |
 | 0.4 | Gõ tắt, công cụ chuyển mã, bảng mã TCVN3, VNI Windows, CP1258 | 🗓️ Kế hoạch |
 | 1.0 | Bộ biểu tượng mới, ký số và notarize, phát hành chính thức | 🗓️ Kế hoạch |

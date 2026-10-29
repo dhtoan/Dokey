@@ -89,7 +89,7 @@ void dokey_destroy(dokey_engine*);
 
 - **Bắt phím:** một `CGEventTap` ở mức phiên (session), đặt ở đầu chuỗi, chạy trên run loop của một luồng riêng. Tap nhận: phím xuống, đổi phím bổ trợ, click chuột.
 - **Ký tự gửi cho engine:** chuỗi Unicode của sự kiện phím theo bố cục bàn phím hiện tại, chỉ khi phím sinh đúng một ký tự in được và không có ⌘ ⌃ ⌥.
-- **Kết quả `1`:** nuốt phím gốc; gửi `backspaces` lần phím Backspace, rồi gửi `text` bằng sự kiện phím mang chuỗi Unicode. Sự kiện được chèn bằng `CGEventTapPostEvent`, mang dấu `eventSourceUserData` riêng, và không mang cờ phím bổ trợ.
+- **Kết quả `1`:** nuốt phím gốc; xoá `backspaces` ký tự rồi gửi `text`. Ứng dụng thường: xoá bằng phím Backspace. Trình duyệt và Electron/IDE: bôi đen bằng `backspaces` lần Shift+← rồi gõ `text` đè lên (trừ khi `text` rỗng hoặc dùng bảng mã tổ hợp). Gửi `text` bằng sự kiện phím mang chuỗi Unicode. Sự kiện được chèn bằng `CGEventTapPostEvent`, mang dấu `eventSourceUserData` riêng, và không mang cờ phím bổ trợ nào ngoài Shift của Shift+←.
 - **Kết quả `0`:** để phím gốc đi qua.
 - **Backspace:** gọi `dokey_backspace`, để phím đi qua.
 - **Enter, Tab:** gửi cho engine như ký tự ngắt (`\r`, `\t`). Nếu engine sửa từ, gửi phép sửa (bỏ ký tự ngắt ở cuối), rồi gửi lại bản sao của phím gốc.
