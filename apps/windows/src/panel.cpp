@@ -277,8 +277,8 @@ void DrawEmblem(Graphics& g, const Emblem& e, const RectF& box, bool glow = true
 
     GraphicsPath path;
     AddShape(path, e.shape, body);
-    LinearGradientBrush fill(PointF(body.X, body.Y - 1), PointF(body.X + body.Width * 0.25f, body.GetBottom() + 1),
-                             e.top, e.bottom);
+    // Vertical gradient: a slanted one would wrap around (tile) in the far corner.
+    LinearGradientBrush fill(PointF(0, body.Y - 1), PointF(0, body.GetBottom() + 1), e.top, e.bottom);
     g.FillPath(&fill, &path);
 
     // Glossy cap over the upper half and a faint light from below.
@@ -405,7 +405,7 @@ void DrawOrb(Graphics& g, const RectF& box, bool on) {
     RectF body(cx - 32, cy - 32, 64, 64);
     GraphicsPath path;
     path.AddEllipse(body);
-    LinearGradientBrush fill(PointF(body.X, body.Y - 1), PointF(body.X + 16, body.GetBottom() + 1),
+    LinearGradientBrush fill(PointF(0, body.Y - 1), PointF(0, body.GetBottom() + 1),
                              on ? kAccentStart : Rgb(140, 120, 190), on ? kAccentEnd : Rgb(80, 60, 130));
     g.FillPath(&fill, &path);
     Region old;
