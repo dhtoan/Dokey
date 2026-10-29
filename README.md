@@ -94,7 +94,10 @@ Chi tiết cách cài, cấp quyền Trợ năng và cơ chế hoạt động: [
 | Gõ bằng bản 0.3.0 (có quyền Trợ năng), phím giả lập ở mức HID, 8–120 ms/phím, đọc lại chữ: TextEdit, Terminal, textarea và contenteditable trong Edge | ✅ Đúng hết (`Hãy Việt tiếng đường người`) |
 | Bản 0.3.0 trong trình soạn thảo ProseMirror (trên Edge) và thanh địa chỉ Edge | ❌ Lỗi: ProseMirror bỏ qua Backspace tổng hợp (`Hayãy`); thanh địa chỉ đôi khi ra `Haãy` |
 | Cách gửi phím của 0.3.1 (bôi đen rồi gõ đè), thử bằng chuỗi sự kiện y hệt: ProseMirror, textarea, contenteditable, thanh địa chỉ Edge | ✅ Đúng hết (`Hãy`) |
-| Bản 0.3.1 hoàn chỉnh gõ thật trong ứng dụng Claude, Chrome, VS Code | ❌ Chưa kiểm thử. Ứng dụng Claude chưa thử trực tiếp; ProseMirror trên Edge được dùng thay |
+| Bản 0.3.1 cài vào `/Applications`, có quyền Trợ năng, gõ giả lập 8–80 ms/phím: TextEdit, textarea và contenteditable trên Edge | ✅ Đúng hết (`Hãy Việt tiếng đường người thuở windows`) |
+| Bản 0.3.1 trong ProseMirror trên Edge | ✅ 6/7 lượt đúng hết. Lượt sai: từ đầu tiên ngay sau khi trang vừa tải (lúc đó trình duyệt chưa phát `beforeinput` cho cả chữ thường); từ thứ hai trở đi luôn đúng |
+| Bản 0.3.1 ở thanh địa chỉ Edge | ⚠️ Mới đọc lại được một lần (`Việt Nam`, đúng); cách đọc tự động chưa tin cậy |
+| Bản 0.3.1 trong chính ứng dụng Claude, Chrome, VS Code | ❌ Chưa thử trực tiếp |
 | Chống nhảy chữ trên máy chậm (MacBook Pro 2015, 8 GB RAM) | ❌ Chưa kiểm thử. Khoảng nghỉ hiện tại là ước lượng ban đầu, sẽ chỉnh theo kết quả gõ thật |
 | Chạy trên macOS 10.13 – 10.15 và trên máy Apple Silicon thật | ❌ Chưa kiểm thử. Bản build có thư viện Swift cho macOS cũ, nhưng chưa thử trên máy thật |
 | Khởi động cùng macOS, nhớ chế độ theo ứng dụng, các phím chuyển | ❌ Chưa kiểm thử bằng tay |
