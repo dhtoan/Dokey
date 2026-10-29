@@ -10,6 +10,7 @@
 
 #include <objidl.h>
 #include <dwmapi.h>
+#include <commctrl.h>
 #include <shellapi.h>
 #include <windowsx.h>
 namespace Gdiplus {
@@ -29,10 +30,12 @@ namespace dokey_win {
 namespace {
 
 const wchar_t kPanelClass[] = L"DokeyPanelWindow";
-constexpr float kWidth = 900, kHeight = 600, kSidebar = 68;
+constexpr float kWidth = 860, kHeight = 500, kSidebar = 68;
 constexpr UINT_PTR kRefreshTimer = 1;
 constexpr UINT kRefreshMs = 1500;
 constexpr DWORD kSlowPauseMs = 30;  // "slow machine" pause in Chromium windows
+const COLORREF kWellColor = RGB(78, 37, 140);  // the "Gõ thử" well, also the edit box background
+const wchar_t kTryPlaceholder[] = L"Gõ thử ở đây, ví dụ: Vieetj Nam, dduowngf, Haxy…";
 
 enum Page { PAGE_DASHBOARD, PAGE_TYPING, PAGE_APPS, PAGE_ABOUT, PAGE_COUNT };
 const wchar_t* const kTitles[PAGE_COUNT] = {L"Bảng điều khiển", L"Kiểu gõ", L"Ứng dụng", L"Giới thiệu"};
@@ -63,6 +66,9 @@ ULONG_PTR g_gdiplusToken = 0;
 Settings* g_settings = nullptr;
 PanelCallbacks g_callbacks = {};
 HWND g_panel = nullptr;
+HWND g_tryEdit = nullptr;  // the "Gõ thử" box on the dashboard
+HFONT g_tryFont = nullptr;
+HBRUSH g_wellBrush = nullptr;
 int g_page = PAGE_DASHBOARD;
 int g_hover = HOT_NONE;
 bool g_trackingMouse = false;
@@ -266,13 +272,10 @@ void DrawSymbol(Graphics& g, const Emblem& e, const RectF& body, const Color& co
 // Draws an emblem filling `box`: glow, gradient body, glossy cap, rim, symbol.
 // Everything stays inside `box`, so nothing is clipped by the card.
 void DrawEmblem(Graphics& g, const Emblem& e, const RectF& box, bool glow = true) {
-    const float inset = glow ? box.Width * 0.14f : 0;
+    const float inset = glow ? box.Width * 0.08f : 0;
     RectF body(box.X + inset, box.Y + inset, box.Width - inset * 2, box.Height - inset * 2);
     if (glow) {
-        FillGlow(g, box, e.bottom, 150);
-        // A soft shadow below the body.
-        RectF shadow(body.X + body.Width * 0.08f, body.Y + body.Height * 0.16f, body.Width * 0.84f, body.Height * 0.9f);
-        FillGlow(g, shadow, Rgb(30, 0, 60), 70);
+        FillGlow(g, box, e.bottom, 115);
     }
 
     GraphicsPath path;
@@ -286,13 +289,13 @@ void DrawEmblem(Graphics& g, const Emblem& e, const RectF& box, bool glow = true
     g.GetClip(&old);
     g.SetClip(&path, CombineModeIntersect);
     RectF cap(body.X - body.Width * 0.18f, body.Y - body.Height * 0.62f, body.Width * 1.36f, body.Height * 1.10f);
-    LinearGradientBrush gloss(PointF(0, cap.Y), PointF(0, cap.GetBottom() + 1), White(130), White(10));
+    LinearGradientBrush gloss(PointF(0, cap.Y), PointF(0, cap.GetBottom() + 1), White(66), White(4));
     g.FillEllipse(&gloss, cap);
     RectF under(body.X + body.Width * 0.1f, body.Y + body.Height * 0.72f, body.Width * 0.8f, body.Height * 0.5f);
-    FillGlow(g, under, White(255), 45);
+    FillGlow(g, under, White(255), 28);
     g.SetClip(&old);
 
-    Pen rim(White(150), std::max(1.2f, body.Width * 0.018f));
+    Pen rim(White(71), std::max(1.0f, body.Width * 0.016f));
     g.DrawPath(&rim, &path);
 
     // The symbol with a soft drop shadow.
@@ -491,62 +494,90 @@ void DrawBackground(Graphics& g) {
 
 // ---- pages ---------------------------------------------------------------------------
 
+// The page area: above the orb on the dashboard, down to the bottom elsewhere.
+RectF ContentRect(int page) {
+    const float top = 36, bottom = page == PAGE_DASHBOARD ? kHeight - 106 : kHeight - 20;
+    return RectF(kSidebar + 22, top, kWidth - kSidebar - 22 - 24, bottom - top);
+}
+
 std::wstring HotkeyText() { return g_settings->hotkey == HOTKEY_ALT_Z ? L"Alt+Z" : L"Ctrl+Shift"; }
 
-// A dashboard card: caption, emblem in the top-right corner, value, status line.
+// A dashboard card: emblem on the left, then caption, value and status line.
 void DrawStatCard(Graphics& g, const RectF& r, const wchar_t* caption, const std::wstring& value, float valueSize,
                   const std::wstring& status, bool ok, const Emblem& emblem, float emblemSize, int id = HOT_NONE) {
     DrawCard(g, r, id != HOT_NONE && g_hover == id);
-    Region old;
-    g.GetClip(&old);
-    GraphicsPath clip;
-    AddRoundRect(clip, r, 16);
-    g.SetClip(&clip, CombineModeIntersect);
-    DrawEmblem(g, emblem, RectF(r.GetRight() - emblemSize - 8, r.Y + 6, emblemSize, emblemSize));
-    g.SetClip(&old);
+    DrawEmblem(g, emblem, RectF(r.X + 10, r.Y + (r.Height - emblemSize) / 2, emblemSize, emblemSize));
 
-    Label(g, caption, RectF(r.X + 16, r.Y + 14, r.Width - 32 - emblemSize * 0.7f, 20), 12, Weight::Semibold,
-             White(kSecondaryAlpha), StringAlignmentNear, StringAlignmentCenter);
-    const float statusY = r.GetBottom() - 39;
-    Label(g, value, RectF(r.X + 14, statusY - valueSize * 1.45f, r.Width - 28, valueSize * 1.45f), valueSize,
-             Weight::Bold, White(255), StringAlignmentNear, StringAlignmentFar);
-    DrawStatus(g, r.X + 16, statusY, r.Width - 32, status, ok);
+    const float x = r.X + 10 + emblemSize + 10, width = r.GetRight() - 14 - x;
+    const float captionHeight = 17, valueHeight = std::round(valueSize * 1.34f), statusHeight = 18;
+    float y = r.Y + (r.Height - (captionHeight + 2 + valueHeight + 4 + statusHeight)) / 2;
+    Label(g, caption, RectF(x, y, width, captionHeight), 12, Weight::Semibold, White(kSecondaryAlpha),
+          StringAlignmentNear, StringAlignmentCenter);
+    y += captionHeight + 2;
+    Label(g, value, RectF(x - 1, y, width + 1, valueHeight), valueSize, Weight::Bold, White(255), StringAlignmentNear,
+          StringAlignmentCenter);
+    y += valueHeight + 4;
+    DrawStatus(g, x, y, width, status, ok);
     if (id != HOT_NONE) AddHot(r, id);
+}
+
+// The "Gõ thử" card's dark well, where the live panel puts an edit box.
+RectF TryWell() {
+    const RectF c = ContentRect(PAGE_DASHBOARD);
+    return RectF(c.X + 12, c.Y + 112 + 12 + 92 + 12 + 34, c.Width - 24, 46);
 }
 
 void DrawDashboard(Graphics& g, const RectF& c, const PanelStatus& st) {
     const Settings& s = *g_settings;
-    const float permissionWidth = (c.Width - 12) / 2.9f, modeWidth = c.Width - 12 - permissionWidth;
-    RectF mode(c.X, c.Y, modeWidth, 232), state(c.X + modeWidth + 12, c.Y, permissionWidth, 232);
-    DrawStatCard(g, mode, L"Chế độ gõ", s.vietnamese ? L"Tiếng Việt" : L"Tiếng Anh", 34,
+    const float stateWidth = (c.Width - 12) / 2.25f, modeWidth = c.Width - 12 - stateWidth;
+    RectF mode(c.X, c.Y, modeWidth, 112), state(c.X + modeWidth + 12, c.Y, stateWidth, 112);
+    DrawStatCard(g, mode, L"Chế độ gõ", s.vietnamese ? L"Tiếng Việt" : L"Tiếng Anh", 28,
                  (s.vietnamese ? L"Đang bật · " : L"Đang tắt · ") + HotkeyText() + L" để chuyển", s.vietnamese,
-                 s.vietnamese ? kModeOn : kModeOff, 158, HOT_MODE);
+                 s.vietnamese ? kModeOn : kModeOff, 96, HOT_MODE);
     if (st.imeActive) {
-        DrawStatCard(g, state, L"Trạng thái", L"Tạm nghỉ", 26, L"Bộ gõ Trung/Nhật/Hàn đang bật", false, kPaused, 116);
+        DrawStatCard(g, state, L"Trạng thái", L"Tạm nghỉ", 22, L"Bộ gõ Trung/Nhật/Hàn đang bật", false, kPaused, 80);
     } else {
-        DrawStatCard(g, state, L"Trạng thái", L"Sẵn sàng", 26, L"Đang bắt phím", true, kReady, 116);
+        DrawStatCard(g, state, L"Trạng thái", L"Sẵn sàng", 22, L"Dokey đang nghe bàn phím", true, kReady, 80);
     }
 
-    const float w = (c.Width - 24) / 3, y = c.Y + 244, h = 196;
-    DrawStatCard(g, RectF(c.X, y, w, h), L"Kiểu gõ", s.method == DOKEY_VNI ? L"VNI" : L"Telex", 26, L"Unicode dựng sẵn",
-                 true, kMethod, 96);
+    const float w = (c.Width - 24) / 3, y = c.Y + 124, h = 92;
+    DrawStatCard(g, RectF(c.X, y, w, h), L"Kiểu gõ", s.method == DOKEY_VNI ? L"VNI" : L"Telex", 19, L"Unicode dựng sẵn",
+                 true, kMethod, 60);
     if (st.appName.empty()) {
-        DrawStatCard(g, RectF(c.X + w + 12, y, w, h), L"Ứng dụng đang dùng", L"—", 26, L"Chưa có", false, kApps, 96);
+        DrawStatCard(g, RectF(c.X + w + 12, y, w, h), L"Ứng dụng", L"—", 19, L"Chưa có", false, kApps, 60);
     } else {
-        DrawStatCard(g, RectF(c.X + w + 12, y, w, h), L"Ứng dụng đang dùng", st.appName, 22,
-                     st.appChromium ? L"Nhóm: Trình duyệt, Electron" : L"Nhóm: Ứng dụng thường", true, kApps, 96);
+        DrawStatCard(g, RectF(c.X + w + 12, y, w, h), L"Ứng dụng", st.appName, 19,
+                     st.appChromium ? L"Nhóm: trình duyệt" : L"Nhóm: ứng dụng thường", true, kApps, 60);
     }
     wchar_t count[32];
     wsprintfW(count, L"%u từ", st.markedWords);
-    DrawStatCard(g, RectF(c.X + (w + 12) * 2, y, w, h), L"Đã thêm dấu", count, 26, L"từ lúc mở Dokey", true, kCount, 96);
+    DrawStatCard(g, RectF(c.X + (w + 12) * 2, y, w, h), L"Đã thêm dấu", count, 19, L"từ lúc mở Dokey", true, kCount, 60);
+
+    RectF tryCard(c.X, y + h + 12, c.Width, 92);
+    DrawCard(g, tryCard);
+    Label(g, L"Gõ thử", RectF(tryCard.X + 16, tryCard.Y + 10, 200, 20), 12, Weight::Semibold, White(kSecondaryAlpha),
+          StringAlignmentNear, StringAlignmentCenter);
+    const RectF well = TryWell();
+    GraphicsPath wellPath;
+    AddRoundRect(wellPath, well, 10);
+    SolidBrush wellBrush(Rgb(GetRValue(kWellColor), GetGValue(kWellColor), GetBValue(kWellColor)));
+    g.FillPath(&wellBrush, &wellPath);
+    if (!g_tryEdit) {  // rendering to a file: no edit box, show its placeholder
+        Label(g, kTryPlaceholder, RectF(well.X + 14, well.Y, well.Width - 28, well.Height), 17, Weight::Regular,
+              White(120), StringAlignmentNear, StringAlignmentCenter);
+    }
 }
 
+// A page header: emblem on the left, big title and subtitle.
 void DrawHero(Graphics& g, const RectF& r, const wchar_t* title, const wchar_t* subtitle, const Emblem& emblem) {
     DrawCard(g, r);
-    Label(g, title, RectF(r.X + 20, r.Y + 22, r.Width - 160, 40), 28, Weight::Bold, White(255));
-    Label(g, subtitle, RectF(r.X + 21, r.Y + 64, r.Width - 160, 20), 13, Weight::Regular, White(kSecondaryAlpha));
-    const float size = r.Height - 8;
-    DrawEmblem(g, emblem, RectF(r.GetRight() - size - 14, r.Y + 4, size, size));
+    const float size = 80;
+    DrawEmblem(g, emblem, RectF(r.X + 10, r.Y + (r.Height - size) / 2, size, size));
+    const float x = r.X + 10 + size + 12;
+    Label(g, title, RectF(x, r.Y + 16, r.GetRight() - x - 16, 32), 22, Weight::Bold, White(255), StringAlignmentNear,
+          StringAlignmentCenter);
+    Label(g, subtitle, RectF(x + 1, r.Y + 50, r.GetRight() - x - 16, 20), 13, Weight::Regular, White(kSecondaryAlpha),
+          StringAlignmentNear, StringAlignmentCenter);
 }
 
 struct Row {
@@ -554,29 +585,32 @@ struct Row {
     const wchar_t* detail;
 };
 
+constexpr float kRowHeight = 48;  // 9 px padding, title, detail, 9 px padding
+
 // A glass card of rows; returns the vertical centre of each row for its control.
 std::vector<float> DrawSettingsCard(Graphics& g, const RectF& r, const std::vector<Row>& rows) {
     DrawCard(g, r);
     std::vector<float> centres;
-    const float rowHeight = (r.Height - 6) / rows.size();
     for (size_t i = 0; i < rows.size(); i++) {
-        const float top = r.Y + 3 + i * rowHeight;
+        const float top = r.Y + 3 + i * kRowHeight;
         if (i > 0) {
             SolidBrush line(White(18));
             g.FillRectangle(&line, RectF(r.X + 1, top, r.Width - 2, 1));
         }
-        Label(g, rows[i].title, RectF(r.X + 18, top + 9, r.Width - 280, 20), 13, Weight::Semibold, White(255));
-        Label(g, rows[i].detail, RectF(r.X + 18, top + 28, r.Width - 280, 18), 11, Weight::Regular,
-                 White(kSecondaryAlpha));
-        centres.push_back(top + rowHeight / 2);
+        Label(g, rows[i].title, RectF(r.X + 18, top + 8, r.Width - 280, 19), 13, Weight::Semibold, White(255));
+        Label(g, rows[i].detail, RectF(r.X + 18, top + 26, r.Width - 280, 17), 11, Weight::Regular,
+              White(kSecondaryAlpha));
+        centres.push_back(top + kRowHeight / 2);
     }
     return centres;
 }
 
+RectF SettingsCardRect(const RectF& c, size_t rows) { return RectF(c.X, c.Y + 88 + 12, c.Width, rows * kRowHeight + 6); }
+
 void DrawTypingPage(Graphics& g, const RectF& c) {
     const Settings& s = *g_settings;
-    DrawHero(g, RectF(c.X, c.Y, c.Width, 112), L"Kiểu gõ", L"Chọn cách gõ dấu và cách Dokey xử lý chữ.", kMethod);
-    RectF card(c.X, c.Y + 124, c.Width, 4 * 52 + 6);
+    DrawHero(g, RectF(c.X, c.Y, c.Width, 88), L"Kiểu gõ", L"Chọn cách gõ dấu và cách Dokey xử lý chữ.", kMethod);
+    RectF card = SettingsCardRect(c, 4);
     std::vector<float> y = DrawSettingsCard(g, card, {
         {L"Kiểu gõ", L"Gõ dấu bằng chữ cái (Telex) hoặc chữ số (VNI)"},
         {L"Kiểm tra chính tả", L"Giữ nguyên từ không phải tiếng Việt: windows, chrome…"},
@@ -598,13 +632,13 @@ void DrawTypingPage(Graphics& g, const RectF& c) {
             : L"Ví dụ Telex:  Vieetj Nam → Việt Nam   ·   dduowngf → đường   ·   s f r x j = sắc huyền hỏi ngã nặng, "
               L"aa ee oo = â ê ô, aw ow uw = ă ơ ư, dd = đ";
     Label(g, examples, RectF(c.X + 2, card.GetBottom() + 12, c.Width - 4, 40), 12, Weight::Regular,
-             White(kSecondaryAlpha), StringAlignmentNear, StringAlignmentNear, true);
+          White(kSecondaryAlpha), StringAlignmentNear, StringAlignmentNear, true);
 }
 
 void DrawAppsPage(Graphics& g, const RectF& c, const PanelStatus& st) {
-    DrawHero(g, RectF(c.X, c.Y, c.Width, 112), L"Ứng dụng",
+    DrawHero(g, RectF(c.X, c.Y, c.Width, 88), L"Ứng dụng",
              L"Dokey tự nhận biết trình duyệt, Electron và ứng dụng thường.", kApps);
-    RectF card(c.X, c.Y + 124, c.Width, 2 * 52 + 6);
+    RectF card = SettingsCardRect(c, 2);
     std::vector<float> y = DrawSettingsCard(g, card, {
         {L"Tương thích máy chậm", L"Nghỉ lâu hơn giữa phím xoá và chữ mới trong Chrome, Edge, Electron"},
         {L"Khởi động cùng Windows", L"Tự chạy Dokey khi đăng nhập"},
@@ -619,35 +653,35 @@ void DrawAppsPage(Graphics& g, const RectF& c, const PanelStatus& st) {
         L"trong một lần gửi phím.";
     RectF noteRect(c.X + 2, card.GetBottom() + 12, c.Width - 4, 54);
     Label(g, note, noteRect, 12, Weight::Regular, White(kSecondaryAlpha), StringAlignmentNear, StringAlignmentNear,
-             true);
+          true);
     if (!st.appName.empty()) {
         std::wstring line = L"Ứng dụng vừa dùng: " + st.appName +
                             (st.appChromium ? L" (trình duyệt, Electron)." : L" (ứng dụng thường).");
         Label(g, line, RectF(c.X + 2, noteRect.GetBottom() + 6, c.Width - 4, 20), 12, Weight::Regular,
-                 White(kSecondaryAlpha));
+              White(kSecondaryAlpha));
     }
 }
 
 void DrawAboutPage(Graphics& g, const RectF& c) {
     const float cx = c.X + c.Width / 2;
-    DrawEmblem(g, kAbout, RectF(cx - 75, c.Y + 2, 150, 150));
-    float y = c.Y + 154;
-    Label(g, L"Dokey", RectF(c.X, y, c.Width, 44), 32, Weight::Bold, White(255), StringAlignmentCenter);
-    y += 46;
+    DrawEmblem(g, kAbout, RectF(cx - 60, c.Y + 6, 120, 120));
+    float y = c.Y + 130;
+    Label(g, L"Dokey", RectF(c.X, y, c.Width, 42), 30, Weight::Bold, White(255), StringAlignmentCenter);
+    y += 42;
     Label(g, std::wstring(L"Phiên bản ") + DOKEY_APP_VERSION_W, RectF(c.X, y, c.Width, 20), 13, Weight::Regular,
-             White(kSecondaryAlpha), StringAlignmentCenter);
+          White(kSecondaryAlpha), StringAlignmentCenter);
     y += 30;
     Label(g,
-             L"Bộ gõ tiếng Việt cho Windows, chạy trên lõi Dokey Core.\n"
-             L"Mỗi phím, Dokey dựng lại cả từ và kiểm tra chính tả với 3.759 âm tiết,\n"
-             L"nên gõ đúng ngay lần đầu và giữ nguyên các từ tiếng Anh.",
-             RectF(c.X + c.Width * 0.1f, y, c.Width * 0.8f, 64), 13, Weight::Regular, White(kSecondaryAlpha),
-             StringAlignmentCenter, StringAlignmentNear, true);
-    y += 78;
+          L"Bộ gõ tiếng Việt cho Windows, chạy trên lõi Dokey Core.\n"
+          L"Mỗi phím, Dokey dựng lại cả từ và kiểm tra chính tả với 3.759 âm tiết,\n"
+          L"nên gõ đúng ngay lần đầu và giữ nguyên các từ tiếng Anh.",
+          RectF(c.X + c.Width * 0.1f, y, c.Width * 0.8f, 64), 13, Weight::Regular, White(kSecondaryAlpha),
+          StringAlignmentCenter, StringAlignmentNear, true);
+    y += 76;
     DrawAccentButton(g, RectF(cx - 110, y, 220, 32), L"Trang dự án trên GitHub", HOT_GITHUB);
     y += 46;
     Label(g, L"© 2026 Do Huy Toan. All rights reserved.", RectF(c.X, y, c.Width, 18), 11, Weight::Regular,
-             White(115), StringAlignmentCenter);
+          White(115), StringAlignmentCenter);
 }
 
 // Draws the whole panel in 96-DPI units (the caller scales the Graphics).
@@ -661,15 +695,15 @@ void Render(Graphics& g, const PanelStatus& st) {
     DrawBackground(g);
     DrawSidebar(g);
     Label(g, kTitles[g_page], RectF(kSidebar, 6, kWidth - kSidebar, 22), 13, Weight::Semibold, White(217),
-             StringAlignmentCenter, StringAlignmentCenter);
-    const RectF content(kSidebar + 22, 36, kWidth - kSidebar - 22 - 24, kHeight - 36 - 106);
+          StringAlignmentCenter, StringAlignmentCenter);
+    const RectF content = ContentRect(g_page);
     switch (g_page) {
         case PAGE_DASHBOARD: DrawDashboard(g, content, st); break;
         case PAGE_TYPING: DrawTypingPage(g, content); break;
         case PAGE_APPS: DrawAppsPage(g, content, st); break;
         default: DrawAboutPage(g, content); break;
     }
-    if (g_page != PAGE_ABOUT) {
+    if (g_page == PAGE_DASHBOARD) {  // the on/off orb lives on the dashboard only
         const float cx = content.X + content.Width / 2;
         DrawOrb(g, RectF(cx - 50, kHeight - 106, 100, 100), g_settings->vietnamese);
     }
@@ -713,11 +747,36 @@ void Changed() {
     RefreshPanel();
 }
 
+// Places the "Gõ thử" edit box in its well (physical pixels) and shows it on the dashboard only.
+void LayoutTryEdit(HWND hwnd) {
+    if (!g_tryEdit) return;
+    const float scale = DpiOf(hwnd) / 96.0f;
+    auto px = [scale](float v) { return static_cast<int>(std::lround(v * scale)); };
+    if (g_tryFont) DeleteObject(g_tryFont);
+    g_tryFont = CreateFontW(-px(17), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS,
+                            CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, VARIABLE_PITCH, L"Segoe UI");
+    SendMessageW(g_tryEdit, WM_SETFONT, reinterpret_cast<WPARAM>(g_tryFont), TRUE);
+    SendMessageW(g_tryEdit, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN, 0);
+    const RectF well = TryWell();
+    const float textHeight = 26;
+    SetWindowPos(g_tryEdit, nullptr, px(well.X + 14), px(well.Y + (well.Height - textHeight) / 2), px(well.Width - 28),
+                 px(textHeight), SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(g_tryEdit, g_page == PAGE_DASHBOARD ? SW_SHOWNA : SW_HIDE);
+}
+
+void SelectPage(int page) {
+    g_page = page;
+    if (g_panel) {
+        if (page != PAGE_DASHBOARD && GetFocus() == g_tryEdit) SetFocus(g_panel);
+        LayoutTryEdit(g_panel);
+    }
+    RefreshPanel();
+}
+
 void OnClick(int id) {
     Settings& s = *g_settings;
     if (id >= HOT_PAGE && id < HOT_PAGE + PAGE_COUNT) {
-        g_page = id - HOT_PAGE;
-        RefreshPanel();
+        SelectPage(id - HOT_PAGE);
         return;
     }
     switch (id) {
@@ -777,8 +836,23 @@ LRESULT CALLBACK PanelProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             DwmSetWindowAttribute(hwnd, 35 /* DWMWA_CAPTION_COLOR */, &caption, sizeof(caption));
             DwmSetWindowAttribute(hwnd, 36 /* DWMWA_TEXT_COLOR */, &text, sizeof(text));
             SetTimer(hwnd, kRefreshTimer, kRefreshMs, nullptr);
+            // "Gõ thử": a plain edit box, so Dokey types into it with Backspace like any normal app.
+            g_tryEdit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | ES_AUTOHSCROLL, 0, 0, 10, 10, hwnd, nullptr,
+                                        g_instance, nullptr);
+            if (g_tryEdit) {
+                SendMessageW(g_tryEdit, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(kTryPlaceholder));
+                LayoutTryEdit(hwnd);
+            }
             return 0;
         }
+        case WM_CTLCOLOREDIT:
+            if (reinterpret_cast<HWND>(lParam) == g_tryEdit) {
+                HDC dc = reinterpret_cast<HDC>(wParam);
+                SetTextColor(dc, RGB(255, 255, 255));
+                SetBkColor(dc, kWellColor);
+                return reinterpret_cast<LRESULT>(g_wellBrush);
+            }
+            break;
         case WM_PAINT:
             Paint(hwnd);
             return 0;
@@ -810,7 +884,11 @@ LRESULT CALLBACK PanelProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             }
             break;
         case WM_LBUTTONDOWN: {
-            int hot = HitTest(hwnd, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+            const int x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
+            const float scale = DpiOf(hwnd) / 96.0f;
+            const bool inWell = g_page == PAGE_DASHBOARD && TryWell().Contains(PointF(x / scale, y / scale));
+            SetFocus(inWell && g_tryEdit ? g_tryEdit : hwnd);
+            int hot = HitTest(hwnd, x, y);
             if (hot != HOT_NONE) OnClick(hot);
             return 0;
         }
@@ -824,11 +902,15 @@ LRESULT CALLBACK PanelProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             const RECT* r = reinterpret_cast<const RECT*>(lParam);
             SetWindowPos(hwnd, nullptr, r->left, r->top, r->right - r->left, r->bottom - r->top,
                          SWP_NOZORDER | SWP_NOACTIVATE);
+            LayoutTryEdit(hwnd);
             InvalidateRect(hwnd, nullptr, FALSE);
             return 0;
         }
         case WM_DESTROY:
             KillTimer(hwnd, kRefreshTimer);
+            g_tryEdit = nullptr;  // destroyed with its parent
+            if (g_tryFont) DeleteObject(g_tryFont);
+            g_tryFont = nullptr;
             g_panel = nullptr;
             g_hover = HOT_NONE;
             g_trackingMouse = false;
@@ -872,13 +954,14 @@ bool InitPanel(HINSTANCE instance, Settings* settings, const PanelCallbacks& cal
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wc.lpszClassName = kPanelClass;
     RegisterClassExW(&wc);
+    g_wellBrush = CreateSolidBrush(kWellColor);
     return true;
 }
 
 void ShowPanel(int page) {
-    if (page >= 0 && page < PAGE_COUNT) g_page = page;
+    if (page >= 0 && page < PAGE_COUNT) SelectPage(page);
     if (!g_panel) {
-        const DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+        const DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN;
         const DWORD exStyle = WS_EX_APPWINDOW;
         g_panel = CreateWindowExW(exStyle, kPanelClass, L"Dokey", style, CW_USEDEFAULT, CW_USEDEFAULT, 100, 100, nullptr,
                                   nullptr, g_instance, nullptr);
@@ -905,6 +988,8 @@ void RefreshPanel() {
 
 void ShutdownPanel() {
     if (g_panel) DestroyWindow(g_panel);
+    if (g_wellBrush) DeleteObject(g_wellBrush);
+    g_wellBrush = nullptr;
     if (g_gdiplusToken) GdiplusShutdown(g_gdiplusToken);
     g_gdiplusToken = 0;
 }
