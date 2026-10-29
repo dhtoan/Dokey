@@ -130,6 +130,7 @@ final class KeyboardTap {
         let pass = Unmanaged.passUnretained(event)
         if event.getIntegerValueField(.eventSourceUserData) == dokeyEventTag { return pass }
         modifierHotkeyArmed = false
+        if state.debugLog { DebugLog.key() }
 
         let keyCode = CGKeyCode(truncatingIfNeeded: event.getIntegerValueField(.keyboardEventKeycode))
         let flags = event.flags
@@ -163,7 +164,7 @@ final class KeyboardTap {
             let ch: UInt32 = keyCode == KeyCode.tab ? 0x09 : 0x0D
             guard var edit = engine.key(ch) else { return pass }
             if edit.text.last == UInt16(ch) { edit.text.removeLast() }
-            deliver(edit, proxy: proxy, state: current, then: event)
+            deliver(edit, typedKey: keyCode, proxy: proxy, state: current, then: event)
             return nil
         case KeyCode.escape, KeyCode.forwardDelete:
             engine.reset()
@@ -180,7 +181,7 @@ final class KeyboardTap {
             return pass
         }
         guard let edit = engine.key(ch) else { return pass }
-        deliver(edit, proxy: proxy, state: current, then: nil)
+        deliver(edit, typedKey: keyCode, proxy: proxy, state: current, then: nil)
         return nil
     }
 
@@ -223,7 +224,8 @@ final class KeyboardTap {
     /// Swallows the original key and replays the edit: Backspaces, then the new text,
     /// then (for Return/Tab) a copy of the original key. CGEventTapPostEvent inserts
     /// the events right after this tap, ahead of any key the user types next.
-    private func deliver(_ edit: EngineEdit, proxy: CGEventTapProxy, state: TapState, then original: CGEvent?) {
+    private func deliver(_ edit: EngineEdit, typedKey: CGKeyCode, proxy: CGEventTapProxy, state: TapState,
+                         then original: CGEvent?) {
         let profile = state.profile
         // Rich editors (ProseMirror/Tiptap in Claude, Notion…) can ignore synthetic
         // Backspaces, and browser address bars spend the first one on the inline
@@ -242,16 +244,19 @@ final class KeyboardTap {
         }
         if edit.backspaces > 0 && !edit.text.isEmpty { pause(profile.settle) }
 
+        let textKey = profile.textKey < 0 ? typedKey : CGKeyCode(profile.textKey)
         let chunk = profile.unitsPerEvent
         var start = 0
         while start < edit.text.count {
             var end = min(start + chunk, edit.text.count)
             // Never split a surrogate pair across two events.
             if end < edit.text.count && UTF16.isLeadSurrogate(edit.text[end - 1]) { end += 1 }
-            postText(Array(edit.text[start..<end]), proxy: proxy)
+            postText(Array(edit.text[start..<end]), key: textKey, up: profile.textUp, proxy: proxy)
             pause(profile.step)
             start = end
         }
+
+        if !edit.text.isEmpty { pause(profile.tail) }
 
         if let copy = original?.copy() {
             copy.setIntegerValueField(.eventSourceUserData, value: dokeyEventTag)
@@ -268,9 +273,9 @@ final class KeyboardTap {
         }
     }
 
-    private func postText(_ units: [UInt16], proxy: CGEventTapProxy) {
-        for down in [true, false] {
-            guard let e = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: down) else { continue }
+    private func postText(_ units: [UInt16], key: CGKeyCode, up: Bool, proxy: CGEventTapProxy) {
+        for down in up ? [true, false] : [true] {
+            guard let e = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down) else { continue }
             e.flags = []
             var chars = units
             e.keyboardSetUnicodeString(stringLength: chars.count, unicodeString: &chars)
@@ -298,20 +303,30 @@ enum DebugLog {
     private static let url = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Logs/Dokey.log")
 
+    /// A physical key arrived (only the time is logged, not which key).
+    static func key() {
+        let time = Date().timeIntervalSince1970
+        queue.async { append(String(format: "%.3f key\n", time)) }
+    }
+
     static func write(_ edit: EngineEdit, kind: AppKind, selected: Bool) {
         let time = Date().timeIntervalSince1970
         let text = String(decoding: edit.text, as: UTF16.self)
         queue.async {
             let line = String(format: "%.3f %@ %@ x%d -> \"%@\"\n", time, kind.rawValue,
                               selected ? "select" : "backspace", edit.backspaces, text)
-            guard let data = line.data(using: .utf8) else { return }
-            if let handle = try? FileHandle(forWritingTo: url) {
-                handle.seekToEndOfFile()
-                handle.write(data)
-                handle.closeFile()
-            } else {
-                try? data.write(to: url)
-            }
+            append(line)
+        }
+    }
+
+    private static func append(_ line: String) {
+        guard let data = line.data(using: .utf8) else { return }
+        if let handle = try? FileHandle(forWritingTo: url) {
+            handle.seekToEndOfFile()
+            handle.write(data)
+            handle.closeFile()
+        } else {
+            try? data.write(to: url)
         }
     }
 }

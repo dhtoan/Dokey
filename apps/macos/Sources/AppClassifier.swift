@@ -22,40 +22,51 @@ enum AppKind: String {
     /// How synthetic keys are sent to this kind of app. `tuning` overrides
     /// the defaults without a rebuild, e.g.
     /// `defaults write com.dhtoan.dokey.mac tuning -dict electron.settle -int 20000`
-    /// (keys: <kind>.step, <kind>.settle in microseconds, <kind>.units, <kind>.select).
+    /// (keys: <kind>.step, <kind>.settle, <kind>.tail in microseconds, <kind>.units,
+    /// <kind>.select, <kind>.textKey: virtual key for text events, -1 = the key just typed,
+    /// <kind>.textUp: 0 to send text as key-down only).
     func profile(slowMachine: Bool, tuning: [String: Any] = [:]) -> DeliveryProfile {
         var p: DeliveryProfile
         switch self {
-        // Select-then-type and a pause before the first new letter: rich editors
-        // (Claude, Notion) update their selection asynchronously and can drop a
-        // letter that arrives before they caught up. The whole replacement goes
-        // in one event so it is inserted atomically.
-        case .browser: p = DeliveryProfile(select: true, unitsPerEvent: 20, step: 1_000, settle: 8_000)
-        case .electron: p = DeliveryProfile(select: true, unitsPerEvent: 20, step: 1_000, settle: 12_000)
+        // Select-then-type: rich editors (ProseMirror in Claude, Notion) can ignore
+        // synthetic Backspaces, and address bars spend one on the inline suggestion.
+        // No pauses: the events are posted at the tap's own position, so they are
+        // already ahead of the next key, and sleeping inside the tap only delays
+        // the user's next key (other Vietnamese IMEs found the same).
+        case .browser, .electron:
+            p = DeliveryProfile(select: true, unitsPerEvent: 20, step: 0, settle: 0, tail: 0, textKey: 0, textUp: true)
         // Shift+← is an escape sequence in Terminal, so normal apps get Backspace.
-        case .normal: p = DeliveryProfile(select: false, unitsPerEvent: 20, step: 0, settle: 0)
+        case .normal:
+            p = DeliveryProfile(select: false, unitsPerEvent: 20, step: 0, settle: 0, tail: 0, textKey: 0, textUp: true)
         }
         if slowMachine && self != .normal {
-            p.step = p.step * 2
-            p.settle = p.settle * 2
+            // A short breather for old Macs (the "Tương thích máy chậm" switch).
+            p.settle = 2_000
         }
         func number(_ key: String) -> Int? { (tuning["\(rawValue).\(key)"] as? NSNumber)?.intValue }
         if let v = number("step") { p.step = useconds_t(max(0, min(v, 100_000))) }
         if let v = number("settle") { p.settle = useconds_t(max(0, min(v, 200_000))) }
         if let v = number("units") { p.unitsPerEvent = max(1, min(v, 20)) }
         if let v = number("select") { p.select = v != 0 }
+        if let v = number("tail") { p.tail = useconds_t(max(0, min(v, 200_000))) }
+        if let v = number("textKey") { p.textKey = max(-1, min(v, 127)) }
+        if let v = number("textUp") { p.textUp = v != 0 }
         return p
     }
 }
 
 /// How one edit is replayed: delete by Backspace or by selecting with Shift+←,
-/// how many UTF-16 units per key event, and pauses in microseconds after each
-/// event and before the first new letter.
+/// how many UTF-16 units per key event, pauses in microseconds (after each
+/// event, before the first new letter, after the last one), and which virtual
+/// key the text events carry.
 struct DeliveryProfile {
     var select: Bool
     var unitsPerEvent: Int
     var step: useconds_t
     var settle: useconds_t
+    var tail: useconds_t
+    var textKey: Int
+    var textUp: Bool
 }
 
 enum AppClassifier {
