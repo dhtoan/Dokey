@@ -104,6 +104,12 @@ Chi tiết: [apps/macos/README.md](apps/macos/README.md) · Đã kiểm thử nh
 
 ## 🪟 Windows
 
+<div align="center">
+<img src="apps/windows/docs/panel.jpg" alt="Bảng điều khiển Dokey trên Windows" width="80%">
+</div>
+
+Cùng một giao diện trên Windows 10/11, vẽ bằng GDI+. Tải bộ cài `Dokey-<phiên bản>-Windows-Setup.exe` ở trang [Releases](https://github.com/dhtoan/Dokey/releases/latest).
+
 <details>
 <summary><b>Dokey cho Windows 10/11</b>: bộ cài <code>Dokey-&lt;phiên bản&gt;-Windows-Setup.exe</code> cho x86, x64 và ARM64</summary>
 
