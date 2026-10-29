@@ -25,7 +25,8 @@ let dokeyEventTag: Int64 = 0x444F_4B45  // "DOKE"
 struct TapState {
     var vietnamese = true
     var appKind = AppKind.normal
-    var slowMachine = false
+    var profile = AppKind.normal.profile(slowMachine: false)
+    var debugLog = false
     var hotkey = SwitchHotkey.controlShift
     var encoding = Int32(DOKEY_UNICODE)
 }
@@ -223,31 +224,32 @@ final class KeyboardTap {
     /// then (for Return/Tab) a copy of the original key. CGEventTapPostEvent inserts
     /// the events right after this tap, ahead of any key the user types next.
     private func deliver(_ edit: EngineEdit, proxy: CGEventTapProxy, state: TapState, then original: CGEvent?) {
-        let delays = state.appKind.delays(slowMachine: state.slowMachine)
+        let profile = state.profile
         // Rich editors (ProseMirror/Tiptap in Claude, Notion…) can ignore synthetic
         // Backspaces, and browser address bars spend the first one on the inline
         // suggestion. Selecting the old letters with Shift+← and typing over them
         // works in both. Combining marks are skipped: ← moves by whole character.
-        let select = state.appKind.selectsBeforeReplacing && !edit.text.isEmpty
+        let select = profile.select && !edit.text.isEmpty
             && state.encoding != Int32(DOKEY_UNICODE_COMBINING)
+        if state.debugLog { DebugLog.write(edit, kind: state.appKind, selected: select) }
         for _ in 0..<edit.backspaces {
             if select {
                 postKey(KeyCode.leftArrow, flags: [.maskShift, .maskSecondaryFn, .maskNumericPad], proxy: proxy)
             } else {
                 postKey(KeyCode.backspace, proxy: proxy)
             }
-            pause(delays.step)
+            pause(profile.step)
         }
-        if edit.backspaces > 0 && !edit.text.isEmpty { pause(delays.settle) }
+        if edit.backspaces > 0 && !edit.text.isEmpty { pause(profile.settle) }
 
-        let chunk = state.appKind.unitsPerEvent
+        let chunk = profile.unitsPerEvent
         var start = 0
         while start < edit.text.count {
             var end = min(start + chunk, edit.text.count)
             // Never split a surrogate pair across two events.
             if end < edit.text.count && UTF16.isLeadSurrogate(edit.text[end - 1]) { end += 1 }
             postText(Array(edit.text[start..<end]), proxy: proxy)
-            pause(delays.step)
+            pause(profile.step)
             start = end
         }
 
@@ -286,4 +288,30 @@ private let tapCallback: CGEventTapCallBack = { proxy, type, event, userInfo in
     guard let userInfo = userInfo else { return Unmanaged.passUnretained(event) }
     let tap = Unmanaged<KeyboardTap>.fromOpaque(userInfo).takeUnretainedValue()
     return tap.handle(proxy: proxy, type: type, event: event)
+}
+
+/// Opt-in trace of what Dokey sends, for diagnosing lost letters:
+/// `defaults write com.dhtoan.dokey.mac debugLog -bool true`, then read
+/// ~/Library/Logs/Dokey.log. Off by default; it contains the words typed.
+enum DebugLog {
+    private static let queue = DispatchQueue(label: "Dokey debug log")
+    private static let url = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Logs/Dokey.log")
+
+    static func write(_ edit: EngineEdit, kind: AppKind, selected: Bool) {
+        let time = Date().timeIntervalSince1970
+        let text = String(decoding: edit.text, as: UTF16.self)
+        queue.async {
+            let line = String(format: "%.3f %@ %@ x%d -> \"%@\"\n", time, kind.rawValue,
+                              selected ? "select" : "backspace", edit.backspaces, text)
+            guard let data = line.data(using: .utf8) else { return }
+            if let handle = try? FileHandle(forWritingTo: url) {
+                handle.seekToEndOfFile()
+                handle.write(data)
+                handle.closeFile()
+            } else {
+                try? data.write(to: url)
+            }
+        }
+    }
 }

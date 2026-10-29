@@ -4,8 +4,8 @@ import Cocoa
 
 /// Chromium browsers and Electron apps handle key events in a separate
 /// renderer process. When Backspace and the replacement text arrive back to
-/// back, a busy renderer can apply them out of order, so letters get jumbled
-/// or doubled. Those apps get one character per event and short pauses.
+/// back, a busy renderer can apply them out of order, so letters get jumbled,
+/// doubled or lost. Those apps get select-then-type and short pauses.
 enum AppKind: String {
     case browser
     case electron
@@ -19,32 +19,43 @@ enum AppKind: String {
         }
     }
 
-    /// Pauses in microseconds: after each synthetic event, and once between
-    /// the Backspaces and the new text.
-    func delays(slowMachine: Bool) -> (step: useconds_t, settle: useconds_t) {
-        let base: (useconds_t, useconds_t)
+    /// How synthetic keys are sent to this kind of app. `tuning` overrides
+    /// the defaults without a rebuild, e.g.
+    /// `defaults write com.dhtoan.dokey.mac tuning -dict electron.settle -int 20000`
+    /// (keys: <kind>.step, <kind>.settle in microseconds, <kind>.units, <kind>.select).
+    func profile(slowMachine: Bool, tuning: [String: Any] = [:]) -> DeliveryProfile {
+        var p: DeliveryProfile
         switch self {
-        case .browser: base = (1_500, 4_000)
-        case .electron: base = (1_000, 3_000)
-        case .normal: base = (0, 0)
+        // Select-then-type and a pause before the first new letter: rich editors
+        // (Claude, Notion) update their selection asynchronously and can drop a
+        // letter that arrives before they caught up. The whole replacement goes
+        // in one event so it is inserted atomically.
+        case .browser: p = DeliveryProfile(select: true, unitsPerEvent: 20, step: 1_000, settle: 8_000)
+        case .electron: p = DeliveryProfile(select: true, unitsPerEvent: 20, step: 1_000, settle: 12_000)
+        // Shift+← is an escape sequence in Terminal, so normal apps get Backspace.
+        case .normal: p = DeliveryProfile(select: false, unitsPerEvent: 20, step: 0, settle: 0)
         }
-        if slowMachine {
-            return (base.0 * 2 + 300, base.1 * 2 + 1_000)
+        if slowMachine && self != .normal {
+            p.step = p.step * 2
+            p.settle = p.settle * 2
         }
-        return base
+        func number(_ key: String) -> Int? { (tuning["\(rawValue).\(key)"] as? NSNumber)?.intValue }
+        if let v = number("step") { p.step = useconds_t(max(0, min(v, 100_000))) }
+        if let v = number("settle") { p.settle = useconds_t(max(0, min(v, 200_000))) }
+        if let v = number("units") { p.unitsPerEvent = max(1, min(v, 20)) }
+        if let v = number("select") { p.select = v != 0 }
+        return p
     }
+}
 
-    /// Replace letters by selecting them (Shift+←) and typing over the
-    /// selection, instead of Backspace. Not for normal apps: in Terminal,
-    /// Shift+← is an escape sequence, not a selection.
-    var selectsBeforeReplacing: Bool {
-        self != .normal
-    }
-
-    /// How many UTF-16 units may share one synthetic key event.
-    var unitsPerEvent: Int {
-        self == .normal ? 20 : 1
-    }
+/// How one edit is replayed: delete by Backspace or by selecting with Shift+←,
+/// how many UTF-16 units per key event, and pauses in microseconds after each
+/// event and before the first new letter.
+struct DeliveryProfile {
+    var select: Bool
+    var unitsPerEvent: Int
+    var step: useconds_t
+    var settle: useconds_t
 }
 
 enum AppClassifier {

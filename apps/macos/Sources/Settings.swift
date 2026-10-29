@@ -109,6 +109,15 @@ final class Settings {
         set { defaults.set(newValue, forKey: Key.slowMachine) }
     }
 
+    /// Advanced, set with `defaults write`: see AppKind.profile.
+    var tuning: [String: Any] {
+        defaults.dictionary(forKey: "tuning") ?? [:]
+    }
+
+    var debugLog: Bool {
+        defaults.bool(forKey: "debugLog")
+    }
+
     func savedMode(forApp bundleID: String) -> Bool? {
         let modes = defaults.dictionary(forKey: Key.perAppModes) as? [String: Bool]
         return modes?[bundleID]

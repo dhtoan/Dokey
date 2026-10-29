@@ -43,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
             } else {
                 self.tap.ensureEnabled()
             }
+            self.applyTuning()  // picks up `defaults write` tuning while running
         }
     }
 
@@ -119,12 +120,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
     private func pushState() {
         var state = tap.state
         state.vietnamese = settings.vietnamese
-        state.slowMachine = settings.slowMachineMode
         state.hotkey = settings.hotkey
         state.encoding = settings.encoding
         state.appKind = frontApp?.kind ?? .normal
+        state.profile = state.appKind.profile(slowMachine: settings.slowMachineMode, tuning: settings.tuning)
+        state.debugLog = settings.debugLog
         tap.state = state
         controlPanel?.refresh()
+    }
+
+    private func applyTuning() {
+        var state = tap.state
+        state.profile = state.appKind.profile(slowMachine: settings.slowMachineMode, tuning: settings.tuning)
+        state.debugLog = settings.debugLog
+        tap.state = state
     }
 
     private func updateIcon() {
