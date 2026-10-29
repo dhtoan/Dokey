@@ -560,7 +560,7 @@ void DrawDashboard(Graphics& g, const RectF& c, const PanelStatus& st) {
     const RectF well = TryWell();
     GraphicsPath wellPath;
     AddRoundRect(wellPath, well, 10);
-    SolidBrush wellBrush(Rgb(GetRValue(kWellColor), GetGValue(kWellColor), GetBValue(kWellColor)));
+    SolidBrush wellBrush(Rgb(kWellColor & 0xFF, (kWellColor >> 8) & 0xFF, (kWellColor >> 16) & 0xFF));
     g.FillPath(&wellBrush, &wellPath);
     if (!g_tryEdit) {  // rendering to a file: no edit box, show its placeholder
         Label(g, kTryPlaceholder, RectF(well.X + 14, well.Y, well.Width - 28, well.Height), 17, Weight::Regular,
