@@ -5,8 +5,8 @@
 <br>
 
 [![CI](https://github.com/dhtoan/Dokey/actions/workflows/ci.yml/badge.svg)](https://github.com/dhtoan/Dokey/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/dhtoan/Dokey?label=release&color=A855F7)](https://github.com/dhtoan/Dokey/releases/latest)
-![macOS](https://img.shields.io/badge/macOS-10.13%2B-111111?logo=apple&logoColor=white)
+[![Download](https://img.shields.io/badge/download-latest%20release-A855F7)](https://github.com/dhtoan/Dokey/releases/latest)
+![macOS](https://img.shields.io/badge/macOS-10.13%2B-111111)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-18%2C500%20passing-2EA44F)
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
