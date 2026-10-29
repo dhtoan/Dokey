@@ -21,10 +21,35 @@ Biến môi trường: `VERSION` (mặc định `0.3.1`), `ARCHS` (mặc định
 
 ## Cài đặt và cấp quyền
 
-1. Kéo `Dokey.app` vào thư mục Applications rồi mở.
-   Bản ký ad-hoc chưa được Apple công chứng (notarize). Lần đầu mở: chuột phải vào Dokey.app, chọn **Open**, rồi chọn **Open** lần nữa. Hoặc chạy `xattr -dr com.apple.quarantine /Applications/Dokey.app`.
+1. Cài bằng script, macOS sẽ không hiện cảnh báo:
+   ```bash
+   bash install-macos.sh                                  # bản mới nhất (cần gh auth login)
+   bash install-macos.sh ~/Downloads/Dokey-0.3.1.dmg      # file .dmg đã tải
+   ```
+   Script (`apps/macos/install.sh`, phát hành với tên `install-macos.sh`) cài vào `/Applications`, gỡ cờ cách ly rồi mở Dokey.
+   Nếu kéo thả từ `.dmg` bằng tay: Dokey ký ad-hoc, chưa được Apple công chứng (notarize), nên lần đầu phải chuột phải vào Dokey.app, chọn **Open**. Hoặc chạy `xattr -dr com.apple.quarantine /Applications/Dokey.app`.
 2. Dokey mở cửa sổ hướng dẫn cấp quyền **Trợ năng** (System Settings › Privacy & Security › Accessibility). Bật Dokey trong danh sách; Dokey tự nhận quyền, không cần mở lại.
 3. Sau khi cập nhật bản mới mà không gõ được dấu: xoá Dokey khỏi danh sách Trợ năng rồi thêm lại. Mỗi bản ký ad-hoc có chữ ký khác nhau nên macOS coi là ứng dụng mới.
+
+## Chỉnh cách gửi phím và nhật ký gỡ lỗi
+
+Không cần build lại; Dokey đọc các thông số này mỗi 2 giây:
+
+```bash
+# Ví dụ: chờ 5 ms trước chữ mới đầu tiên trong ứng dụng Electron
+defaults write com.dhtoan.dokey.mac tuning -dict electron.settle -int 5000
+defaults delete com.dhtoan.dokey.mac tuning            # về mặc định
+defaults write com.dhtoan.dokey.mac debugLog -bool true   # ghi ~/Library/Logs/Dokey.log
+```
+
+Khoá có dạng `<nhóm>.<thông số>`, nhóm là `browser`, `electron` hoặc `normal`:
+- `step`, `settle`, `tail`: thời gian chờ (micro giây) sau mỗi phím, trước chữ mới đầu tiên, sau chữ cuối;
+- `units`: số ký tự tối đa mỗi sự kiện;
+- `select`: 1 = bôi đen rồi gõ đè, 0 = Backspace;
+- `textKey`: mã phím gắn vào chữ gửi đi, -1 = phím vừa gõ;
+- `textUp`: 0 = chỉ gửi phím xuống.
+
+Nhật ký có chứa các từ bạn gõ, chỉ nằm trên máy, mặc định tắt.
 
 ## Bảng điều khiển
 

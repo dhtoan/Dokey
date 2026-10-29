@@ -74,7 +74,10 @@ Xin chào các bạn, Dokey gõ tiếng Việt không nhảy chữ.
 - Nhớ chế độ Anh/Việt theo từng ứng dụng; khởi động cùng macOS.
 - **Chống nhảy chữ trong Chrome, Edge, Claude và ứng dụng Electron:** event tap chạy trên luồng riêng; ứng dụng được chia thành ba nhóm (trình duyệt, Electron/IDE, thường); với hai nhóm đầu, Dokey gửi từng ký tự và nghỉ ngắn giữa các phím. Có chế độ **Tương thích máy chậm**.
 - Tự bật lại event tap khi macOS tắt nó; giữ phím (autorepeat) thì bắt đầu từ mới.
-- **0.3.1:** bảng điều khiển mở ra khi bấm vào Dokey.app. Trong trình duyệt và ứng dụng Electron, Dokey bôi đen chữ cũ (Shift+←) rồi gõ đè, thay vì gửi Backspace. Cách này sửa lỗi mất chữ trong trình soạn thảo ProseMirror (ô chat của Claude, Notion…) và ở thanh địa chỉ.
+- **0.3.1:**
+  - Bảng điều khiển mở ra khi bấm vào Dokey.app.
+  - Sửa lỗi mất chữ (`Hãy` → `Hy`) trong ô chat Claude, trình soạn thảo ProseMirror và thanh địa chỉ: Dokey bôi đen chữ cũ rồi gõ đè, không chờ giữa các phím.
+  - Cài không cảnh báo bằng `install-macos.sh`.
 
 Build bằng Command Line Tools, không cần Xcode:
 
@@ -97,7 +100,9 @@ Chi tiết cách cài, cấp quyền Trợ năng và cơ chế hoạt động: [
 | Bản 0.3.1 cài vào `/Applications`, có quyền Trợ năng, gõ giả lập 8–80 ms/phím: TextEdit, textarea và contenteditable trên Edge | ✅ Đúng hết (`Hãy Việt tiếng đường người thuở windows`) |
 | Bản 0.3.1 trong ProseMirror trên Edge | ✅ 6/7 lượt đúng hết. Lượt sai: từ đầu tiên ngay sau khi trang vừa tải (lúc đó trình duyệt chưa phát `beforeinput` cho cả chữ thường); từ thứ hai trở đi luôn đúng |
 | Bản 0.3.1 ở thanh địa chỉ Edge | ⚠️ Mới đọc lại được một lần (`Việt Nam`, đúng); cách đọc tự động chưa tin cậy |
-| Bản 0.3.1 trong chính ứng dụng Claude, Chrome, VS Code | ❌ Chưa thử trực tiếp |
+| Bản 0.3.1 (không chờ giữa các phím) gõ thật trong ô chat Claude Desktop | ✅ Câu dài có `chữ thì còn mỗi Hãy khảo cách của` ra đúng hết, đối chiếu với nhật ký Dokey |
+| `install-macos.sh` với `.dmg` mang cờ cách ly như tải từ trình duyệt | ✅ Cài xong không còn cờ cách ly, không cảnh báo |
+| Chrome, VS Code | ❌ Chưa thử trực tiếp |
 | Chống nhảy chữ trên máy chậm (MacBook Pro 2015, 8 GB RAM) | ❌ Chưa kiểm thử. Khoảng nghỉ hiện tại là ước lượng ban đầu, sẽ chỉnh theo kết quả gõ thật |
 | Chạy trên macOS 10.13 – 10.15 và trên máy Apple Silicon thật | ❌ Chưa kiểm thử. Bản build có thư viện Swift cho macOS cũ, nhưng chưa thử trên máy thật |
 | Khởi động cùng macOS, nhớ chế độ theo ứng dụng, các phím chuyển | ❌ Chưa kiểm thử bằng tay |

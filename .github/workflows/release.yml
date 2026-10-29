@@ -98,7 +98,8 @@ jobs:
         run: |
           lipo apps/macos/build/Dokey.app/Contents/MacOS/Dokey -verify_arch x86_64 arm64
           hdiutil verify "apps/macos/build/Dokey-${TAG#v}.dmg"
-          gh release upload "$TAG" "apps/macos/build/Dokey-${TAG#v}.dmg" --clobber
+          cp apps/macos/install.sh apps/macos/build/install-macos.sh
+          gh release upload "$TAG" "apps/macos/build/Dokey-${TAG#v}.dmg" apps/macos/build/install-macos.sh --clobber
 
   windows-app:
     name: windows-app
@@ -116,7 +117,7 @@ jobs:
       - name: Checksums and publish
         run: |
           mkdir dist && cd dist
-          gh release download "$TAG" -R "$GITHUB_REPOSITORY" --pattern "dokey-core-*" --pattern "Dokey-*.dmg" --pattern "Dokey-*-Windows-Setup.exe"
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" --pattern "dokey-core-*" --pattern "Dokey-*.dmg" --pattern "install-macos.sh" --pattern "Dokey-*-Windows-Setup.exe"
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
           gh release upload "$TAG" SHA256SUMS.txt -R "$GITHUB_REPOSITORY" --clobber
