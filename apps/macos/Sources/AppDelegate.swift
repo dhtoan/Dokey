@@ -169,7 +169,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
 
     private func activate(_ app: NSRunningApplication) {
         engine.reset()
-        guard app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+        guard app.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
+            // Typing in Dokey's own panel (the "Gõ thử" box): a normal Cocoa text field.
+            var state = tap.state
+            state.appKind = .normal
+            state.profile = AppKind.normal.profile(slowMachine: settings.slowMachineMode, tuning: settings.tuning)
+            tap.state = state
+            return
+        }
         let id = app.bundleIdentifier ?? ""
         frontApp = (id, app.localizedName ?? id, AppClassifier.classify(app), app.icon)
         if settings.rememberModePerApp, !id.isEmpty, let saved = settings.savedMode(forApp: id),

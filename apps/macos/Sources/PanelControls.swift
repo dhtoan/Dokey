@@ -132,8 +132,8 @@ final class GlossyBadge: NSView {
         // Coloured glow behind the emblem.
         NSGraphicsContext.saveGraphicsState()
         let glow = NSShadow()
-        glow.shadowColor = bottom.withAlphaComponent(0.75)
-        glow.shadowBlurRadius = side * 0.12
+        glow.shadowColor = bottom.withAlphaComponent(0.45)
+        glow.shadowBlurRadius = side * 0.08
         glow.shadowOffset = NSSize(width: 0, height: -side * 0.03)
         glow.set()
         bottom.setFill()
@@ -151,13 +151,13 @@ final class GlossyBadge: NSView {
         // Specular highlight across the top.
         let shine = NSBezierPath(ovalIn: NSRect(x: r.minX + r.width * 0.12, y: r.midY + r.height * 0.08,
                                                 width: r.width * 0.76, height: r.height * 0.46))
-        NSGradient(starting: NSColor(white: 1, alpha: 0.42), ending: NSColor(white: 1, alpha: 0.0))?
+        NSGradient(starting: NSColor(white: 1, alpha: 0.26), ending: NSColor(white: 1, alpha: 0.0))?
             .draw(in: shine, angle: -90)
         NSGraphicsContext.restoreGraphicsState()
 
         // Glass rim.
         body.lineWidth = max(1, side * 0.012)
-        NSColor(white: 1, alpha: 0.40).setStroke()
+        NSColor(white: 1, alpha: 0.28).setStroke()
         body.stroke()
 
         drawSymbol(in: r.insetBy(dx: r.width * 0.24, dy: r.height * 0.24))
