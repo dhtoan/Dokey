@@ -16,6 +16,9 @@ Bộ cài chưa được ký số, nên Windows SmartScreen có thể cảnh bá
 
 ## Sử dụng
 
+![Bảng điều khiển Dokey trên Windows](docs/panel.jpg)
+
+- **Bảng điều khiển** mở ra khi chạy Dokey (Start menu, biểu tượng ngoài màn hình), kể cả khi Dokey đang chạy sẵn, hoặc từ mục "Mở bảng điều khiển" trong menu khay. Có các trang: tổng quan (chế độ gõ, trạng thái, kiểu gõ, ứng dụng đang dùng, số từ đã thêm dấu, nút Bật/Tắt), kiểu gõ, ứng dụng và giới thiệu. Khi khởi động cùng Windows, Dokey chạy ngầm ở khay (`--background`), không mở bảng.
 - Biểu tượng **V** (đỏ) / **E** (xám) ở khay hệ thống: bấm chuột trái để chuyển Việt/Anh, chuột phải để mở menu.
 - Phím tắt chuyển Việt/Anh: **Ctrl+Shift** (bấm rồi thả) hoặc **Alt+Z**, chọn trong menu.
 - Menu: kiểu gõ Telex/VNI, kiểm tra chính tả, dấu kiểu mới (hoà, khoẻ) hay kiểu cũ (hòa, khỏe), khởi động cùng Windows.
@@ -51,6 +54,6 @@ Thay `-A x64` bằng `-A Win32` hoặc `-A ARM64` cho kiến trúc khác. Bộ c
 
 CI ([`windows-app.yml`](../../.github/workflows/windows-app.yml)) build cả ba kiến trúc, chạy unit test, `Dokey.exe --self-test` (cài và gỡ hook), thử gõ vào Notepad, đóng gói bộ cài rồi thử cài/gỡ im lặng.
 
-Biểu tượng ứng dụng được vẽ bằng [`tools/make_icon.py`](tools/make_icon.py); biểu tượng V/E ở khay được vẽ lúc chạy, đúng kích thước màn hình.
+Biểu tượng ứng dụng được vẽ bằng [`tools/make_icon.py`](tools/make_icon.py); biểu tượng V/E ở khay và cả bảng điều khiển (GDI+, theo DPI của màn hình) được vẽ lúc chạy. `Dokey.exe --render-panel <tiền tố>` vẽ các trang của bảng ra file PNG; CI in ảnh vào log để kiểm tra.
 
 Copyright © 2026 Do Huy Toan.
