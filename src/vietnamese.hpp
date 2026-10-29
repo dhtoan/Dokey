@@ -33,6 +33,9 @@ std::u16string stripMarks(const std::u16string& lowerMarked);
 // Syllable dictionary built from initials x rhymes (see vietnamese.cpp).
 bool isSyllablePrefix(const std::u16string& lowerMarked);
 bool isStrippedSyllablePrefix(const std::u16string& lowerUnmarked);
+// Can this become a syllable prefix by adding diacritics to its plain letters?
+// Letters that already carry a mark must match ("đuo" -> đuô/đươ: yes).
+bool isCompatibleSyllablePrefix(const std::u16string& lowerMarked);
 
 // Is this exactly a complete syllable (lower case, with diacritics, no tone)?
 bool isSyllable(const std::u16string& lowerMarked);

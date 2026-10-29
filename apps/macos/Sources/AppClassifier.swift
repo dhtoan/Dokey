@@ -23,7 +23,7 @@ enum AppKind: String {
     /// the defaults without a rebuild, e.g.
     /// `defaults write com.dhtoan.dokey.mac tuning -dict electron.settle -int 20000`
     /// (keys: <kind>.step, <kind>.settle, <kind>.tail in microseconds, <kind>.units,
-    /// <kind>.select, <kind>.textKey: virtual key for text events, -1 = the key just typed,
+    /// <kind>.select, <kind>.textKey: virtual key for text events, -2 = automatic, -1 = the key just typed,
     /// <kind>.textUp: 0 to send text as key-down only).
     func profile(slowMachine: Bool, tuning: [String: Any] = [:]) -> DeliveryProfile {
         var p: DeliveryProfile
@@ -34,10 +34,10 @@ enum AppKind: String {
         // already ahead of the next key, and sleeping inside the tap only delays
         // the user's next key (other Vietnamese IMEs found the same).
         case .browser, .electron:
-            p = DeliveryProfile(select: true, unitsPerEvent: 20, step: 0, settle: 0, tail: 0, textKey: 0, textUp: true)
+            p = DeliveryProfile(select: true, unitsPerEvent: 20, step: 0, settle: 0, tail: 0, textKey: -2, textUp: true)
         // Shift+← is an escape sequence in Terminal, so normal apps get Backspace.
         case .normal:
-            p = DeliveryProfile(select: false, unitsPerEvent: 20, step: 0, settle: 0, tail: 0, textKey: 0, textUp: true)
+            p = DeliveryProfile(select: false, unitsPerEvent: 20, step: 0, settle: 0, tail: 0, textKey: -2, textUp: true)
         }
         if slowMachine && self != .normal {
             // A short breather for old Macs (the "Tương thích máy chậm" switch).
@@ -49,7 +49,7 @@ enum AppKind: String {
         if let v = number("units") { p.unitsPerEvent = max(1, min(v, 20)) }
         if let v = number("select") { p.select = v != 0 }
         if let v = number("tail") { p.tail = useconds_t(max(0, min(v, 200_000))) }
-        if let v = number("textKey") { p.textKey = max(-1, min(v, 127)) }
+        if let v = number("textKey") { p.textKey = max(-2, min(v, 127)) }
         if let v = number("textUp") { p.textUp = v != 0 }
         return p
     }

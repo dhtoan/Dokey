@@ -31,6 +31,14 @@ struct Case {
 static const Case kTelex[] = {
     {"tieengs Vieetj ", "tiếng Việt "},
     {"dduowngf ", "đường "},
+    // Mid-word "đuo" must stay Vietnamese (it can still become được, đuôi),
+    // not flip back to the typed keys "dduo" and forth again.
+    {"dduo", "đuo"},
+    {"dduocwj ", "được "},
+    {"dduocjw ", "được "},
+    {"dduowcj ", "được "},
+    {"haxy hayx ", "hãy hãy "},
+    {"maf vaf ", "mà và "},
     {"DDuowngf ", "Đường "},
     {"nguoiwf ", "người "},
     {"nguowif ", "người "},

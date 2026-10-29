@@ -11,7 +11,7 @@
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-AppKit-F05138?logo=swift&logoColor=white)
 ![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Windows%20%7C%20Linux-6E6E73)
-![Tests](https://img.shields.io/badge/tests-18%2C494%20passing-2EA44F)
+![Tests](https://img.shields.io/badge/tests-18%2C500%20passing-2EA44F)
 
 [Giới thiệu](#giới-thiệu) •
 [Tính năng](#tính-năng) •
@@ -78,6 +78,9 @@ Xin chào các bạn, Dokey gõ tiếng Việt không nhảy chữ.
   - Bảng điều khiển mở ra khi bấm vào Dokey.app.
   - Sửa lỗi mất chữ (`Hãy` → `Hy`) trong ô chat Claude, trình soạn thảo ProseMirror và thanh địa chỉ: Dokey bôi đen chữ cũ rồi gõ đè, không chờ giữa các phím.
   - Cài không cảnh báo bằng `install-macos.sh`.
+- **0.3.2:**
+  - Hết mất chữ khi gõ nhanh (`Haxy` → `Hy`): chữ thay thế không còn gửi kèm mã phím A, phím có thể vẫn đang được giữ.
+  - Gõ `dduocwj` ra "được" mà chữ không nhảy qua lại `đ` ↔ `dd`.
 
 Build bằng Command Line Tools, không cần Xcode:
 
@@ -102,6 +105,7 @@ Chi tiết cách cài, cấp quyền Trợ năng và cơ chế hoạt động: [
 | Bản 0.3.1 ở thanh địa chỉ Edge | ⚠️ Mới đọc lại được một lần (`Việt Nam`, đúng); cách đọc tự động chưa tin cậy |
 | Bản 0.3.1 (không chờ giữa các phím) gõ thật trong ô chat Claude Desktop | ✅ Câu dài có `chữ thì còn mỗi Hãy khảo cách của` ra đúng hết, đối chiếu với nhật ký Dokey |
 | `install-macos.sh` với `.dmg` mang cờ cách ly như tải từ trình duyệt | ✅ Cài xong không còn cờ cách ly, không cảnh báo |
+| Gõ nhanh, phím nguyên âm chưa nhả khi bấm phím dấu (`Haxy`, `maf`) trong ô chat Claude Desktop | ✅ Sau khi đổi mã phím: `Hãy hãy mà và hãy mà ô kìa…` đúng hết (trước đó `Hy`, `m`) |
 | Chrome, VS Code | ❌ Chưa thử trực tiếp |
 | Chống nhảy chữ trên máy chậm (MacBook Pro 2015, 8 GB RAM) | ❌ Chưa kiểm thử. Khoảng nghỉ hiện tại là ước lượng ban đầu, sẽ chỉnh theo kết quả gõ thật |
 | Chạy trên macOS 10.13 – 10.15 và trên máy Apple Silicon thật | ❌ Chưa kiểm thử. Bản build có thư viện Swift cho macOS cũ, nhưng chưa thử trên máy thật |
@@ -220,7 +224,7 @@ dokey_destroy(engine);
 
 ## Chất lượng
 
-- **18.494 ca kiểm thử** chạy tự động trên Linux, macOS và Windows sau mỗi lần thay đổi:
+- **18.500 ca kiểm thử** chạy tự động trên Linux, macOS và Windows sau mỗi lần thay đổi:
   - các ca viết tay cho từ thông dụng, phím huỷ, từ tiếng Anh, VNI và Backspace;
   - phép thử khứ hồi: gõ toàn bộ 3.759 âm tiết với cả 6 thanh.
 - Mã biên dịch sạch, không có cảnh báo với `-Wall -Wextra -Wpedantic`.

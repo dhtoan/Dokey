@@ -12,19 +12,19 @@ Chỉ cần **Command Line Tools** (`xcode-select --install`), không cần Xcod
 
 ```bash
 apps/macos/build.sh          # -> apps/macos/build/Dokey.app
-apps/macos/build.sh --dmg    # thêm apps/macos/build/Dokey-0.3.1.dmg
+apps/macos/build.sh --dmg    # thêm apps/macos/build/Dokey-0.3.2.dmg
 ```
 
 Script biên dịch Dokey Core bằng `clang++` cho từng kiến trúc, biên dịch app bằng `swiftc`, gộp bằng `lipo`, vẽ biểu tượng, nhúng thư viện Swift cho macOS 10.13 – 10.14.3, ký ad-hoc, rồi chạy `Dokey --self-test`.
 
-Biến môi trường: `VERSION` (mặc định `0.3.1`), `ARCHS` (mặc định `"x86_64 arm64"`).
+Biến môi trường: `VERSION` (mặc định `0.3.2`), `ARCHS` (mặc định `"x86_64 arm64"`).
 
 ## Cài đặt và cấp quyền
 
 1. Cài bằng script, macOS sẽ không hiện cảnh báo:
    ```bash
    bash install-macos.sh                                  # bản mới nhất (cần gh auth login)
-   bash install-macos.sh ~/Downloads/Dokey-0.3.1.dmg      # file .dmg đã tải
+   bash install-macos.sh ~/Downloads/Dokey-0.3.2.dmg      # file .dmg đã tải
    ```
    Script (`apps/macos/install.sh`, phát hành với tên `install-macos.sh`) cài vào `/Applications`, gỡ cờ cách ly rồi mở Dokey.
    Nếu kéo thả từ `.dmg` bằng tay: Dokey ký ad-hoc, chưa được Apple công chứng (notarize), nên lần đầu phải chuột phải vào Dokey.app, chọn **Open**. Hoặc chạy `xattr -dr com.apple.quarantine /Applications/Dokey.app`.

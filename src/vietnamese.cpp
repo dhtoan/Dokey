@@ -7,6 +7,7 @@
 
 #include "dokey/engine.hpp"
 
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -94,6 +95,8 @@ bool isFront(char16_t c) {
 struct Dictionary {
     std::unordered_set<std::u16string> marked;
     std::unordered_set<std::u16string> stripped;
+    // Marked prefixes grouped by their unmarked form, for isCompatibleSyllablePrefix.
+    std::unordered_map<std::u16string, std::vector<std::u16string>> byStripped;
     std::vector<std::u16string> syllables;
     std::unordered_set<std::u16string> complete;
 
@@ -102,7 +105,7 @@ struct Dictionary {
         complete.insert(syllable);
         for (size_t n = 1; n <= syllable.size(); n++) {
             std::u16string prefix = syllable.substr(0, n);
-            marked.insert(prefix);
+            if (marked.insert(prefix).second) byStripped[stripMarks(prefix)].push_back(prefix);
             stripped.insert(stripMarks(prefix));
         }
     }
@@ -222,6 +225,22 @@ bool isSyllablePrefix(const std::u16string& lowerMarked) {
 
 bool isStrippedSyllablePrefix(const std::u16string& lowerUnmarked) {
     return dictionary().stripped.count(lowerUnmarked) != 0;
+}
+
+bool isCompatibleSyllablePrefix(const std::u16string& lowerMarked) {
+    const auto& groups = dictionary().byStripped;
+    auto it = groups.find(stripMarks(lowerMarked));
+    if (it == groups.end()) return false;
+    for (const std::u16string& prefix : it->second) {
+        bool ok = true;
+        for (size_t i = 0; ok && i < prefix.size(); i++) {
+            // A marked letter must match; a plain letter may still get its mark.
+            const char16_t c = lowerMarked[i];
+            ok = c == prefix[i] || c < 0x80;
+        }
+        if (ok) return true;
+    }
+    return false;
 }
 
 bool isSyllable(const std::u16string& lowerMarked) {

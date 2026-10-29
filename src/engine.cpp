@@ -90,8 +90,9 @@ bool plausible(const std::vector<Letter>& w, Tone tone, bool requireMarks) {
     std::u16string s = lowerMarked(w);
     if (isSyllablePrefix(s)) return true;
     if (requireMarks) return false;
-    // No diacritic typed yet: accept if adding diacritics later can fix it.
-    return s == stripMarks(s) && isStrippedSyllablePrefix(s);
+    // Accept if adding diacritics to the plain letters can still make a
+    // syllable: "đuo" becomes đuôi, được (marks typed so far must match).
+    return isCompatibleSyllablePrefix(s);
 }
 
 size_t tonePosition(const std::vector<Letter>& w, bool modern) {

@@ -244,7 +244,12 @@ final class KeyboardTap {
         }
         if edit.backspaces > 0 && !edit.text.isEmpty { pause(profile.settle) }
 
-        let textKey = profile.textKey < 0 ? typedKey : CGKeyCode(profile.textKey)
+        let textKey: CGKeyCode
+        switch profile.textKey {
+        case -1: textKey = typedKey
+        case ..<0: textKey = freeTextKey()
+        default: textKey = CGKeyCode(profile.textKey)
+        }
         let chunk = profile.unitsPerEvent
         var start = 0
         while start < edit.text.count {
@@ -262,6 +267,18 @@ final class KeyboardTap {
             copy.setIntegerValueField(.eventSourceUserData, value: dokeyEventTag)
             copy.tapPostEvent(proxy)
         }
+    }
+
+    /// The virtual key that text events carry. Apps see a key-down for that key, so
+    /// it must not be one the user is still holding: typing "ma" + "f" fast, the
+    /// A key is often still down, and a synthetic key-down for A then makes
+    /// Chromium/Electron (Claude, Chrome) drop the "à" as a repeat. Use a key that
+    /// is not down right now, preferring ones rarely held while typing.
+    private func freeTextKey() -> CGKeyCode {
+        for key: CGKeyCode in [11, 9, 45, 43, 47, 50, 41] where !CGEventSource.keyState(.hidSystemState, key: key) {
+            return key  // b, v, n, comma, period, grave, semicolon
+        }
+        return 11
     }
 
     private func postKey(_ key: CGKeyCode, flags: CGEventFlags = [], proxy: CGEventTapProxy) {
