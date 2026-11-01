@@ -12,6 +12,7 @@
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-AppKit-F05138?logo=swift&logoColor=white)
 [![License](https://img.shields.io/badge/license-proprietary-B91C1C)](LICENSE)
+[![Support Dokey](https://img.shields.io/badge/%E2%98%95_Support-Dokey-F59E0B)](#-support-dokey)
 
 ### Right the first time. In every app. On every machine.
 
@@ -310,6 +311,53 @@ Dokey/
 | 1.0 | Code signing and notarization, general release | 🗓️ |
 
 Changes in each version: [Releases](https://github.com/dhtoan/Dokey/releases).
+
+## ☕ Support Dokey
+
+Dokey is **free** for personal use and always will be: no ads, no data collection, no paid tier.
+
+One thing Dokey can't do alone yet is **Apple code signing**. An Apple Developer account costs **99 USD a year**. With it:
+
+- ✅ Open the `.dmg` and install, **no "unidentified developer" warning**, no Terminal command.
+- ✅ **No need to grant Accessibility again after every update**: a stable signature means macOS remembers the permission.
+- ✅ One-click updates for everyone, no GitHub CLI needed.
+- ✅ A path to a Mac App Store version of Dokey.
+
+![Apple Developer fund 2026](https://img.shields.io/badge/Apple_Developer_fund_2026-0_%2F_99_USD-F59E0B)
+
+If Dokey makes your Vietnamese typing a little nicer every day, buy the author a coffee. Every contribution goes to the goal above. Anything left over goes to a Windows code-signing certificate, so the installer no longer triggers SmartScreen warnings.
+
+<table>
+<tr>
+<td align="center" width="50%">
+<img src="https://img.vietqr.io/image/TCB-6868686139-compact.svg?addInfo=dokey&accountName=App+Dokey" alt="Techcombank VietQR code to support Dokey" width="220"><br>
+<b>Bank transfer</b><br>
+Scan with any Vietnamese banking app<br>
+Techcombank · App Dokey · note <code>dokey</code>
+</td>
+<td align="center" width="50%">
+<img src="docs/images/sponsor/momo.png" alt="MoMo QR code to support Dokey" width="220"><br>
+<b>MoMo wallet</b><br>
+Scan with MoMo or a banking app<br>
+Add the note <code>dokey</code>
+</td>
+</tr>
+</table>
+
+| | |
+|---|---|
+| 🧋 20,000 ₫ | An iced tea for the person who writes your input method |
+| ☕ 50,000 ₫ | A Vietnamese iced coffee, enough to fix one typing bug |
+| 🍜 100,000 ₫ | A bowl of phở, enough for a new feature |
+| 🍎 99 USD | A whole year of Apple signing for everyone |
+
+Want your name in **Supporters** below? Add it to the transfer note (for example `dokey Minh Anh`). Otherwise you stay anonymous. International options (GitHub Sponsors, Ko-fi) are coming soon.
+
+**Can't sponsor right now?** No problem at all. A ⭐ on the repo, telling a friend, or reporting a typing bug is support too.
+
+### 💛 Supporters
+
+*No one yet. Be the first!*
 
 ## ⚖️ License
 

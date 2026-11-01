@@ -1,0 +1,7 @@
+# Copyright (c) 2026 Do Huy Toan (dhtoan). All rights reserved. See LICENSE.
+# Shows the "Sponsor" button on the repository page (visible once the repository is public).
+custom:
+  - "https://img.vietqr.io/image/TCB-6868686139-compact.svg?addInfo=dokey&accountName=App+Dokey"
+# Add when ready:
+# github: dhtoan
+# ko_fi: <your Ko-fi name>

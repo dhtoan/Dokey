@@ -12,6 +12,7 @@
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-AppKit-F05138?logo=swift&logoColor=white)
 [![License](https://img.shields.io/badge/license-proprietary-B91C1C)](LICENSE)
+[![Ủng hộ Dokey](https://img.shields.io/badge/%E2%98%95_%E1%BB%A6ng_h%E1%BB%99-Dokey-F59E0B)](#-đồng-hành-cùng-dokey)
 
 ### Gõ đúng ngay lần đầu. Ở mọi ứng dụng. Trên mọi máy.
 
@@ -323,6 +324,55 @@ Dokey/
 | 1.0 | Ký số và notarize, phát hành chính thức | 🗓️ |
 
 Các thay đổi theo từng phiên bản: [Releases](https://github.com/dhtoan/Dokey/releases).
+
+## ☕ Đồng hành cùng Dokey
+
+Dokey **miễn phí** cho người dùng cá nhân, và sẽ luôn như vậy. Dokey không có quảng cáo, không thu thập dữ liệu và không có bản trả phí.
+
+Còn một việc Dokey chưa làm được một mình: **chữ ký số của Apple**. Tài khoản Apple Developer có phí **99 USD mỗi năm (khoảng 2.600.000 đ)**. Khi có tài khoản này:
+
+- ✅ Mở file `.dmg` là cài được, **không còn cảnh báo** "không xác định được nhà phát triển", không cần lệnh Terminal.
+- ✅ **Không phải cấp lại quyền Trợ năng sau mỗi lần cập nhật**, vì chữ ký cố định nên macOS nhớ quyền.
+- ✅ Tự cập nhật một chạm cho mọi người, không cần GitHub CLI.
+- ✅ Mở đường cho một phiên bản Dokey trên Mac App Store.
+
+![Quỹ Apple Developer 2026](https://img.shields.io/badge/qu%E1%BB%B9_Apple_Developer_2026-0_%2F_2.600.000_%C4%91-F59E0B)
+
+Nếu Dokey giúp bạn gõ tiếng Việt dễ chịu hơn mỗi ngày, mời tác giả một ly cà phê nhé. Mọi khoản đều được dùng đúng cho mục tiêu trên. Phần dư (nếu có) dùng cho chứng chỉ ký số trên Windows, để bộ cài không còn bị SmartScreen cảnh báo.
+
+<table>
+<tr>
+<td align="center" width="50%">
+<img src="https://img.vietqr.io/image/TCB-6868686139-compact.svg?addInfo=dokey&accountName=App+Dokey" alt="Mã VietQR Techcombank ủng hộ Dokey" width="220"><br>
+<b>Chuyển khoản ngân hàng</b><br>
+Quét bằng app ngân hàng bất kỳ<br>
+Techcombank · App Dokey · nội dung sẵn <code>dokey</code>
+</td>
+<td align="center" width="50%">
+<img src="docs/images/sponsor/momo.png" alt="Mã QR MoMo ủng hộ Dokey" width="220"><br>
+<b>Ví MoMo</b><br>
+Quét bằng app MoMo hoặc app ngân hàng<br>
+Ghi nội dung <code>dokey</code> để Dokey biết bạn ủng hộ
+</td>
+</tr>
+</table>
+
+**Gợi ý cho vui:**
+
+| | |
+|---|---|
+| 🧋 20.000 đ | Một ly trà đá cho người viết bộ gõ |
+| ☕ 50.000 đ | Một ly cà phê sữa đá, đủ sửa một lỗi nhảy chữ |
+| 🍜 100.000 đ | Một tô phở, đủ cho một tính năng mới |
+| 🍎 2.600.000 đ | Trọn một năm chữ ký Apple cho tất cả mọi người |
+
+Muốn được ghi tên trong mục **Những người đồng hành** bên dưới? Ghi thêm tên bạn vào nội dung chuyển khoản (ví dụ `dokey Minh Anh`). Không ghi thì Dokey hiểu là bạn muốn ẩn danh.
+
+**Chưa tiện tài trợ?** Không sao cả. Một ⭐ cho repo, giới thiệu Dokey với bạn bè, hay báo một lỗi gõ sai cũng là đồng hành rất quý.
+
+### 💛 Những người đồng hành
+
+*Chưa có ai cả. Hãy là người đầu tiên!*
 
 ## ⚖️ Giấy phép
 
