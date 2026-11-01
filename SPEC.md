@@ -96,3 +96,23 @@ void dokey_destroy(dokey_engine*);
 - **`dokey_reset`:** click chuột, phím mũi tên, Home, End, Page Up/Down, Esc, Forward Delete, phím tắt có ⌘ ⌃ ⌥, phím giữ (autorepeat), đổi ứng dụng, bật/tắt tiếng Việt.
 - **Nhóm ứng dụng:** trình duyệt, Electron/IDE, thường (theo bundle id, và theo framework trong `Contents/Frameworks` với ứng dụng lạ). Hai nhóm đầu nhận mỗi sự kiện một ký tự UTF-16 (không tách cặp surrogate), có khoảng nghỉ sau mỗi phím và sau loạt Backspace. Nhóm thường nhận tối đa 20 ký tự mỗi sự kiện, không nghỉ.
 - **Tap bị tắt** (`kCGEventTapDisabledByTimeout`, `kCGEventTapDisabledByUserInput`): bật lại ngay và bắt đầu từ mới. Bộ đếm giờ 2 giây kiểm tra lại.
+
+## 9. Tính năng gõ bổ sung (0.4)
+
+- **Mở lại từ vừa gõ:** gõ xong một từ và đúng một dấu cách, bấm Backspace thì từ đó được mở lại để thêm hoặc sửa dấu (`xin` ␣ ⌫ `f` → xìn). Gõ hai dấu cách, click chuột, bấm phím mũi tên hay đổi ứng dụng thì không mở lại.
+- **Backspace đặt lại dấu thanh:** khi xoá một ký tự làm vị trí dấu thanh thay đổi, engine trả về phép sửa để nền tảng thay chữ, thay vì để Backspace đi qua (`hoàn` ⌫ → hòa ở kiểu cũ). API: `dokey_backspace_edit`.
+- **ư + o → ươ:** "ư" đứng trước "o" và một phụ âm cuối (n, c, i, m, p, t) thì tự thành "ươ" (`uwon` → ươn, `dduwocj` → được).
+- **Địa danh Tây Nguyên:** phụ âm đầu `kr` và vần `ăk`, `uk` (Đắk Lắk, Krông Búk). Như c/ch/p/t, phụ âm cuối `k` chỉ đi với dấu sắc và nặng.
+- **Từ tiếng Anh có hai chữ cái liền nhau:** từ từ 4 phím trở lên, đã huỷ dấu thanh bằng phím lặp (`ss`, `rr`, `ff`) mà vẫn không phải tiếng Việt, thì khi kết thúc từ hiện lại đủ các phím đã gõ (`pass`, `error`, `session`). Từ ngắn giữ quy ước Telex (`ass` → as).
+- **Hoàn tác (Esc):** `dokey_undo` trả từ đang gõ về đúng các phím đã gõ (`tiếng` → tieesng) nếu từ có dấu; phần còn lại của từ được gõ nguyên văn.
+- **Quick Telex** (tuỳ chọn `quick_telex`): ở đầu từ, `cc gg kk nn pp qq tt` → `ch gi kh ng ph qu th`.
+- **Gõ tắt:** `dokey_set_macros` nhận các dòng `từ tắt = nội dung`. Khi gõ từ tắt rồi một ký tự ngắt từ, engine thay bằng nội dung và giữ ký tự ngắt. Viết hoa chữ đầu của từ tắt thì viết hoa chữ đầu nội dung; viết hoa cả từ tắt thì viết hoa toàn bộ.
+
+### Lớp nền tảng macOS (bổ sung)
+
+- Backspace không kèm phím bổ trợ gọi `dokey_backspace_edit`. Nếu có phép sửa, Dokey nuốt Backspace và gửi phép sửa.
+- Esc gọi `dokey_undo` khi bật tuỳ chọn **Hoàn tác bằng Esc**; không có gì để hoàn tác thì Esc đi qua.
+- Ô tìm kiếm Spotlight (nhận ra qua ứng dụng đang có focus theo Accessibility), Raycast và Alfred dùng cách gửi phím của trình duyệt.
+- Cửa sổ trình duyệt có tiêu đề Google Docs/Sheets/Slides (tiếng Anh hoặc tiếng Việt) dùng: bôi đen rồi gõ đè, mỗi sự kiện một ký tự, nghỉ 2 ms mỗi phím và 6 ms trước chữ mới (gấp đôi khi bật chế độ máy chậm).
+- Ứng dụng trong danh sách loại trừ luôn ở chế độ tiếng Anh. Bấm phím chuyển trong ứng dụng đó thì bỏ loại trừ.
+

@@ -5,6 +5,9 @@
 #include "../src/vietnamese.hpp"
 
 #include <cstdio>
+#include <fstream>
+#include <map>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -224,7 +227,7 @@ static bool isStop(const std::u16string& w) {
         std::u16string e(s);
         return w.size() >= e.size() && w.compare(w.size() - e.size(), e.size(), e) == 0;
     };
-    return ends(u"c") || ends(u"ch") || ends(u"p") || ends(u"t");
+    return ends(u"c") || ends(u"ch") || ends(u"p") || ends(u"t") || ends(u"k");
 }
 
 static void roundTrip() {
@@ -242,9 +245,136 @@ static void roundTrip() {
     std::printf("round-trip: %zu syllables x tones, %d failures\n", allSyllables().size(), g_failed - before);
 }
 
+// Like Engine::simulate, but the way a platform with edit support drives the
+// engine: \b = Backspace through backspaceEdit(), \x1b = Esc (undo).
+static std::string drive(Engine& e, const std::string& keys) {
+    std::u16string text;
+    auto apply = [&](const Edit& ed, char16_t typed, bool passIfUnhandled) {
+        if (!ed.handled) {
+            if (passIfUnhandled) text.push_back(typed);
+            return;
+        }
+        text.erase(text.size() - std::min<size_t>(static_cast<size_t>(ed.backspaces), text.size()));
+        text += ed.insert;
+    };
+    for (char16_t c : fromUtf8(keys)) {
+        if (c == u'\b') {
+            Edit ed = e.backspaceEdit();
+            if (!ed.handled && !text.empty()) text.pop_back();
+            apply(ed, 0, false);
+        } else if (c == 0x1B) {
+            apply(e.undo(), 0, false);
+        } else {
+            apply(e.key(c), c, true);
+        }
+    }
+    return toUtf8(text);
+}
+
+static void checkDrive(const std::string& keys, const std::string& expected, const Options& o,
+                       const std::vector<Macro>& macros = {}) {
+    g_total++;
+    Engine e(o);
+    e.setMacros(macros);
+    std::string got = drive(e, keys);
+    if (got != expected) {
+        g_failed++;
+        std::string shown;
+        for (char c : keys) shown += c == '\b' ? std::string("⌫") : c == 0x1B ? std::string("⎋") : std::string(1, c);
+        std::printf("FAIL [edit] %-24s => \"%s\" (expected \"%s\")\n", shown.c_str(), got.c_str(), expected.c_str());
+    }
+}
+
+// Features learned from comparing typing behaviour with other input methods.
+static void editing() {
+    Options o;
+    // Backspace over the space after a word reopens it.
+    checkDrive("xin \bf ", "xìn ", o);
+    checkDrive("Vieet \bj ", "Việt ", o);
+    checkDrive("xin  \bf", "xin f", o);           // two spaces: no reopen
+    checkDrive("thuowr \b", "thuở", o);
+    // Backspace re-places the tone (old style moves it back).
+    Options old = o;
+    old.modernToneStyle = false;
+    checkDrive("hoanf\b ", "hòa ", old);
+    checkDrive("hoanf\b ", "hoà ", o);
+    checkDrive("tieengs\b\b", "tiế", o);
+    // ư + o before a final consonant is ươ.
+    checkDrive("uwon ", "ươn ", o);
+    checkDrive("dduwocj ", "được ", o);
+    checkDrive("nguwowif ", "người ", o);
+    // Central Highlands place names.
+    checkDrive("DDawks Lawks ", "Đắk Lắk ", o);
+    checkDrive("Kroong Buks ", "Krông Búk ", o);
+    checkDrive("dawkf ", "dawkf ", o);              // k final only with sắc/nặng
+    // Esc undoes the marks of the current word.
+    checkDrive("tieengs\x1b ", "tieengs ", o);
+    checkDrive("thu\x1b", "thu", o);               // nothing to undo
+    checkDrive("vieejt\x1bs ", "vieejts ", o);     // the rest of the word stays literal
+    checkDrive("vieejt\x1b vieejt ", "vieejt việt ", o);
+    // Quick Telex.
+    Options quick = o;
+    quick.quickTelex = true;
+    checkDrive("ccaof nnayf ttaayf kkoong ggas qqas ", "chào ngày thầy không giá quá ", quick);
+    checkDrive("Ccaof ", "Chào ", quick);
+    checkDrive("app accept ", "app accept ", quick);
+    checkDrive("ccaof ", "ccaof ", o);              // off by default
+    // Macros.
+    std::vector<Macro> macros = {{u"btw", u"by the way"}, {u"vn", u"Việt Nam"}, {u"ko", u"không"}};
+    checkDrive("btw ", "by the way ", o, macros);
+    checkDrive("Btw, ", "By the way, ", o, macros);
+    checkDrive("BTW ", "BY THE WAY ", o, macros);
+    checkDrive("ko ", "không ", o, macros);
+    checkDrive("VN.", "VIỆT NAM.", o, macros);
+    checkDrive("kos ", "kos ", o, macros);          // not the shortcut
+}
+
+// Regression corpus: real English/developer words and Vietnamese sentences.
+static void corpus() {
+#ifdef DOKEY_TEST_DATA
+    const std::string dir = DOKEY_TEST_DATA;
+    Options o;
+    std::map<std::string, std::string> known;
+    std::ifstream knownFile(dir + "/english_known.txt");
+    for (std::string line; std::getline(knownFile, line);) {
+        if (line.empty() || line[0] == '#') continue;
+        size_t arrow = line.find(" -> ");
+        if (arrow != std::string::npos) known[line.substr(0, arrow)] = line.substr(arrow + 4);
+    }
+    std::ifstream english(dir + "/english.txt");
+    int words = 0, kept = 0, before = g_failed;
+    for (std::string line; std::getline(english, line);) {
+        if (line.empty() || line[0] == '#') continue;
+        std::istringstream in(line);
+        for (std::string w; in >> w;) {
+            words++;
+            auto it = known.find(w);
+            const std::string expected = (it == known.end() ? w : it->second) + " ";
+            if (it == known.end()) kept++;
+            check(w + " ", expected, o, "english");
+        }
+    }
+    std::ifstream vietnamese(dir + "/vietnamese_telex.txt");
+    int sentences = 0;
+    for (std::string line; std::getline(vietnamese, line);) {
+        if (line.empty() || line[0] == '#') continue;
+        size_t bar = line.find(" | ");
+        if (bar == std::string::npos) continue;
+        sentences++;
+        check(line.substr(0, bar) + " ", line.substr(bar + 3) + " ", o, "vietnamese");
+    }
+    std::printf("corpus: %d English words (%d kept as typed, %d known Vietnamese syllables), %d sentences, %d failures\n",
+                words, kept, words - kept, sentences, g_failed - before);
+    if (words < 1000 || sentences < 25) {
+        g_failed++;
+        std::printf("FAIL [corpus] data files missing or too small\n");
+    }
+#endif
+}
+
 static void cApi() {
     g_total++;
-    dokey_options opt = {DOKEY_TELEX, DOKEY_UNICODE, 1, 1};
+    dokey_options opt = {DOKEY_TELEX, DOKEY_UNICODE, 1, 1, 0};
     dokey_engine* e = dokey_create(&opt);
     dokey_edit edit;
     dokey_key(e, 'a', &edit);
@@ -254,6 +384,22 @@ static void cApi() {
     if (!good) {
         g_failed++;
         std::printf("FAIL [c-api] aa\n");
+    }
+
+    // Macros, undo and the edit-returning Backspace through the C API.
+    g_total++;
+    e = dokey_create(&opt);
+    dokey_set_macros(e, "# comment\nbtw = by the way\r\nvn:Vi\xE1\xBB\x87t Nam\n");
+    for (char c : std::string("btw")) dokey_key(e, static_cast<uint32_t>(c), &edit);
+    int macro = dokey_key(e, ' ', &edit);
+    bool macroOk = macro == 1 && edit.backspaces == 2 && edit.length == 10;  // "btw" -> "by the way ": keeps the b
+    for (char c : std::string("tieengs")) dokey_key(e, static_cast<uint32_t>(c), &edit);
+    int undo = dokey_undo(e, &edit);
+    bool undoOk = undo == 1 && edit.length >= 4;
+    dokey_destroy(e);
+    if (!macroOk || !undoOk) {
+        g_failed++;
+        std::printf("FAIL [c-api] macro=%d undo=%d\n", macroOk, undoOk);
     }
 }
 
@@ -287,6 +433,8 @@ int main() {
     check("vieetj ", "vi\xC3\xAA\xCC\xA3t ", combining, "combining");
 
     roundTrip();
+    editing();
+    corpus();
     cApi();
     passthrough();
 

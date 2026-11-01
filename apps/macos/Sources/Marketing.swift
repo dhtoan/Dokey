@@ -8,6 +8,8 @@ private final class SampleData: ControlPanelDelegate {
     func panelSettingsChanged() {}
     func panelShowPermission() {}
     var panelTapRunning: Bool { true }
+    func panelClearExcluded() {}
+    func panelCheckUpdates() {}
     var panelEditCount: Int { 1284 }
     /// A neutral example: no third-party icons in promotional images.
     var panelFrontApp: (name: String, kind: AppKind, icon: NSImage?)? {
@@ -30,7 +32,7 @@ enum Marketing {
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
 
         var shots: [NSImage] = []
-        for (page, name) in ["dashboard", "typing", "apps", "about"].enumerated() {
+        for (page, name) in ["dashboard", "typing", "quick", "apps", "about"].enumerated() {
             panel.refresh()
             panel.showPage(page)
             view.layoutSubtreeIfNeeded()

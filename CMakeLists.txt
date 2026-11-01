@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Do Huy Toan (dhtoan). All rights reserved. See LICENSE.
 cmake_minimum_required(VERSION 3.16)
-project(DokeyCore VERSION 0.3.4 LANGUAGES CXX)
+project(DokeyCore VERSION 0.4.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,4 +39,5 @@ target_link_libraries(dokey_tests PRIVATE dokey_core)
 if(MSVC)
     target_compile_options(dokey_tests PRIVATE /utf-8)
 endif()
+target_compile_definitions(dokey_tests PRIVATE DOKEY_TEST_DATA="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
 add_test(NAME dokey_tests COMMAND dokey_tests)

@@ -12,24 +12,37 @@ Chỉ cần **Command Line Tools** (`xcode-select --install`), không cần Xcod
 
 ```bash
 apps/macos/build.sh          # -> apps/macos/build/Dokey.app
-apps/macos/build.sh --dmg    # thêm apps/macos/build/Dokey-0.3.4.dmg
+apps/macos/build.sh --dmg    # thêm apps/macos/build/Dokey-0.4.0.dmg
 ```
 
 Script biên dịch Dokey Core bằng `clang++` cho từng kiến trúc, biên dịch app bằng `swiftc`, gộp bằng `lipo`, vẽ biểu tượng, nhúng thư viện Swift cho macOS 10.13 – 10.14.3, ký ad-hoc, rồi chạy `Dokey --self-test`.
 
-Biến môi trường: `VERSION` (mặc định `0.3.4`), `ARCHS` (mặc định `"x86_64 arm64"`).
+Biến môi trường: `VERSION` (mặc định `0.4.0`), `ARCHS` (mặc định `"x86_64 arm64"`).
 
 ## Cài đặt và cấp quyền
 
 1. Cài bằng script, macOS sẽ không hiện cảnh báo:
    ```bash
    bash install-macos.sh                                  # bản mới nhất (cần gh auth login)
-   bash install-macos.sh ~/Downloads/Dokey-0.3.4.dmg      # file .dmg đã tải
+   bash install-macos.sh ~/Downloads/Dokey-0.4.0.dmg      # file .dmg đã tải
    ```
    Script (`apps/macos/install.sh`, phát hành với tên `install-macos.sh`) cài vào `/Applications`, gỡ cờ cách ly rồi mở Dokey.
    Nếu kéo thả từ `.dmg` bằng tay: Dokey ký ad-hoc, chưa được Apple công chứng (notarize), nên lần đầu phải chuột phải vào Dokey.app, chọn **Open**. Hoặc chạy `xattr -dr com.apple.quarantine /Applications/Dokey.app`.
 2. Dokey mở cửa sổ hướng dẫn cấp quyền **Trợ năng** (System Settings › Privacy & Security › Accessibility). Bật Dokey trong danh sách; Dokey tự nhận quyền, không cần mở lại.
 3. Sau khi cập nhật bản mới mà không gõ được dấu: xoá Dokey khỏi danh sách Trợ năng rồi thêm lại. Mỗi bản ký ad-hoc có chữ ký khác nhau nên macOS coi là ứng dụng mới.
+
+## Gõ nhanh (0.4)
+
+| Tính năng | Cách dùng |
+|---|---|
+| Gõ tắt | Bảng điều khiển › **Gõ nhanh** › **Sửa danh sách…**: mỗi dòng `từ tắt = nội dung`. Gõ từ tắt rồi dấu cách. |
+| Quick Telex | Bật trong trang **Gõ nhanh**: `cc` → ch, `gg` → gi, `kk` → kh, `nn` → ng, `pp` → ph, `qq` → qu, `tt` → th (đầu từ) |
+| Hoàn tác bằng Esc | Bật trong trang **Gõ nhanh**: Esc trả từ đang gõ về đúng phím đã gõ |
+| Mở lại từ | Gõ xong từ và dấu cách, bấm Backspace rồi gõ tiếp dấu (luôn bật) |
+| Ứng dụng loại trừ | Thanh menu › **Không gõ tiếng Việt trong …**; bỏ hết trong trang **Ứng dụng** |
+| Kiểm tra cập nhật | Thanh menu › **Kiểm tra cập nhật…**, nút trong trang Giới thiệu, hoặc tự kiểm tra mỗi ngày |
+
+Spotlight, Raycast, Alfred và Google Docs/Sheets/Slides có cách gửi phím riêng (xem [SPEC.md](../../SPEC.md) mục 9).
 
 ## Chỉnh cách gửi phím và nhật ký gỡ lỗi
 
@@ -120,6 +133,9 @@ phím ─▶ CGEventTap (session, luồng riêng) ─▶ dokey_key()
 | `Sources/AppDelegate.swift` | Thanh menu, chế độ theo ứng dụng, watchdog |
 | `Sources/ControlPanel.swift` | Cửa sổ bảng điều khiển |
 | `Sources/PanelControls.swift` | Nút gạt, nút tròn, thanh bên… vẽ bằng mã |
+| `Sources/MacroEditor.swift` | Cửa sổ sửa danh sách gõ tắt |
+| `Sources/Updater.swift` | Kiểm tra và cài bản mới từ GitHub Releases |
+| `Sources/Marketing.swift` | Vẽ banner và ảnh chụp cho README |
 | `Sources/Settings.swift` | Tuỳ chọn người dùng, phím chuyển |
 | `Sources/PermissionWindow.swift` | Cửa sổ hướng dẫn cấp quyền Trợ năng |
 | `Sources/LoginItem.swift` | Khởi động cùng macOS |

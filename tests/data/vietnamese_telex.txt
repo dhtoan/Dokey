@@ -1,0 +1,33 @@
+# Vietnamese sentences typed in Telex (keys | expected). Tone keys at the end of each
+# syllable, as most people type. Generated from real text; the corpus test types the
+# keys and checks every sentence comes out exactly.
+Xin chaof cacs banj, hoom nay trowif ddepj quas. | Xin chào các bạn, hôm nay trời đẹp quá.
+Tooi yeeu tieengs Vieetj vaf muoons gox ddungs ngay laanf ddaauf. | Tôi yêu tiếng Việt và muốn gõ đúng ngay lần đầu.
+Chungs ta cungf nhau xaay duwngj mootj booj gox thaatj nhanh. | Chúng ta cùng nhau xây dựng một bộ gõ thật nhanh.
+Nguowif Vieetj Nam raats hieeus khachs vaf thaan thieenj. | Người Việt Nam rất hiếu khách và thân thiện.
+Haf Nooij laf thur ddoo cuar nuowcs Coongj hoaf Xax hooij Chur nghiax Vieetj Nam. | Hà Nội là thủ đô của nước Cộng hoà Xã hội Chủ nghĩa Việt Nam.
+Thanhf phoos Hoof Chis Minh ddoong dducs vaf nawng ddoongj. | Thành phố Hồ Chí Minh đông đúc và năng động.
+Ddawks Lawks nooir tieengs vowis caf phee vaf voi. | Đắk Lắk nổi tiếng với cà phê và voi.
+Muaf thu nawm aays, las vangf rowi khawps phoos. | Mùa thu năm ấy, lá vàng rơi khắp phố.
+Camr own banj ddax danhf thowif gian ddocj baif vieets nayf. | Cảm ơn bạn đã dành thời gian đọc bài viết này.
+Chucs muwngf nawm mowis, an khang thinhj vuowngj. | Chúc mừng năm mới, an khang thịnh vượng.
+Hocj, hocj nuwax, hocj maix. | Học, học nữa, học mãi.
+Cos coong maif sawts cos ngayf neen kim. | Có công mài sắt có ngày nên kim.
+Uoongs nuowcs nhows nguoonf. | Uống nước nhớ nguồn.
+Ddi mootj ngayf ddangf hocj mootj sangf khoon. | Đi một ngày đàng học một sàng khôn.
+Baauf owi thuowng laays bis cungf, tuy rawngf khacs gioongs nhuwng chung mootj gianf. | Bầu ơi thương lấy bí cùng, tuy rằng khác giống nhưng chung một giàn.
+Quyeenr sachs nayf raats hay, tooi ddax ddocj nos ba laanf. | Quyển sách này rất hay, tôi đã đọc nó ba lần.
+Khuya rooif, banj neen ddi ngur sowms ddeer giuwx ginf suwcs khoer. | Khuya rồi, bạn nên đi ngủ sớm để giữ gìn sức khoẻ.
+Chieecs xe ddapj cux vaanx chayj toots sau hai muowi nawm. | Chiếc xe đạp cũ vẫn chạy tốt sau hai mươi năm.
+Huyeenf thoaij veef Thanhs Giongs dduowcj truyeenf qua nhieeuf thees heej. | Huyền thoại về Thánh Gióng được truyền qua nhiều thế hệ.
+Nhuwngx nguowif thowj lamf vieecj chawm chir tuwf sangs towis toois. | Những người thợ làm việc chăm chỉ từ sáng tới tối.
+Giaos vieen huowngs daanx hocj sinh giair baif toans khos. | Giáo viên hướng dẫn học sinh giải bài toán khó.
+Phowr bof vaf buns char laf nhuwngx mons awn dduowcj yeeu thichs. | Phở bò và bún chả là những món ăn được yêu thích.
+Truowngf ddaij hocj toor chuwcs leex toots nghieepj vaof thangs bayr. | Trường đại học tổ chức lễ tốt nghiệp vào tháng bảy.
+Thuowr nhor, tooi thuowngf theo baf ra ddoongf xem luas. | Thuở nhỏ, tôi thường theo bà ra đồng xem lúa.
+Ngoaif trowif ddang muwa rar richs suoots car buooir chieeuf. | Ngoài trời đang mưa rả rích suốt cả buổi chiều.
+Khuyeens khichs moij nguowif tieets kieemj ddieenj vaf nuowcs. | Khuyến khích mọi người tiết kiệm điện và nước.
+Quar xoaif chins vangf uowm, thowm phuwcs car gian beeps. | Quả xoài chín vàng ươm, thơm phức cả gian bếp.
+Nghieeng minhf truowcs nhuwngx hy sinh cuar thees heej ddi truowcs. | Nghiêng mình trước những hy sinh của thế hệ đi trước.
+Gia ddinhf laf nowi binhf yeen nhaats treen ddowif. | Gia đình là nơi bình yên nhất trên đời.
+Tuyeetj vowif, chungs ta ddax hoanf thanhf duwj ans ddungs hanj. | Tuyệt vời, chúng ta đã hoàn thành dự án đúng hạn.

@@ -19,9 +19,11 @@ typedef struct {
     int encoding;          /* DOKEY_UNICODE or DOKEY_UNICODE_COMBINING */
     int modern_tone_style; /* 1: hoà, khoẻ, thuý */
     int check_spelling;    /* 1: keep non-Vietnamese words as typed */
+    int quick_telex;       /* 1: cc gg kk nn pp qq tt at a word start -> ch gi kh ng ph qu th */
 } dokey_options;
 
-#define DOKEY_MAX_EDIT 64
+/* Large enough for text shortcuts (macros). */
+#define DOKEY_MAX_EDIT 256
 
 typedef struct {
     int backspaces;                  /* characters to delete first */
@@ -35,6 +37,17 @@ void dokey_set_options(dokey_engine* engine, const dokey_options* options);
  * 0 if the original key should go through unchanged. */
 int dokey_key(dokey_engine* engine, uint32_t ch, dokey_edit* out);
 void dokey_backspace(dokey_engine* engine);
+/* Backspace for platforms that can apply edits. Returns 1 if the platform must
+ * swallow the Backspace and apply `out` (which already includes the deletion,
+ * e.g. the tone moved back: "hoàn" -> "hòa"); 0 to let the Backspace through.
+ * Backspace right after "word + space" reopens that word for more marks. */
+int dokey_backspace_edit(dokey_engine* engine, dokey_edit* out);
+/* Undo the marks of the current word (tiếng -> tieesng), e.g. on Esc.
+ * Returns 1 and the edit to apply, or 0 when there is nothing to undo. */
+int dokey_undo(dokey_engine* engine, dokey_edit* out);
+/* Text shortcuts as UTF-8 lines "shortcut=expansion" (or "shortcut:expansion");
+ * lines starting with # are comments. NULL or "" turns them off. */
+void dokey_set_macros(dokey_engine* engine, const char* utf8_lines);
 void dokey_reset(dokey_engine* engine);
 void dokey_destroy(dokey_engine* engine);
 

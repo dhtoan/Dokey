@@ -16,7 +16,7 @@ enum SelfTest {
         }
 
         let telex = Engine(options: dokey_options(method: Int32(DOKEY_TELEX), encoding: Int32(DOKEY_UNICODE),
-                                                  modern_tone_style: 1, check_spelling: 1))
+                                                  modern_tone_style: 1, check_spelling: 1, quick_telex: 0))
         check("telex sentence", telex.simulate("Xin chaof cacs banj "), "Xin chào các bạn ")
         check("telex dd/uow", telex.simulate("dduowngf "), "đường ")
         check("english kept", telex.simulate("windows chrome "), "windows chrome ")
@@ -24,9 +24,22 @@ enum SelfTest {
         check("undo by repeat", telex.simulate("aaa "), "aa ")
 
         let vni = Engine(options: dokey_options(method: Int32(DOKEY_VNI), encoding: Int32(DOKEY_UNICODE),
-                                                modern_tone_style: 0, check_spelling: 1))
+                                                modern_tone_style: 0, check_spelling: 1, quick_telex: 0))
         check("vni", vni.simulate("Vie65t Nam "), "Việt Nam ")
         check("old tone style", vni.simulate("hoa2 "), "hòa ")
+
+        let macros = Engine(options: dokey_options(method: Int32(DOKEY_TELEX), encoding: Int32(DOKEY_UNICODE),
+                                                   modern_tone_style: 1, check_spelling: 1, quick_telex: 1))
+        macros.setMacros("vn = Việt Nam")
+        check("macro", macros.simulate("vn "), "Việt Nam ")
+        check("quick telex", macros.simulate("ccaof "), "chào ")
+        check("highland names", macros.simulate("DDawks Lawks "), "Đắk Lắk ")
+        check("undo", { () -> String in
+            macros.reset()
+            for c in "tieengs".unicodeScalars { _ = macros.key(c.value) }
+            guard let edit = macros.undo() else { return "nil" }
+            return "\(edit.backspaces):" + String(decoding: edit.text, as: UTF16.self)
+        }(), "3:eengs")
 
         let kinds: [(String, AppKind)] = [
             ("com.google.Chrome", .browser),
@@ -53,7 +66,7 @@ enum SelfTest {
         let panel = ControlPanelController()
         panel.refresh()
         guard let window = panel.window, let view = window.contentView else { return 1 }
-        for page in 0..<4 {
+        for page in 0..<5 {
             panel.showPage(page)
             view.layoutSubtreeIfNeeded()
             guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return 1 }

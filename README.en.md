@@ -8,7 +8,7 @@
 [![Download](https://img.shields.io/badge/download-latest%20release-A855F7)](https://github.com/dhtoan/Dokey/releases/latest)
 ![macOS](https://img.shields.io/badge/macOS-10.13%2B-111111)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-18%2C500%20passing-2EA44F)
+![Tests](https://img.shields.io/badge/tests-20%2C635%20passing-2EA44F)
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-AppKit-F05138?logo=swift&logoColor=white)
 [![License](https://img.shields.io/badge/license-proprietary-B91C1C)](LICENSE)
@@ -77,7 +77,7 @@ Modern style (hoà, khoẻ, thuý) or traditional (hòa, khỏe, thúy). Telex, 
 <td valign="top">
 
 **🧠 Remembers each app**<br>
-Every app keeps its own Vietnamese/English mode. Switch with ⌃⇧ on Mac, Ctrl+Shift on Windows.
+Every app keeps its own Vietnamese/English mode, and apps can be excluded. Switch with ⌃⇧ on Mac, Ctrl+Shift on Windows.
 
 </td>
 <td valign="top">
@@ -87,11 +87,25 @@ A C++17 core with no external dependencies. Nothing is sent anywhere, keystrokes
 
 </td>
 </tr>
+<tr>
+<td valign="top">
+
+**⚡ Quick typing**<br>
+Text shortcuts (`vn` → Việt Nam), Quick Telex (`cc` → ch, `nn` → ng), undo with Esc (`tiếng` → tieesng).
+
+</td>
+<td valign="top">
+
+**↩️ Easy corrections**<br>
+After a word and a space, press Backspace to go back and fix its marks. Deleting a final consonant moves the tone back where it belongs.
+
+</td>
+</tr>
 </table>
 
 | Method | Examples |
 |---|---|
-| **Telex** | `dduowngf` → đường · `nguoiwf` → người · `Haxy` → Hãy · `quyeets` → quyết |
+| **Telex** | `dduowngf` → đường · `nguoiwf` → người · `Haxy` → Hãy · `quyeets` → quyết · `DDawks Lawks` → Đắk Lắk |
 | **VNI** | `d9u7o7ng2` → đường · `Vie65t` → Việt |
 
 ## 🍎 macOS
@@ -272,7 +286,7 @@ Dokey/
 ├── include/dokey/        Public API: dokey.h (C), engine.hpp (C++)
 ├── src/                  Core: Telex/VNI parser, tone placement, syllable dictionary, Unicode
 ├── tools/                dokey command-line tool
-├── tests/                18,500 core test cases
+├── tests/                20,635 core test cases, real-word data in tests/data
 ├── apps/
 │   ├── macos/            Swift + AppKit: event tap, control panel, build.sh, install.sh
 │   └── windows/          C++ Win32 + GDI+: keyboard hook, control panel, Inno Setup installer
@@ -280,7 +294,9 @@ Dokey/
 └── .github/              CI, release workflow, release notes
 ```
 
-**Quality:** 18,500 test cases run on Linux, macOS and Windows after every change, including a round trip that types all 3,759 syllables with all 6 tones. The code compiles without warnings under `-Wall -Wextra -Wpedantic`.
+**Quality:** 20,635 test cases run on Linux, macOS and Windows after every change:
+- a round trip that types all 3,964 syllables with all 6 tones;
+- a regression corpus of 1,171 English and developer words (which must stay as typed) and 30 real Vietnamese sentences typed in Telex. The code compiles without warnings under `-Wall -Wextra -Wpedantic`.
 
 ## 🗺 Roadmap
 
@@ -289,8 +305,8 @@ Dokey/
 | **0.1** | Dokey Core: Telex, VNI, spell checking, C/C++ API, command-line tool | ✅ |
 | **0.2** | macOS app (Swift + AppKit, Intel and Apple Silicon) | ✅ |
 | **0.3** | Windows app; lost-letter fixes for Claude and browsers; new control panel; warning-free install | ✅ |
-| 0.4 | Text shortcuts, encoding converter, TCVN3, VNI Windows, CP1258 | 🗓️ |
-| 0.5 | Per-site rules (Google Docs, Notion…), undo with Esc, excluded apps, auto-update | 🗓️ |
+| **0.4** | Text shortcuts, Quick Telex, undo with Esc, reopen word, excluded apps, Google Docs, Spotlight, update check | ✅ |
+| 0.5 | Encoding converter, TCVN3, VNI Windows, CP1258; quick typing on Windows | 🗓️ |
 | 1.0 | Code signing and notarization, general release | 🗓️ |
 
 Changes in each version: [Releases](https://github.com/dhtoan/Dokey/releases).

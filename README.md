@@ -8,7 +8,7 @@
 [![Download](https://img.shields.io/badge/download-latest%20release-A855F7)](https://github.com/dhtoan/Dokey/releases/latest)
 ![macOS](https://img.shields.io/badge/macOS-10.13%2B-111111)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-18%2C500%20passing-2EA44F)
+![Tests](https://img.shields.io/badge/tests-20%2C635%20passing-2EA44F)
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-AppKit-F05138?logo=swift&logoColor=white)
 [![License](https://img.shields.io/badge/license-proprietary-B91C1C)](LICENSE)
@@ -77,7 +77,7 @@ Kiểu mới (hoà, khoẻ, thuý) hoặc kiểu cũ (hòa, khỏe, thúy). Hỗ
 <td valign="top">
 
 **🧠 Nhớ theo từng ứng dụng**<br>
-Mỗi ứng dụng giữ chế độ Anh/Việt riêng. Chuyển nhanh bằng ⌃⇧ trên Mac, Ctrl+Shift trên Windows.
+Mỗi ứng dụng giữ chế độ Anh/Việt riêng, có danh sách ứng dụng loại trừ. Chuyển nhanh bằng ⌃⇧ trên Mac, Ctrl+Shift trên Windows.
 
 </td>
 <td valign="top">
@@ -87,11 +87,25 @@ Lõi C++17 không phụ thuộc thư viện ngoài. Không gửi dữ liệu đi
 
 </td>
 </tr>
+<tr>
+<td valign="top">
+
+**⚡ Gõ nhanh**<br>
+Gõ tắt (`vn` → Việt Nam), Quick Telex (`cc` → ch, `nn` → ng), hoàn tác bằng Esc (`tiếng` → tieesng).
+
+</td>
+<td valign="top">
+
+**↩️ Sửa lại dễ dàng**<br>
+Gõ xong từ và dấu cách, bấm Backspace để quay lại sửa dấu. Xoá phụ âm cuối thì dấu thanh tự về đúng chỗ.
+
+</td>
+</tr>
 </table>
 
 | Kiểu gõ | Ví dụ |
 |---|---|
-| **Telex** | `dduowngf` → đường · `nguoiwf` → người · `Haxy` → Hãy · `quyeets` → quyết |
+| **Telex** | `dduowngf` → đường · `nguoiwf` → người · `Haxy` → Hãy · `quyeets` → quyết · `DDawks Lawks` → Đắk Lắk |
 | **VNI** | `d9u7o7ng2` → đường · `Vie65t` → Việt |
 
 ## 🍎 macOS
@@ -276,7 +290,7 @@ Dokey/
 ├── include/dokey/        API công khai: dokey.h (C), engine.hpp (C++)
 ├── src/                  Lõi: parser Telex/VNI, đặt dấu, từ điển âm tiết, Unicode
 ├── tools/                Công cụ dòng lệnh dokey
-├── tests/                18.500 ca kiểm thử lõi
+├── tests/                20.635 ca kiểm thử lõi, dữ liệu từ thật trong tests/data
 ├── apps/
 │   ├── macos/            Swift + AppKit: event tap, bảng điều khiển, build.sh, install.sh
 │   └── windows/          C++ Win32 + GDI+: hook bàn phím, bảng điều khiển, bộ cài Inno Setup
@@ -288,12 +302,14 @@ Dokey/
 |---|---|
 | `include/dokey/` | API công khai: C (`dokey.h`) và C++ (`engine.hpp`) |
 | `src/` | Parser, quy tắc đặt dấu, từ điển âm tiết, bảng ký tự Unicode |
-| `tools/` · `tests/` | Công cụ dòng lệnh `dokey` · 18.500 ca kiểm thử |
+| `tools/` · `tests/` | Công cụ dòng lệnh `dokey` · 20.635 ca kiểm thử |
 | `apps/macos/` | Ứng dụng macOS (Swift + AppKit), script build và cài đặt |
 | `apps/windows/` | Ứng dụng Windows (C++ Win32), bộ cài Inno Setup |
 | `SPEC.md` · `docs/` | Đặc tả hành vi · kết quả kiểm thử, hình ảnh |
 
-**Chất lượng:** 18.500 ca kiểm thử chạy trên Linux, macOS và Windows sau mỗi lần thay đổi. Trong đó có phép thử khứ hồi: gõ toàn bộ 3.759 âm tiết với cả 6 thanh. Mã biên dịch không có cảnh báo với `-Wall -Wextra -Wpedantic`.
+**Chất lượng:** 20.635 ca kiểm thử chạy trên Linux, macOS và Windows sau mỗi lần thay đổi:
+- phép thử khứ hồi: gõ toàn bộ 3.964 âm tiết với cả 6 thanh;
+- bộ kiểm thử hồi quy gồm 1.171 từ tiếng Anh và từ lập trình (phải giữ nguyên) và 30 câu tiếng Việt thật gõ Telex. Mã biên dịch không có cảnh báo với `-Wall -Wextra -Wpedantic`.
 
 ## 🗺 Lộ trình
 
@@ -302,8 +318,8 @@ Dokey/
 | **0.1** | Dokey Core: Telex, VNI, kiểm tra chính tả, API C/C++, công cụ dòng lệnh | ✅ |
 | **0.2** | Ứng dụng macOS (Swift + AppKit, Intel và Apple Silicon) | ✅ |
 | **0.3** | Ứng dụng Windows; sửa mất chữ trong Claude và trình duyệt; bảng điều khiển mới; cài không cảnh báo | ✅ |
-| 0.4 | Gõ tắt, công cụ chuyển mã, bảng mã TCVN3, VNI Windows, CP1258 | 🗓️ |
-| 0.5 | Quy tắc theo trang web (Google Docs, Notion…), hoàn tác bằng Esc, loại trừ ứng dụng, tự cập nhật | 🗓️ |
+| **0.4** | Gõ tắt, Quick Telex, hoàn tác bằng Esc, mở lại từ, loại trừ ứng dụng, Google Docs, Spotlight, kiểm tra cập nhật | ✅ |
+| 0.5 | Công cụ chuyển mã, bảng mã TCVN3, VNI Windows, CP1258; gõ nhanh trên Windows | 🗓️ |
 | 1.0 | Ký số và notarize, phát hành chính thức | 🗓️ |
 
 Các thay đổi theo từng phiên bản: [Releases](https://github.com/dhtoan/Dokey/releases).

@@ -32,9 +32,29 @@ final class Engine {
 
     /// Returns nil when the original key should go through unchanged.
     func key(_ ch: UInt32) -> EngineEdit? {
+        call { dokey_key(handle, ch, &$0) }
+    }
+
+    /// Backspace: nil lets it through; an edit replaces it (the tone moved back).
+    func backspaceEdit() -> EngineEdit? {
+        call { dokey_backspace_edit(handle, &$0) }
+    }
+
+    /// Esc: the current word as typed (tiếng -> tieesng), or nil if it has no marks.
+    func undo() -> EngineEdit? {
+        call { dokey_undo(handle, &$0) }
+    }
+
+    func setMacros(_ lines: String) {
+        lock.lock()
+        dokey_set_macros(handle, lines)
+        lock.unlock()
+    }
+
+    private func call(_ body: (inout dokey_edit) -> Int32) -> EngineEdit? {
         var out = dokey_edit()
         lock.lock()
-        let handled = dokey_key(handle, ch, &out)
+        let handled = body(&out)
         lock.unlock()
         guard handled == 1 else { return nil }
         let count = Int(out.length)

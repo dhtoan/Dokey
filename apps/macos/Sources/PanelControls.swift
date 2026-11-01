@@ -381,7 +381,7 @@ final class OrbButton: NSControl {
 
 /// An icon-only sidebar entry (the narrow CleanMyMac-style sidebar).
 final class SidebarButton: NSControl {
-    enum Icon { case dashboard, keyboard, apps, info }
+    enum Icon { case dashboard, keyboard, bolt, apps, info }
     var isSelected = false { didSet { needsDisplay = true } }
     private let icon: Icon
 
@@ -418,6 +418,14 @@ final class SidebarButton: NSControl {
             for i in 0..<3 { for j in 0..<3 {
                 path.appendOval(in: NSRect(x: r.minX + CGFloat(i) * 6.6, y: r.minY + CGFloat(j) * 6.6, width: 4.8, height: 4.8))
             } }
+        case .bolt:
+            path.move(to: NSPoint(x: r.minX + r.width * 0.62, y: r.maxY))
+            path.line(to: NSPoint(x: r.minX + r.width * 0.16, y: r.midY - 1))
+            path.line(to: NSPoint(x: r.midX, y: r.midY - 1))
+            path.line(to: NSPoint(x: r.minX + r.width * 0.38, y: r.minY))
+            path.line(to: NSPoint(x: r.maxX - r.width * 0.16, y: r.midY + 2))
+            path.line(to: NSPoint(x: r.midX + 1, y: r.midY + 2))
+            path.close()
         case .info:
             path.appendOval(in: r)
         }

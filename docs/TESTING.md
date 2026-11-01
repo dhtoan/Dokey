@@ -25,3 +25,7 @@ Trang này ghi lại trung thực những gì đã và chưa được kiểm th�
 
 Hạn chế đã biết: trong ứng dụng Electron có cửa sổ dòng lệnh (terminal của VS Code), Shift+← không bôi đen chữ, nên có thể gõ sai dấu ở đó. Với bảng mã Unicode tổ hợp, Dokey vẫn dùng Backspace.
 | Bảng điều khiển 0.3.3 / 0.3.4 | ✅ Vẽ ra ảnh bằng `Dokey --render-marketing` (ảnh trong `docs/images/`); chưa thử trên macOS 10.13–10.15 |
+| 0.4: mở lại từ, Backspace đặt lại dấu, ư+o → ươ, Đắk Lắk, gõ tắt, Quick Telex, hoàn tác (lõi) | ✅ Bài kiểm thử tự động `editing()` và API C trong `tests/engine_tests.cpp` |
+| 0.4: bộ hồi quy 1.171 từ tiếng Anh/lập trình + 30 câu tiếng Việt | ✅ `corpus()`; 1.097 từ giữ nguyên, 74 từ là âm tiết tiếng Việt (liệt kê trong `tests/data/english_known.txt`) |
+| 0.4 trên macOS: Backspace và Esc qua event tap, Spotlight, Google Docs, kiểm tra cập nhật | ❌ Chưa gõ thử thật (cần cài bản mới và cấp lại quyền Trợ năng) |
+

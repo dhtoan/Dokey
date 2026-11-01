@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         statusItem.menu = menu
 
         tap.onToggle = { [weak self] in self?.toggleMode() }
+        engine.setMacros(settings.macrosEnabled ? settings.macroText : "")
         pushState()
         updateIcon()
 
@@ -29,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         if let app = NSWorkspace.shared.frontmostApplication { activate(app) }
 
         installMainMenu()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20) { Updater.shared.check(interactive: false) }
         if !tap.start() {
             showPermissionGuide()
         } else if !launchedAtLogin {
@@ -115,13 +117,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
 
     var panelEditCount: Int { tap.editedWords }
 
+    func panelClearExcluded() {
+        settings.excludedApps = []
+        engine.reset()
+        pushState()
+        updateIcon()
+    }
+
+    func panelCheckUpdates() { Updater.shared.check(interactive: true) }
+
     var panelTapRunning: Bool { tap.isRunning }
 
     // MARK: - State
 
+    /// Vietnamese is on and the front app is not excluded.
+    private var vietnameseActive: Bool {
+        settings.vietnamese && !isExcluded(frontApp?.bundleID)
+    }
+
+    private func isExcluded(_ bundleID: String?) -> Bool {
+        guard let id = bundleID, !id.isEmpty else { return false }
+        return settings.excludedApps.contains(id)
+    }
+
+    /// Google Docs and friends, recognised from the front window's title.
+    private var siteProfile: DeliveryProfile?
+
+    private func refreshSiteRule() {
+        guard frontApp?.kind == .browser, let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier else {
+            siteProfile = nil
+            return
+        }
+        let app = AXUIElementCreateApplication(pid)
+        var window: CFTypeRef?
+        var title: CFTypeRef?
+        if AXUIElementCopyAttributeValue(app, kAXFocusedWindowAttribute as CFString, &window) == .success,
+           let w = window, CFGetTypeID(w) == AXUIElementGetTypeID(),
+           AXUIElementCopyAttributeValue(w as! AXUIElement, kAXTitleAttribute as CFString, &title) == .success,
+           let text = title as? String {
+            siteProfile = SiteRule.profile(forWindowTitle: text, slowMachine: settings.slowMachineMode)
+        } else {
+            siteProfile = nil
+        }
+    }
+
     private func pushState() {
         var state = tap.state
-        state.vietnamese = settings.vietnamese
+        state.vietnamese = vietnameseActive
+        state.undoWithEsc = settings.undoWithEsc
+        state.siteProfile = siteProfile
         state.hotkey = settings.hotkey
         state.encoding = settings.encoding
         state.appKind = frontApp?.kind ?? .normal
@@ -132,14 +176,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
     }
 
     private func applyTuning() {
+        refreshSiteRule()
         var state = tap.state
+        state.siteProfile = siteProfile
         state.profile = state.appKind.profile(slowMachine: settings.slowMachineMode, tuning: settings.tuning)
         state.debugLog = settings.debugLog
         tap.state = state
     }
 
     private func updateIcon() {
-        statusItem.button?.image = StatusIcon.image(vietnamese: settings.vietnamese)
+        statusItem.button?.image = StatusIcon.image(vietnamese: vietnameseActive)
     }
 
     private func setVietnamese(_ on: Bool, remember: Bool) {
@@ -154,11 +200,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
     }
 
     private func toggleMode() {
+        // In an excluded app the shortcut means "type Vietnamese here after all".
+        if let id = frontApp?.bundleID, isExcluded(id) {
+            setExcluded(false, bundleID: id)
+            if !settings.vietnamese { setVietnamese(true, remember: true) }
+            return
+        }
         setVietnamese(!settings.vietnamese, remember: true)
+    }
+
+    private func setExcluded(_ excluded: Bool, bundleID id: String) {
+        var list = settings.excludedApps.filter { $0 != id }
+        if excluded { list.append(id) }
+        settings.excludedApps = list
+        engine.reset()
+        pushState()
+        updateIcon()
     }
 
     private func engineOptionsChanged() {
         engine.setOptions(settings.engineOptions)
+        engine.setMacros(settings.macrosEnabled ? settings.macroText : "")
         pushState()
     }
 
@@ -179,6 +241,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         }
         let id = app.bundleIdentifier ?? ""
         frontApp = (id, app.localizedName ?? id, AppClassifier.classify(app), app.icon)
+        refreshSiteRule()
+        defer { updateIcon() }
         if settings.rememberModePerApp, !id.isEmpty, let saved = settings.savedMode(forApp: id),
            saved != settings.vietnamese {
             setVietnamese(saved, remember: false)
@@ -243,6 +307,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         slow.state = settings.slowMachineMode ? .on : .off
         slow.toolTip = "Thêm khoảng nghỉ giữa các phím gửi đi trong Chrome, Edge và ứng dụng Electron."
         menu.addItem(slow)
+        if let app = frontApp, !app.bundleID.isEmpty {
+            let exclude = item("Không gõ tiếng Việt trong \(app.name)", #selector(menuToggleExcluded))
+            exclude.state = isExcluded(app.bundleID) ? .on : .off
+            menu.addItem(exclude)
+        }
         let login = item("Khởi động cùng macOS", #selector(menuToggleLogin))
         login.state = LoginItem.isEnabled ? .on : .off
         menu.addItem(login)
@@ -259,6 +328,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         } else {
             menu.addItem(item("Hướng dẫn cấp quyền Trợ năng…", #selector(menuPermission)))
         }
+        menu.addItem(item("Kiểm tra cập nhật…", #selector(menuCheckUpdates)))
         menu.addItem(item("Giới thiệu Dokey", #selector(menuAbout)))
         menu.addItem(.separator())
         menu.addItem(item("Thoát Dokey", #selector(NSApplication.terminate(_:)), key: "q", target: NSApp))
@@ -281,6 +351,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
     @objc private func menuToggleMode() { toggleMode() }
 
     @objc private func menuControlPanel() { showControlPanel() }
+
+    @objc private func menuToggleExcluded() {
+        guard let id = frontApp?.bundleID, !id.isEmpty else { return }
+        setExcluded(!isExcluded(id), bundleID: id)
+    }
+
+    @objc private func menuCheckUpdates() { Updater.shared.check(interactive: true) }
 
     @objc private func menuSetMethod(_ sender: NSMenuItem) {
         settings.method = Int32(sender.tag)

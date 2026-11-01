@@ -73,7 +73,21 @@ bool stopFinal(const std::vector<Letter>& w) {
     vowelRun(w, b, e);
     if (e == b) return false;
     std::u16string fin = lowerMarked(std::vector<Letter>(w.begin() + e, w.end()));
-    return fin == u"c" || fin == u"ch" || fin == u"p" || fin == u"t";
+    return fin == u"c" || fin == u"ch" || fin == u"p" || fin == u"t" || fin == u"k";
+}
+
+// "ư" + "o" before a final consonant can only be "ươ": typing "uwon" means
+// "ươn", not a word that cannot exist ("ưon").
+void completeUo(std::vector<Letter>& w) {
+    for (size_t i = 0; i + 2 < w.size(); i++) {
+        Letter& u = w[i];
+        Letter& o = w[i + 1];
+        const char next = w[i + 2].base;
+        if (u.base == 'u' && u.mark == Mark::Horn && o.base == 'o' && o.mark == Mark::None &&
+            std::strchr("ncimpt", next)) {
+            o.mark = Mark::Horn;
+        }
+    }
 }
 
 bool toneAllowed(const std::vector<Letter>& w, Tone tone) {
@@ -342,6 +356,14 @@ private:
     const Options& opt_;
 };
 
+// Was a tone key cancelled by repeating it ("ss", "rr", "ff"...)?
+bool toneUndone(const std::u16string& keys, const Options& options, std::u16string& shown) {
+    Parser parser(options);
+    Word w = parser.parse(keys);
+    shown = w.typed;
+    return w.disabled[kTone];
+}
+
 bool isWordKey(char32_t ch, InputMethod method) {
     if ((ch >= U'a' && ch <= U'z') || (ch >= U'A' && ch <= U'Z')) return true;
     return method == InputMethod::VNI && ch >= U'0' && ch <= U'9';
@@ -356,14 +378,73 @@ void Engine::setOptions(const Options& options) {
     reset();
 }
 
-void Engine::reset() {
+void Engine::setMacros(const std::vector<Macro>& macros) {
+    macros_.clear();
+    for (const Macro& m : macros) {
+        if (m.key.empty() || m.key.size() > kMaxWordKeys) continue;
+        Macro lower = m;
+        for (char16_t& c : lower.key) {
+            if (c >= u'A' && c <= u'Z') c = static_cast<char16_t>(c - u'A' + u'a');
+        }
+        macros_.push_back(lower);
+    }
+}
+
+void Engine::endWord() {
     raw_.clear();
+    typed_.clear();
     display_.clear();
+    literal_ = false;
+}
+
+void Engine::reset() {
+    endWord();
+    hasPrevious_ = false;
+}
+
+namespace {
+
+char16_t upperLetter(char16_t c) {
+    if (c >= u'a' && c <= u'z') return static_cast<char16_t>(c - u'a' + u'A');
+    char base;
+    Mark mark;
+    Tone tone;
+    bool upper;
+    if (c > 0x7F && decomposeLetter(c, base, mark, tone, upper) && !upper) return composeLetter(base, mark, tone, true);
+    return c;
+}
+
+} // namespace
+
+bool Engine::expandMacro(char32_t breakKey, Edit& edit) {
+    if (macros_.empty() || typed_.empty() || literal_) return false;
+    std::u16string key = typed_;
+    size_t uppers = 0;
+    for (char16_t& c : key) {
+        if (c >= u'A' && c <= u'Z') {
+            c = static_cast<char16_t>(c - u'A' + u'a');
+            uppers++;
+        }
+    }
+    for (const Macro& m : macros_) {
+        if (m.key != key) continue;
+        std::u16string text = m.text;
+        if (uppers == key.size() && key.size() > 1) {
+            for (char16_t& c : text) c = upperLetter(c);       // BTW -> BY THE WAY
+        } else if (uppers > 0 && typed_[0] >= u'A' && typed_[0] <= u'Z' && !text.empty()) {
+            text[0] = upperLetter(text[0]);                    // Btw -> By the way
+        }
+        if (breakKey <= 0xFFFF) text.push_back(static_cast<char16_t>(breakKey));
+        edit = commit(text, breakKey);
+        return true;
+    }
+    return false;
 }
 
 std::u16string Engine::render(const std::u16string& keys, bool wordEnded) const {
     Parser parser(options_);
     Word w = parser.parse(keys);
+    completeUo(w.letters);
     const bool show = !options_.checkSpelling || plausible(w.letters, w.tone, false);
     if (!show) return w.typed;  // not Vietnamese: show what was typed
 
@@ -416,17 +497,58 @@ Edit Engine::key(char32_t ch) {
         // Word break: space, punctuation, Telex digits... Apply end-of-word
         // corrections, then let the break key through as part of the edit.
         Edit edit;
-        if (!raw_.empty() && raw_.size() <= kMaxWordKeys && ch <= 0xFFFF) {
+        const bool hadWord = !display_.empty();
+        const bool expanded = expandMacro(ch, edit);
+        if (!expanded && !literal_ && !raw_.empty() && raw_.size() <= kMaxWordKeys && ch <= 0xFFFF) {
             std::u16string done = render(raw_, true);
+            // A longer word that is not Vietnamese and only lost a letter to a
+            // cancelled tone key is English with a double letter: pass, error,
+            // session. Show every key typed. (Short "ass" -> "as" keeps the
+            // Telex convention.)
+            std::u16string shown;
+            if (typed_.size() >= 4 && typed_.size() == raw_.size() + 0 && toneUndone(raw_, options_, shown) &&
+                done == shown && done.size() < typed_.size()) {
+                done = typed_;
+            }
             if (done != display_) {
                 edit = commit(done + static_cast<char16_t>(ch), ch);
+                display_.pop_back();  // the break key is not part of the word
             }
         }
-        reset();
+        // Remember the word while a single space follows it, so Backspace can reopen it.
+        hasPrevious_ = ch == U' ' && hadWord && !expanded && !literal_ && raw_.size() <= kMaxWordKeys;
+        if (hasPrevious_) {
+            prevRaw_ = raw_;
+            prevTyped_ = typed_;
+            prevDisplay_ = display_;
+        }
+        endWord();
         return edit;
+    }
+    hasPrevious_ = false;
+    if (literal_) {  // after undo, the rest of the word stays as typed
+        typed_.push_back(static_cast<char16_t>(ch));
+        display_.push_back(static_cast<char16_t>(ch));
+        return Edit();
     }
     if (raw_.empty() && ch >= U'0' && ch <= U'9') {
         return Edit();  // a number, not a word
+    }
+    typed_.push_back(static_cast<char16_t>(ch));
+    // Quick Telex: a doubled first consonant is a two-letter initial (cc -> ch).
+    if (options_.quickTelex && options_.method == InputMethod::Telex && raw_.size() == 1 && typed_.size() == 2) {
+        static const char16_t from[] = u"cgknpqt";
+        static const char16_t to[] = u"hihghuh";
+        const char16_t first = raw_[0];
+        const char16_t lower = (ch >= U'A' && ch <= U'Z') ? static_cast<char16_t>(ch - U'A' + U'a') : static_cast<char16_t>(ch);
+        const char16_t firstLower = (first >= u'A' && first <= u'Z') ? static_cast<char16_t>(first - u'A' + u'a') : first;
+        for (int i = 0; from[i]; i++) {
+            if (lower == from[i] && firstLower == from[i]) {
+                const bool upper = ch >= U'A' && ch <= U'Z';
+                raw_.push_back(upper ? static_cast<char16_t>(to[i] - u'a' + u'A') : to[i]);
+                return commit(render(raw_, false), ch);
+            }
+        }
     }
     raw_.push_back(static_cast<char16_t>(ch));
     if (raw_.size() > kMaxWordKeys) {  // long tokens (URLs, IDs): stop transforming
@@ -483,18 +605,69 @@ bool encodeKeys(const std::u16string& text, InputMethod method, std::u16string& 
 } // namespace
 
 void Engine::backspace() {
-    if (display_.empty() || options_.encoding != Encoding::Unicode) {
+    backspaceImpl(false);
+}
+
+Edit Engine::backspaceEdit() {
+    return backspaceImpl(true);
+}
+
+Edit Engine::backspaceImpl(bool allowEdit) {
+    if (display_.empty()) {
+        // Deleting the single space after a word reopens that word.
+        if (hasPrevious_ && raw_.empty()) {
+            raw_ = prevRaw_;
+            typed_ = prevTyped_;
+            display_ = prevDisplay_;
+            hasPrevious_ = false;
+            literal_ = raw_.empty();
+            return Edit();
+        }
         reset();
-        return;
+        return Edit();
+    }
+    hasPrevious_ = false;
+    if (literal_) {
+        display_.pop_back();
+        if (!typed_.empty()) typed_.pop_back();
+        if (display_.empty()) endWord();
+        return Edit();
+    }
+    if (options_.encoding != Encoding::Unicode) {
+        reset();
+        return Edit();
     }
     std::u16string remaining = display_.substr(0, display_.size() - 1);
     std::u16string keys;
-    if (remaining.empty() || !encodeKeys(remaining, options_.method, keys) || render(keys, false) != remaining) {
+    if (remaining.empty() || !encodeKeys(remaining, options_.method, keys)) {
         reset();  // cannot resume this word: the next key starts a new one
-        return;
+        return Edit();
     }
-    raw_ = keys;
-    display_ = remaining;
+    std::u16string next = render(keys, false);
+    if (next == remaining) {
+        raw_ = keys;
+        typed_ = keys;
+        display_ = remaining;
+        return Edit();
+    }
+    // Same letters, different tone position ("hoàn" -> "hòa" in the old style):
+    // the platform applies the corrected word instead of a plain Backspace.
+    if (allowEdit && next.size() == remaining.size()) {
+        Edit edit = commit(next, 0);
+        raw_ = keys;
+        typed_ = keys;
+        return edit;
+    }
+    reset();
+    return Edit();
+}
+
+Edit Engine::undo() {
+    if (display_.empty() || literal_ || typed_ == display_) return Edit();
+    Edit edit = commit(typed_, 0);
+    literal_ = true;
+    hasPrevious_ = false;
+    return edit;
 }
 
 std::u16string Engine::simulate(const std::string& keys, const Options& options) {

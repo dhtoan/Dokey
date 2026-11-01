@@ -55,6 +55,19 @@ enum AppKind: String {
     }
 }
 
+/// Web apps that need gentler handling, recognised from the window title.
+enum SiteRule {
+    /// Google Docs, Sheets and Slides type into a hidden editing surface that
+    /// keeps up best with one character per event and short pauses.
+    static func profile(forWindowTitle title: String, slowMachine: Bool) -> DeliveryProfile? {
+        let docs = ["Google Docs", "Google Tài liệu", "Google Sheets", "Google Trang tính",
+                    "Google Slides", "Google Trang trình bày"]
+        guard docs.contains(where: { title.contains($0) }) else { return nil }
+        return DeliveryProfile(select: true, unitsPerEvent: 1, step: slowMachine ? 4_000 : 2_000,
+                               settle: slowMachine ? 10_000 : 6_000, tail: 0, textKey: -2, textUp: true)
+    }
+}
+
 /// How one edit is replayed: delete by Backspace or by selecting with Shift+←,
 /// how many UTF-16 units per key event, pauses in microseconds (after each
 /// event, before the first new letter, after the last one), and which virtual
@@ -84,6 +97,9 @@ enum AppClassifier {
         "org.mozilla.firefox",
         "org.mozilla.nightly",
         "app.zen-browser.zen",
+        // Launchers with an inline completion in their search field.
+        "com.raycast.macos",
+        "com.runningwithcrayons.Alfred",
     ]
 
     private static let electronPrefixes = [

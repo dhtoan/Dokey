@@ -53,6 +53,12 @@ final class Settings {
         static let rememberPerApp = "rememberModePerApp"
         static let perAppModes = "perAppModes"
         static let slowMachine = "slowMachineMode"
+        static let quickTelex = "quickTelex"
+        static let undoWithEsc = "undoWithEsc"
+        static let macrosOn = "macrosEnabled"
+        static let macroText = "macroText"
+        static let excluded = "excludedApps"
+        static let lastUpdateCheck = "lastUpdateCheck"
     }
 
     private init() {
@@ -65,6 +71,10 @@ final class Settings {
             Key.hotkey: SwitchHotkey.controlShift.rawValue,
             Key.rememberPerApp: true,
             Key.slowMachine: false,
+            Key.quickTelex: false,
+            Key.undoWithEsc: false,
+            Key.macrosOn: true,
+            Key.macroText: Settings.sampleMacros,
         ])
     }
 
@@ -118,6 +128,55 @@ final class Settings {
         defaults.bool(forKey: "debugLog")
     }
 
+    static let sampleMacros = """
+    # Gõ tắt: mỗi dòng "từ tắt = nội dung". Gõ từ tắt rồi dấu cách để thay.
+    # Viết hoa từ tắt để viết hoa nội dung: vn -> Việt Nam, Vn, VN -> VIỆT NAM.
+    vn = Việt Nam
+    ko = không
+    dc = được
+    btw = by the way
+    """
+
+    var quickTelex: Bool {
+        get { defaults.bool(forKey: Key.quickTelex) }
+        set { defaults.set(newValue, forKey: Key.quickTelex) }
+    }
+
+    /// Esc while a word has marks shows the keys as typed (tiếng -> tieesng).
+    var undoWithEsc: Bool {
+        get { defaults.bool(forKey: Key.undoWithEsc) }
+        set { defaults.set(newValue, forKey: Key.undoWithEsc) }
+    }
+
+    var macrosEnabled: Bool {
+        get { defaults.bool(forKey: Key.macrosOn) }
+        set { defaults.set(newValue, forKey: Key.macrosOn) }
+    }
+
+    var macroText: String {
+        get { defaults.string(forKey: Key.macroText) ?? "" }
+        set { defaults.set(newValue, forKey: Key.macroText) }
+    }
+
+    /// Number of shortcuts in `macroText`.
+    var macroCount: Int {
+        macroText.split(separator: "\n").filter { line in
+            let t = line.trimmingCharacters(in: .whitespaces)
+            return !t.hasPrefix("#") && (t.contains("=") || t.contains(":"))
+        }.count
+    }
+
+    /// Apps where Dokey never types Vietnamese.
+    var excludedApps: [String] {
+        get { defaults.stringArray(forKey: Key.excluded) ?? [] }
+        set { defaults.set(newValue, forKey: Key.excluded) }
+    }
+
+    var lastUpdateCheck: Date? {
+        get { defaults.object(forKey: Key.lastUpdateCheck) as? Date }
+        set { defaults.set(newValue, forKey: Key.lastUpdateCheck) }
+    }
+
     func savedMode(forApp bundleID: String) -> Bool? {
         let modes = defaults.dictionary(forKey: Key.perAppModes) as? [String: Bool]
         return modes?[bundleID]
@@ -133,6 +192,7 @@ final class Settings {
         dokey_options(method: method,
                       encoding: encoding,
                       modern_tone_style: modernToneStyle ? 1 : 0,
-                      check_spelling: checkSpelling ? 1 : 0)
+                      check_spelling: checkSpelling ? 1 : 0,
+                      quick_telex: quickTelex ? 1 : 0)
     }
 }

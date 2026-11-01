@@ -17,6 +17,7 @@ dokey::Options convert(const dokey_options* o) {
     out.encoding = o->encoding == DOKEY_UNICODE_COMBINING ? dokey::Encoding::UnicodeCombining : dokey::Encoding::Unicode;
     out.modernToneStyle = o->modern_tone_style != 0;
     out.checkSpelling = o->check_spelling != 0;
+    out.quickTelex = o->quick_telex != 0;
     return out;
 }
 
@@ -32,9 +33,9 @@ void dokey_set_options(dokey_engine* e, const dokey_options* options) {
     if (e) e->engine.setOptions(convert(options));
 }
 
-int dokey_key(dokey_engine* e, uint32_t ch, dokey_edit* out) {
-    if (!e || !out) return 0;
-    dokey::Edit edit = e->engine.key(static_cast<char32_t>(ch));
+namespace {
+
+int toC(dokey_engine* e, const dokey::Edit& edit, dokey_edit* out) {
     out->backspaces = 0;
     out->length = 0;
     if (!edit.handled || edit.insert.size() > DOKEY_MAX_EDIT) {
@@ -45,6 +46,49 @@ int dokey_key(dokey_engine* e, uint32_t ch, dokey_edit* out) {
     out->length = static_cast<int>(edit.insert.size());
     for (size_t i = 0; i < edit.insert.size(); i++) out->text[i] = edit.insert[i];
     return 1;
+}
+
+} // namespace
+
+int dokey_key(dokey_engine* e, uint32_t ch, dokey_edit* out) {
+    if (!e || !out) return 0;
+    return toC(e, e->engine.key(static_cast<char32_t>(ch)), out);
+}
+
+int dokey_backspace_edit(dokey_engine* e, dokey_edit* out) {
+    if (!e || !out) return 0;
+    return toC(e, e->engine.backspaceEdit(), out);
+}
+
+int dokey_undo(dokey_engine* e, dokey_edit* out) {
+    if (!e || !out) return 0;
+    return toC(e, e->engine.undo(), out);
+}
+
+void dokey_set_macros(dokey_engine* e, const char* lines) {
+    if (!e) return;
+    std::vector<dokey::Macro> macros;
+    const std::u16string all = lines ? dokey::fromUtf8(lines) : std::u16string();
+    size_t start = 0;
+    while (start <= all.size()) {
+        size_t end = all.find(u'\n', start);
+        if (end == std::u16string::npos) end = all.size();
+        std::u16string line = all.substr(start, end - start);
+        if (!line.empty() && line.back() == u'\r') line.pop_back();
+        start = end + 1;
+        if (line.empty() || line[0] == u'#') continue;
+        size_t sep = line.find(u'=');
+        if (sep == std::u16string::npos) sep = line.find(u':');
+        if (sep == std::u16string::npos || sep == 0) continue;
+        auto trim = [](std::u16string s) {
+            while (!s.empty() && (s.front() == u' ' || s.front() == u'\t')) s.erase(0, 1);
+            while (!s.empty() && (s.back() == u' ' || s.back() == u'\t')) s.pop_back();
+            return s;
+        };
+        dokey::Macro m{trim(line.substr(0, sep)), trim(line.substr(sep + 1))};
+        if (!m.key.empty() && !m.text.empty()) macros.push_back(m);
+    }
+    e->engine.setMacros(macros);
 }
 
 void dokey_backspace(dokey_engine* e) {

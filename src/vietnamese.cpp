@@ -60,12 +60,13 @@ int vowelRow(char base, Mark mark) {
 const char* const kInitials[] = {
     "", "b", "c", "ch", "d", "đ", "g", "gh", "gi", "h", "k", "kh", "l", "m", "n", "ng", "ngh",
     "nh", "p", "ph", "qu", "r", "s", "t", "th", "tr", "v", "x",
+    "kr",  // Central Highlands place names: Krông Búk, Krông Pắc
 };
 
 // Rhymes as written after an ordinary initial consonant.
 const char* const kRhymes[] = {
     "a", "ac", "ach", "ai", "am", "an", "ang", "anh", "ao", "ap", "at", "au", "ay",
-    "ăc", "ăm", "ăn", "ăng", "ăp", "ăt",
+    "ăc", "ăk", "ăm", "ăn", "ăng", "ăp", "ăt",  // ăk: Đắk Lắk
     "âc", "âm", "ân", "âng", "âp", "ât", "âu", "ây",
     "e", "ec", "em", "en", "eng", "eo", "ep", "et",
     "ê", "êch", "êm", "ên", "ênh", "êp", "êt", "êu",
@@ -76,7 +77,7 @@ const char* const kRhymes[] = {
     "oăc", "oăm", "oăn", "oăng", "oăt", "oe", "oen", "oeo", "oet", "ooc", "oong",
     "ô", "ôc", "ôi", "ôm", "ôn", "ông", "ôp", "ôt",
     "ơ", "ơi", "ơm", "ơn", "ơp", "ơt",
-    "u", "ua", "uc", "ui", "um", "un", "ung", "up", "ut",
+    "u", "ua", "uc", "uk", "ui", "um", "un", "ung", "up", "ut",  // uk: Búk
     "uân", "uâng", "uât", "uây", "uê", "uêch", "uênh", "uơ",
     "uy", "uych", "uynh", "uyp", "uyt", "uya", "uyu", "uyên", "uyêt",
     "uôc", "uôi", "uôm", "uôn", "uông", "uôt",

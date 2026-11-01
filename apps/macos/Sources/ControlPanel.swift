@@ -9,6 +9,8 @@ protocol ControlPanelDelegate: AnyObject {
     func panelShowPermission()
     var panelFrontApp: (name: String, kind: AppKind, icon: NSImage?)? { get }
     var panelTapRunning: Bool { get }
+    func panelClearExcluded()
+    func panelCheckUpdates()
     /// Words Dokey has added marks to since it started.
     var panelEditCount: Int { get }
 }
@@ -78,7 +80,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     private let pageTitle = label("", size: 13, weight: .semibold, color: NSColor(white: 1, alpha: 0.85))
     private var pages: [NSView] = []
     private var sidebarButtons: [SidebarButton] = []
-    private let titles = ["Bảng điều khiển", "Kiểu gõ", "Ứng dụng", "Giới thiệu"]
+    private let titles = ["Bảng điều khiển", "Kiểu gõ", "Gõ nhanh", "Ứng dụng", "Giới thiệu"]
     private let orb = OrbButton()
     private var timer: Timer?
 
@@ -114,7 +116,15 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     private let hotkeyPopup = NSPopUpButton()
     private let examples = label("", size: 12, color: Palette.secondaryText, wrapping: true)
 
+    // Quick typing
+    private let quickTelexSwitch = ToggleSwitch()
+    private let escSwitch = ToggleSwitch()
+    private let macroSwitch = ToggleSwitch()
+    private let macroSummary = label("", size: 12, color: Palette.secondaryText, wrapping: true)
+    private var macroEditor: MacroEditorController?
+
     // Apps
+    private let excludedValue = label("", size: 12, weight: .medium, color: Palette.secondaryText)
     private let perAppSwitch = ToggleSwitch()
     private let slowSwitch = ToggleSwitch()
     private let loginSwitch = ToggleSwitch()
@@ -178,7 +188,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         ])
         buildSidebar(in: sidebar)
 
-        pages = [dashboardPage(), typingPage(), appsPage(), aboutPage()]
+        pages = [dashboardPage(), typingPage(), quickPage(), appsPage(), aboutPage()]
         for page in pages {
             page.translatesAutoresizingMaskIntoConstraints = false
             content.addSubview(page)
@@ -198,7 +208,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         let stack = NSStackView()
         stack.orientation = .vertical
         stack.spacing = 8
-        let icons: [SidebarButton.Icon] = [.dashboard, .keyboard, .apps, .info]
+        let icons: [SidebarButton.Icon] = [.dashboard, .keyboard, .bolt, .apps, .info]
         for (i, kind) in icons.enumerated() {
             let b = SidebarButton(icon: kind, tooltip: titles[i])
             b.tag = i
@@ -386,6 +396,35 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         return page
     }
 
+    private func quickPage() -> NSView {
+        quickTelexSwitch.target = self
+        quickTelexSwitch.action = #selector(quickTelexChanged)
+        escSwitch.target = self
+        escSwitch.action = #selector(escChanged)
+        macroSwitch.target = self
+        macroSwitch.action = #selector(macrosChanged)
+        let edit = AccentButton(title: "Sửa danh sách…")
+        edit.target = self
+        edit.action = #selector(editMacros)
+        let macroControls = NSStackView(views: [edit, macroSwitch])
+        macroControls.spacing = 12
+
+        let hero = heroCard("Gõ nhanh", "Gõ tắt, Quick Telex và hoàn tác bằng Esc.",
+                            badge: GlossyBadge(shape: .circle, top: NSColor(red: 0.35, green: 0.95, blue: 0.90, alpha: 1),
+                                               bottom: NSColor(red: 0.05, green: 0.55, blue: 0.70, alpha: 1), symbol: .bolt))
+        let card = settingsCard([
+            ("Gõ tắt", "Gõ từ tắt rồi dấu cách: vn → Việt Nam, ko → không", macroControls),
+            ("Quick Telex", "cc → ch, gg → gi, kk → kh, nn → ng, pp → ph, qq → qu, tt → th (đầu từ)", quickTelexSwitch),
+            ("Hoàn tác bằng Esc", "Bấm Esc khi đang gõ để trả từ về đúng phím đã gõ: tiếng → tieesng", escSwitch),
+        ])
+        let tips = label("""
+        Mẹo: gõ "xin", dấu cách rồi Backspace là quay lại sửa dấu từ đó ("f" ra "xìn"). Xoá phụ âm cuối thì dấu thanh tự về đúng chỗ.
+        """, size: 12, color: Palette.secondaryText, wrapping: true)
+        let page = vertical([hero, card, macroSummary, tips], spacing: 12)
+        fullWidth([hero, card, macroSummary, tips], in: page)
+        return page
+    }
+
     private func appsPage() -> NSView {
         perAppSwitch.target = self
         perAppSwitch.action = #selector(perAppChanged)
@@ -401,6 +440,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
             ("Nhớ chế độ theo ứng dụng", "Mỗi ứng dụng giữ chế độ Anh/Việt của riêng nó", perAppSwitch),
             ("Tương thích máy chậm", "Thêm 2 ms nghỉ trong Chrome, Edge, Claude, VS Code…", slowSwitch),
             ("Khởi động cùng macOS", "Tự chạy Dokey khi đăng nhập", loginSwitch),
+            ("Ứng dụng loại trừ", "Thêm từ thanh menu: \"Không gõ tiếng Việt trong …\"", excludedRow()),
         ])
         let note = label("""
         Trình duyệt và ứng dụng Electron/IDE (Claude, VS Code, Slack, Zalo…): Dokey bôi đen chữ cũ rồi gõ đè cả cụm chữ mới. \
@@ -409,6 +449,15 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         let page = vertical([hero, card, note, currentAppLine], spacing: 12)
         fullWidth([hero, card, note, currentAppLine], in: page)
         return page
+    }
+
+    private func excludedRow() -> NSView {
+        let clear = AccentButton(title: "Bỏ hết")
+        clear.target = self
+        clear.action = #selector(clearExcluded)
+        let row = NSStackView(views: [excludedValue, clear])
+        row.spacing = 10
+        return row
     }
 
     private func aboutPage() -> NSView {
@@ -422,9 +471,14 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         nên gõ đúng ngay lần đầu và giữ nguyên các từ tiếng Anh.
         """, size: 13, color: Palette.secondaryText, wrapping: true)
         text.alignment = .center
-        let link = AccentButton(title: "Trang dự án trên GitHub")
-        link.target = self
-        link.action = #selector(openGitHub)
+        let github = AccentButton(title: "Trang dự án trên GitHub")
+        github.target = self
+        github.action = #selector(openGitHub)
+        let update = AccentButton(title: "Kiểm tra cập nhật")
+        update.target = self
+        update.action = #selector(checkUpdates)
+        let link = NSStackView(views: [update, github])
+        link.spacing = 10
         let legal = label("© 2026 Do Huy Toan (dhtoan). All rights reserved.\nPhần mềm độc quyền: cấm sao chép, sửa đổi, phân phối lại.",
                           size: 11, color: NSColor(white: 1, alpha: 0.45))
         legal.alignment = .center
@@ -495,6 +549,14 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
             : "Ví dụ Telex:  Vieetj Nam → Việt Nam   ·   dduowngf → đường   ·   s f r x j = sắc huyền hỏi ngã nặng, aa ee oo = â ê ô, aw ow uw = ă ơ ư, dd = đ"
 
         perAppSwitch.isOn = settings.rememberModePerApp
+        quickTelexSwitch.isOn = settings.quickTelex
+        escSwitch.isOn = settings.undoWithEsc
+        macroSwitch.isOn = settings.macrosEnabled
+        macroSummary.stringValue = settings.macrosEnabled
+            ? "Đang có \(settings.macroCount) từ tắt. Viết hoa từ tắt để viết hoa nội dung (Vn → Việt Nam, VN → VIỆT NAM)."
+            : "Gõ tắt đang tắt."
+        let excluded = settings.excludedApps
+        excludedValue.stringValue = excluded.isEmpty ? "Chưa có" : "\(excluded.count) ứng dụng"
         slowSwitch.isOn = settings.slowMachineMode
         loginSwitch.isOn = LoginItem.isEnabled
     }
@@ -577,6 +639,38 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         settings.hotkey = SwitchHotkey(rawValue: hotkeyPopup.indexOfSelectedItem) ?? .controlShift
         changed()
     }
+
+    @objc private func quickTelexChanged() {
+        settings.quickTelex = quickTelexSwitch.isOn
+        changed()
+    }
+
+    @objc private func escChanged() {
+        settings.undoWithEsc = escSwitch.isOn
+        changed()
+    }
+
+    @objc private func macrosChanged() {
+        settings.macrosEnabled = macroSwitch.isOn
+        changed()
+    }
+
+    @objc private func editMacros() {
+        let editor = macroEditor ?? MacroEditorController()
+        editor.onSave = { [weak self] text in
+            self?.settings.macroText = text
+            self?.changed()
+        }
+        macroEditor = editor
+        editor.present(text: settings.macroText, over: window)
+    }
+
+    @objc private func clearExcluded() {
+        delegate?.panelClearExcluded()
+        refresh()
+    }
+
+    @objc private func checkUpdates() { delegate?.panelCheckUpdates() }
 
     @objc private func perAppChanged() {
         settings.rememberModePerApp = perAppSwitch.isOn

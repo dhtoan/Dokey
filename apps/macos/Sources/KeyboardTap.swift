@@ -29,6 +29,9 @@ struct TapState {
     var debugLog = false
     var hotkey = SwitchHotkey.controlShift
     var encoding = Int32(DOKEY_UNICODE)
+    var undoWithEsc = false
+    /// Replaces the app's profile, e.g. for Google Docs (set from the window title).
+    var siteProfile: DeliveryProfile?
 }
 
 final class KeyboardTap {
@@ -169,8 +172,11 @@ final class KeyboardTap {
 
         switch keyCode {
         case KeyCode.backspace:
-            engine.backspace()
-            return pass
+            // Usually goes through; the engine may instead correct the word
+            // (the tone moves back: "hoàn" -> "hòa").
+            guard let edit = engine.backspaceEdit() else { return pass }
+            deliver(edit, typedKey: keyCode, proxy: proxy, state: current, then: nil)
+            return nil
         case KeyCode.returnKey, KeyCode.keypadEnter, KeyCode.tab:
             // Ends the word: the engine may finish it (thuowr → thuở) before
             // the key itself goes through.
@@ -179,7 +185,15 @@ final class KeyboardTap {
             if edit.text.last == UInt16(ch) { edit.text.removeLast() }
             deliver(edit, typedKey: keyCode, proxy: proxy, state: current, then: event)
             return nil
-        case KeyCode.escape, KeyCode.forwardDelete:
+        case KeyCode.escape:
+            // Esc shows the current word as typed (tiếng -> tieesng) when it has marks.
+            if current.undoWithEsc, let edit = engine.undo() {
+                deliver(edit, typedKey: keyCode, proxy: proxy, state: current, then: nil)
+                return nil
+            }
+            newWord()
+            return pass
+        case KeyCode.forwardDelete:
             newWord()
             return pass
         default:
@@ -244,7 +258,12 @@ final class KeyboardTap {
     /// the events right after this tap, ahead of any key the user types next.
     private func deliver(_ edit: EngineEdit, typedKey: CGKeyCode, proxy: CGEventTapProxy, state: TapState,
                          then original: CGEvent?) {
-        let profile = state.profile
+        var profile = state.siteProfile ?? state.profile
+        // Spotlight's search field never becomes the front app; it has an inline
+        // completion like a browser address bar, so treat it like one.
+        if state.appKind == .normal, LauncherDetector.spotlightFocused() {
+            profile = AppKind.browser.profile(slowMachine: state.profile.settle > 0)
+        }
         // Rich editors (ProseMirror/Tiptap in Claude, Notion…) can ignore synthetic
         // Backspaces, and browser address bars spend the first one on the inline
         // suggestion. Selecting the old letters with Shift+← and typing over them
@@ -363,5 +382,19 @@ enum DebugLog {
         } else {
             try? data.write(to: url)
         }
+    }
+}
+
+/// Finds out whether Spotlight's search field has keyboard focus.
+enum LauncherDetector {
+    private static let systemWide = AXUIElementCreateSystemWide()
+
+    static func spotlightFocused() -> Bool {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &value) == .success,
+              let app = value, CFGetTypeID(app) == AXUIElementGetTypeID() else { return false }
+        var pid: pid_t = 0
+        guard AXUIElementGetPid(app as! AXUIElement, &pid) == .success else { return false }
+        return NSRunningApplication(processIdentifier: pid)?.bundleIdentifier == "com.apple.Spotlight"
     }
 }

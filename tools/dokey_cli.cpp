@@ -25,6 +25,7 @@ void usage() {
         "  --old-tone     old tone placement (hòa, khỏe, thúy)\n"
         "  --no-spell     do not keep non-Vietnamese words as typed\n"
         "  --combining    output combining tone marks\n"
+        "  --quick-telex  cc gg kk nn pp qq tt at a word start -> ch gi kh ng ph qu th\n"
         "  -v, --version  print version\n"
         "  -h, --help     show this help");
 }
@@ -48,6 +49,7 @@ int main(int argc, char** argv) {
         else if (!std::strcmp(a, "--old-tone")) options.modernToneStyle = false;
         else if (!std::strcmp(a, "--no-spell")) options.checkSpelling = false;
         else if (!std::strcmp(a, "--combining")) options.encoding = dokey::Encoding::UnicodeCombining;
+        else if (!std::strcmp(a, "--quick-telex")) options.quickTelex = true;
         else if (!std::strcmp(a, "-v") || !std::strcmp(a, "--version")) {
             std::puts(DOKEY_VERSION);
             return 0;
