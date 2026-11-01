@@ -11,8 +11,12 @@
 ![Tests](https://img.shields.io/badge/tests-18%2C500%20passing-2EA44F)
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-AppKit-F05138?logo=swift&logoColor=white)
+[![License](https://img.shields.io/badge/license-proprietary-B91C1C)](LICENSE)
 
 ### Gõ đúng ngay lần đầu. Ở mọi ứng dụng. Trên mọi máy.
+
+[![Tiếng Việt](https://img.shields.io/badge/Ng%C3%B4n_ng%E1%BB%AF-Ti%E1%BA%BFng_Vi%E1%BB%87t-DA251D)](README.md)
+[![English](https://img.shields.io/badge/Language-English-1F6FEB)](README.en.md)
 
 [**⬇️ Tải cho macOS**](#-macos) &nbsp;·&nbsp; [**⬇️ Tải cho Windows**](#-windows) &nbsp;·&nbsp; [Tính năng](#-tính-năng) &nbsp;·&nbsp; [Nhà phát triển](#-dành-cho-nhà-phát-triển) &nbsp;·&nbsp; [Lộ trình](#-lộ-trình)
 
@@ -25,6 +29,18 @@
 <div align="center">
 <img src="docs/images/dashboard.png" alt="Bảng điều khiển Dokey trên macOS" width="88%">
 </div>
+
+## 💡 Vì sao có Dokey?
+
+Gõ tiếng Việt trên máy tính vẫn hay gặp những lỗi rất khó chịu: chữ nhảy lung tung trong Chrome, mất chữ trong ô chat của các ứng dụng Electron, từ tiếng Anh bị thêm dấu, và chữ trên màn hình lệch với những gì bộ gõ nghĩ. Dokey được viết lại từ con số 0 để giải quyết tận gốc các lỗi đó:
+
+| Vấn đề thường gặp | Cách Dokey giải quyết |
+|---|---|
+| Nhảy chữ, lặp chữ khi gõ nhanh | Phím sửa chữ được chèn ngay tại vị trí bắt phím, luôn đi trước phím gõ tiếp theo |
+| Mất chữ trong Claude, Notion, thanh địa chỉ | Bôi đen chữ cũ rồi gõ đè cả cụm; không dùng mã phím đang bị giữ |
+| Chữ trên màn hình lệch với bộ gõ | Mỗi phím, cả từ được dựng lại từ chuỗi phím đã gõ bằng một hàm thuần |
+| Từ tiếng Anh bị thêm dấu (`windows` → wíndows) | Kiểm tra với từ điển 3.759 âm tiết; không hợp lệ thì giữ nguyên phím đã gõ |
+| Cài đặt bị macOS cảnh báo | Script cài đặt một dòng, không cảnh báo |
 
 ## ✨ Tính năng
 
@@ -100,6 +116,24 @@ Sau đó bật Dokey trong **System Settings › Privacy & Security › Accessib
 - Tự nhận biết trình duyệt, ứng dụng Electron/IDE và ứng dụng thường để chọn cách gửi phím phù hợp. Có chế độ **Tương thích máy chậm**.
 - Build bằng Command Line Tools, không cần Xcode: `apps/macos/build.sh --dmg`.
 
+<details>
+<summary><b>Cập nhật và gỡ cài đặt</b></summary>
+
+**Cập nhật:** chạy lại lệnh cài đặt ở trên, rồi cấp lại quyền Trợ năng (xoá Dokey khỏi danh sách và thêm lại). Mỗi bản phát hành có chữ ký riêng nên macOS coi là ứng dụng mới.
+
+**Gỡ cài đặt:**
+
+```bash
+osascript -e 'tell application id "com.dhtoan.dokey.mac" to quit'
+rm -rf /Applications/Dokey.app
+defaults delete com.dhtoan.dokey.mac
+rm -f ~/Library/LaunchAgents/com.dhtoan.dokey.mac.launcher.plist ~/Library/Logs/Dokey*.log
+```
+
+Sau đó xoá Dokey khỏi **System Settings › Privacy & Security › Accessibility**.
+
+</details>
+
 Chi tiết: [apps/macos/README.md](apps/macos/README.md) · Đã kiểm thử những gì: [docs/TESTING.md](docs/TESTING.md).
 
 ## 🪟 Windows
@@ -139,6 +173,40 @@ Cùng một giao diện trên Windows 10/11, vẽ bằng GDI+. Tải bộ cài `
 Bộ cài chưa ký số nên SmartScreen có thể cảnh báo: chọn **More info → Run anyway**. Chi tiết: [apps/windows/README.md](apps/windows/README.md).
 
 </details>
+
+## ❓ Câu hỏi thường gặp
+
+<details>
+<summary><b>Đã cài nhưng gõ không ra dấu?</b></summary>
+
+Dokey cần quyền **Trợ năng**. Mở **System Settings › Privacy & Security › Accessibility**, xoá Dokey (−), thêm lại `/Applications/Dokey.app` (+) rồi bật công tắc. Sau mỗi lần cập nhật đều phải làm lại bước này. Bảng điều khiển có thẻ **Quyền Trợ năng** cho biết Dokey đã sẵn sàng chưa.
+
+</details>
+
+<details>
+<summary><b>Trong ô mật khẩu hoặc Terminal "Secure Keyboard Entry" không gõ được dấu?</b></summary>
+
+Khi một ứng dụng bật Secure Input (ô mật khẩu, tuỳ chọn Secure Keyboard Entry của Terminal), macOS không cho bất kỳ bộ gõ nào đọc phím. Đây là cơ chế bảo mật của hệ điều hành.
+
+</details>
+
+<details>
+<summary><b>Gõ nhanh trên máy cũ vẫn thỉnh thoảng sai chữ?</b></summary>
+
+Mở bảng điều khiển, vào trang **Ứng dụng**, bật **Tương thích máy chậm**. Nếu vẫn còn lỗi, hãy báo kèm tên ứng dụng và chuỗi phím đã gõ (ví dụ `Haxy` → `Hy`).
+
+</details>
+
+<details>
+<summary><b>Muốn tắt tiếng Việt cho một ứng dụng?</b></summary>
+
+Bật **Nhớ chế độ theo ứng dụng** (mặc định đang bật), mở ứng dụng đó và bấm ⌃⇧ để chuyển sang tiếng Anh. Lần sau mở lại, ứng dụng đó tự ở chế độ tiếng Anh.
+
+</details>
+
+## 🔒 Quyền riêng tư
+
+Dokey chạy hoàn toàn trên máy của bạn. Dokey không kết nối mạng, không thu thập dữ liệu và không lưu lại phím gõ. Nhật ký gỡ lỗi mặc định tắt; chỉ khi bạn tự bật nó thì Dokey mới ghi vào `~/Library/Logs/Dokey.log` trên máy.
 
 ## 🛠 Dành cho nhà phát triển
 
@@ -203,6 +271,19 @@ flowchart LR
     S --> O([Xoá N ký tự + chèn chữ mới])
 ```
 
+```
+Dokey/
+├── include/dokey/        API công khai: dokey.h (C), engine.hpp (C++)
+├── src/                  Lõi: parser Telex/VNI, đặt dấu, từ điển âm tiết, Unicode
+├── tools/                Công cụ dòng lệnh dokey
+├── tests/                18.500 ca kiểm thử lõi
+├── apps/
+│   ├── macos/            Swift + AppKit: event tap, bảng điều khiển, build.sh, install.sh
+│   └── windows/          C++ Win32 + GDI+: hook bàn phím, bảng điều khiển, bộ cài Inno Setup
+├── docs/                 Hình ảnh, kết quả kiểm thử
+└── .github/              CI, quy trình phát hành, ghi chú phát hành
+```
+
 | Thư mục | Nội dung |
 |---|---|
 | `include/dokey/` | API công khai: C (`dokey.h`) và C++ (`engine.hpp`) |
@@ -222,14 +303,23 @@ flowchart LR
 | **0.2** | Ứng dụng macOS (Swift + AppKit, Intel và Apple Silicon) | ✅ |
 | **0.3** | Ứng dụng Windows; sửa mất chữ trong Claude và trình duyệt; bảng điều khiển mới; cài không cảnh báo | ✅ |
 | 0.4 | Gõ tắt, công cụ chuyển mã, bảng mã TCVN3, VNI Windows, CP1258 | 🗓️ |
+| 0.5 | Quy tắc theo trang web (Google Docs, Notion…), hoàn tác bằng Esc, loại trừ ứng dụng, tự cập nhật | 🗓️ |
 | 1.0 | Ký số và notarize, phát hành chính thức | 🗓️ |
 
 Các thay đổi theo từng phiên bản: [Releases](https://github.com/dhtoan/Dokey/releases).
+
+## ⚖️ Giấy phép
+
+Dokey là **phần mềm độc quyền**. © 2026 Do Huy Toan ([dhtoan](https://github.com/dhtoan)). All rights reserved.
+
+Bạn được cài và dùng các bản phát hành chính thức cho mục đích cá nhân. **Cấm** sao chép, sửa đổi, phân phối lại, dịch ngược hoặc dùng mã nguồn để làm sản phẩm khác khi chưa có văn bản cho phép của tác giả. Toàn văn: [LICENSE](LICENSE).
+
+Dokey được viết mới hoàn toàn và không chứa mã của bộ gõ nào khác.
 
 ---
 
 <div align="center">
 
-© 2026 Do Huy Toan. All rights reserved.
+© 2026 Do Huy Toan (dhtoan). All rights reserved.
 
 </div>

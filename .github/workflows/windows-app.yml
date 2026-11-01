@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Do Huy Toan (dhtoan). All rights reserved. See LICENSE.
 name: Windows app
 
 # Builds Dokey.exe for x86, x64 and ARM64 plus the Setup.exe installer in one

@@ -1,0 +1,105 @@
+GIẤY PHÉP PHẦN MỀM ĐỘC QUYỀN DOKEY
+DOKEY PROPRIETARY SOFTWARE LICENSE
+
+Copyright © 2026 Do Huy Toan (GitHub: dhtoan). All rights reserved.
+Bản quyền © 2026 Đỗ Huy Toàn (GitHub: dhtoan). Bảo lưu mọi quyền.
+
+==============================================================================
+TIẾNG VIỆT
+==============================================================================
+
+1. Quyền sở hữu
+   Dokey, bao gồm mã nguồn, mã máy, lõi Dokey Core, các ứng dụng macOS và
+   Windows, bộ cài, tài liệu, hình ảnh, biểu tượng và thiết kế giao diện
+   ("Phần mềm"), là tài sản độc quyền của Đỗ Huy Toàn (dhtoan) ("Chủ sở hữu").
+   Phần mềm được bảo hộ theo pháp luật về quyền tác giả của Việt Nam và các
+   điều ước quốc tế. Mọi quyền không được nêu rõ trong giấy phép này đều thuộc
+   về Chủ sở hữu.
+
+2. Quyền sử dụng được cấp
+   Bạn được tải và cài đặt các bản phát hành chính thức của Dokey (do Chủ sở
+   hữu công bố trên trang Releases của dự án) để sử dụng cho mục đích cá nhân
+   hoặc công việc của chính mình, trên các thiết bị của bạn. Quyền này không
+   độc quyền, không chuyển nhượng được và có thể bị thu hồi.
+
+3. Các hành vi bị cấm
+   Nếu không có văn bản cho phép của Chủ sở hữu, bạn không được:
+   a) sao chép, nhân bản toàn bộ hoặc một phần mã nguồn của Phần mềm;
+   b) sửa đổi, dịch, chuyển thể hoặc tạo sản phẩm phái sinh từ Phần mềm;
+   c) phân phối, đăng tải lại, cho thuê, bán, cấp phép lại Phần mềm hoặc bất
+      kỳ phần nào của nó, kể cả các bản đã sửa đổi;
+   d) dịch ngược, dịch ngược mã máy (decompile), tháo rời (disassemble) Phần
+      mềm, trừ khi pháp luật bắt buộc cho phép;
+   đ) gỡ bỏ, che giấu hoặc thay đổi các thông báo bản quyền, nhãn hiệu, tên
+      "Dokey" hoặc thông tin tác giả;
+   e) dùng mã nguồn, thuật toán, từ điển âm tiết hoặc thiết kế giao diện của
+      Phần mềm để xây dựng sản phẩm khác.
+
+4. Mã nguồn
+   Việc bạn được xem mã nguồn (ví dụ với tư cách cộng tác viên của kho mã)
+   không cấp thêm bất kỳ quyền nào ngoài quyền xem phục vụ công việc được
+   Chủ sở hữu giao. Mọi đóng góp gửi vào dự án đều thuộc quyền sở hữu của
+   Chủ sở hữu.
+
+5. Không bảo đảm
+   Phần mềm được cung cấp "nguyên trạng", không kèm bất kỳ bảo đảm nào. Trong
+   phạm vi pháp luật cho phép, Chủ sở hữu không chịu trách nhiệm về bất kỳ
+   thiệt hại nào phát sinh từ việc sử dụng Phần mềm.
+
+6. Chấm dứt
+   Giấy phép tự động chấm dứt nếu bạn vi phạm bất kỳ điều khoản nào. Khi đó
+   bạn phải ngừng sử dụng và xoá mọi bản sao của Phần mềm.
+
+7. Liên hệ
+   Để xin phép sử dụng ngoài phạm vi trên, hãy liên hệ Chủ sở hữu qua GitHub:
+   https://github.com/dhtoan
+
+==============================================================================
+ENGLISH
+==============================================================================
+
+1. Ownership
+   Dokey, including its source code, binaries, the Dokey Core engine, the
+   macOS and Windows applications, installers, documentation, images, icons
+   and interface designs (the "Software"), is the exclusive property of
+   Do Huy Toan (dhtoan) (the "Owner"). The Software is protected by the
+   copyright laws of Vietnam and international treaties. All rights not
+   expressly granted in this license are reserved by the Owner.
+
+2. Granted use
+   You may download and install official releases of Dokey (published by the
+   Owner on the project's Releases page) and use them for your own personal
+   or work purposes on your own devices. This permission is non-exclusive,
+   non-transferable and revocable.
+
+3. Restrictions
+   Without the Owner's prior written permission, you may not:
+   a) copy or reproduce all or any part of the Software's source code;
+   b) modify, translate, adapt or create derivative works of the Software;
+   c) distribute, republish, rent, sell or sublicense the Software or any
+      part of it, including modified versions;
+   d) reverse engineer, decompile or disassemble the Software, except where
+      applicable law expressly permits it;
+   e) remove, obscure or alter any copyright notice, trademark, the name
+      "Dokey" or authorship information;
+   f) use the Software's source code, algorithms, syllable dictionary or
+      interface design to build another product.
+
+4. Source code
+   Being able to view the source code (for example as a collaborator on the
+   repository) grants no rights beyond viewing it for work assigned by the
+   Owner. Any contribution submitted to the project becomes the property of
+   the Owner.
+
+5. No warranty
+   The Software is provided "as is", without warranty of any kind. To the
+   extent permitted by law, the Owner is not liable for any damages arising
+   from the use of the Software.
+
+6. Termination
+   This license terminates automatically if you breach any of its terms. You
+   must then stop using the Software and delete all copies of it.
+
+7. Contact
+   To request permission for any use beyond the above, contact the Owner on
+   GitHub: https://github.com/dhtoan

@@ -425,10 +425,13 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         let link = AccentButton(title: "Trang dự án trên GitHub")
         link.target = self
         link.action = #selector(openGitHub)
+        let legal = label("© 2026 Do Huy Toan (dhtoan). All rights reserved.\nPhần mềm độc quyền: cấm sao chép, sửa đổi, phân phối lại.",
+                          size: 11, color: NSColor(white: 1, alpha: 0.45))
+        legal.alignment = .center
         let page = vertical([badge, label("Dokey", size: 32, weight: .bold),
                              label("Phiên bản \(Self.version)", size: 13, color: Palette.secondaryText),
                              text, link,
-                             label("© 2026 Do Huy Toan. All rights reserved.", size: 11, color: NSColor(white: 1, alpha: 0.45))],
+                             legal],
                             spacing: 8, alignment: .centerX)
         page.setCustomSpacing(16, after: text)
         text.widthAnchor.constraint(equalTo: page.widthAnchor, multiplier: 0.8).isActive = true
