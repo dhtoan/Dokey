@@ -64,7 +64,7 @@ try {
     [W]::Type($line + "`n", 40)  # a normal typist
     [W]::Type($line + "`n", 0)   # as fast as SendInput goes: tests ordering
     # Dokey 0.4: reopen a word with Backspace after its space, and a text shortcut.
-    [W]::Type("Haxy xin`bf btw ", 40)
+    [W]::Type("Haxy xin `bf btw ", 40)
     Start-Sleep -Seconds 2
     $edit = [W]::FindWindowEx($notepad.MainWindowHandle, [IntPtr]::Zero, "Edit", $null)
     $len = [int][W]::SendMessage($edit, 0x000E, [IntPtr]::Zero, [IntPtr]::Zero)

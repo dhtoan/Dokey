@@ -988,12 +988,12 @@ LRESULT CALLBACK PanelProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                                           WS_CHILD | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | ES_NOHIDESEL,
                                           0, 0, 10, 10, hwnd, nullptr, g_instance, nullptr);
             if (g_macroEdit) {
-                std::wstring text;
+                std::wstring macros;
                 for (wchar_t c : g_settings->macros) {
-                    if (c == L'\n') text.push_back(L'\r');
-                    text.push_back(c);
+                    if (c == L'\n') macros.push_back(L'\r');
+                    macros.push_back(c);
                 }
-                SetWindowTextW(g_macroEdit, text.c_str());
+                SetWindowTextW(g_macroEdit, macros.c_str());
                 SetMacroEditor(g_macroEdit);
             }
             LayoutTryEdit(hwnd);
