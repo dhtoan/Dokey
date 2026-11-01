@@ -56,4 +56,4 @@ CI ([`windows-app.yml`](../../.github/workflows/windows-app.yml)) build cả ba 
 
 Biểu tượng ứng dụng được vẽ bằng [`tools/make_icon.py`](tools/make_icon.py); biểu tượng V/E ở khay và cả bảng điều khiển (GDI+, theo DPI của màn hình) được vẽ lúc chạy. `Dokey.exe --render-panel <tiền tố>` vẽ các trang của bảng ra file PNG; CI in ảnh vào log để kiểm tra.
 
-Copyright © 2026 Do Huy Toan.
+© 2026 Do Huy Toan. All rights reserved. Phần mềm độc quyền, cấm sao chép, sửa đổi hay phân phối lại; xem [LICENSE](../../LICENSE).

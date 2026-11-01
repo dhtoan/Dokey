@@ -68,8 +68,10 @@ jobs:
             $bytes = [IO.File]::ReadAllBytes($path)
             $pe = [BitConverter]::ToInt32($bytes, 0x3C)
             $machine = '{0:X4}' -f [BitConverter]::ToUInt16($bytes, $pe + 4)
-            $version = (Get-Item $path).VersionInfo.FileVersion
-            Write-Host "$arch : machine $machine, version $version, $($bytes.Length) bytes"
+            $info = (Get-Item $path).VersionInfo
+            $version = $info.FileVersion
+            Write-Host "$arch : machine $machine, version $version, $($bytes.Length) bytes, $($info.LegalCopyright)"
+            if ($info.LegalCopyright -ne "$([char]0xA9) 2026 Do Huy Toan. All rights reserved.") { throw "LegalCopyright is '$($info.LegalCopyright)'" }
             if ($machine -ne $expected[$arch]) { throw "$path is $machine, expected $($expected[$arch])" }
           }
           # Imports: must not depend on the VC++ runtime DLLs.
@@ -122,7 +124,10 @@ jobs:
           if (-not (Test-Path $iscc)) {
             choco install innosetup -y --no-progress
           }
-          & $iscc "/DAppVersion=$env:VERSION" "/DBinDir=$pwd\dist\bin" "/O$pwd\dist" apps\windows\installer\Dokey.iss
+          # LICENSE as UTF-8 with BOM and CRLF, so the license page shows Vietnamese correctly.
+          $license = (Get-Content LICENSE -Raw -Encoding UTF8) -replace "`r?`n", "`r`n"
+          [IO.File]::WriteAllText("$pwd\dist\LICENSE.txt", $license, (New-Object Text.UTF8Encoding $true))
+          & $iscc "/DAppVersion=$env:VERSION" "/DBinDir=$pwd\dist\bin" "/DLicenseTxt=$pwd\dist\LICENSE.txt" "/O$pwd\dist" apps\windows\installer\Dokey.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
           Get-ChildItem dist\*.exe | Format-Table Name, Length
 
@@ -135,6 +140,7 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "Setup exit code $($p.ExitCode)" }
           $exe = "$env:LOCALAPPDATA\Programs\Dokey\Dokey.exe"
           if (-not (Test-Path $exe)) { throw "$exe not installed" }
+          if (-not (Test-Path "$env:LOCALAPPDATA\Programs\Dokey\LICENSE.txt")) { throw "LICENSE.txt not installed" }
           $bytes = [IO.File]::ReadAllBytes($exe)
           $machine = '{0:X4}' -f [BitConverter]::ToUInt16($bytes, [BitConverter]::ToInt32($bytes, 0x3C) + 4)
           Write-Host "Installed $exe (machine $machine)"

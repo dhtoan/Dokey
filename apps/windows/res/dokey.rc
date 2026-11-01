@@ -1,5 +1,6 @@
 // Dokey for Windows - resources.
 // Copyright (c) 2026 Do Huy Toan. All rights reserved.
+#pragma code_page(65001)
 #include <winres.h>
 #include "../src/resource.h"
 #include "version.h"
@@ -23,7 +24,7 @@ BEGIN
             VALUE "FileDescription", "Dokey - Vietnamese input method"
             VALUE "FileVersion", DOKEY_APP_VERSION
             VALUE "InternalName", "Dokey"
-            VALUE "LegalCopyright", "Copyright (c) 2026 Do Huy Toan"
+            VALUE "LegalCopyright", "© 2026 Do Huy Toan. All rights reserved."
             VALUE "OriginalFilename", "Dokey.exe"
             VALUE "ProductName", "Dokey"
             VALUE "ProductVersion", DOKEY_APP_VERSION

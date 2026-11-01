@@ -1,4 +1,4 @@
-; Dokey for Windows - installer (Inno Setup 6.3 or later).
+﻿; Dokey for Windows - installer (Inno Setup 6.3 or later).
 ; Copyright (c) 2026 Do Huy Toan. All rights reserved.
 ;
 ;   iscc /DAppVersion=0.1.0 /DBinDir=C:\path\to\bin Dokey.iss
@@ -11,6 +11,11 @@
 #ifndef BinDir
   #define BinDir "..\..\..\dist\bin"
 #endif
+; The repository LICENSE as UTF-8 with a BOM and CRLF line ends (CI makes one),
+; shown on the license page and installed as LICENSE.txt.
+#ifndef LicenseTxt
+  #define LicenseTxt "..\..\..\LICENSE"
+#endif
 
 [Setup]
 AppId={{8F3C2A51-6B7D-4E2A-9C1F-D0E4B5A7C391}
@@ -19,9 +24,11 @@ AppVersion={#AppVersion}
 AppVerName=Dokey {#AppVersion}
 AppPublisher=Do Huy Toan
 AppPublisherURL=https://github.com/dhtoan/Dokey
-AppCopyright=Copyright (C) 2026 Do Huy Toan
+AppCopyright=© 2026 Do Huy Toan. All rights reserved.
 VersionInfoVersion={#AppVersion}
 VersionInfoDescription=Dokey Setup
+VersionInfoCopyright=© 2026 Do Huy Toan. All rights reserved.
+LicenseFile={#LicenseTxt}
 DefaultDirName={autopf}\Dokey
 DefaultGroupName=Dokey
 DisableProgramGroupPage=yes
@@ -47,6 +54,7 @@ Name: "startup"; Description: "Start Dokey when I sign in to Windows (khởi đ�
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; Flags: unchecked
 
 [Files]
+Source: "{#LicenseTxt}"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 Source: "{#BinDir}\arm64\Dokey.exe"; DestDir: "{app}"; Check: UseArm64; Flags: ignoreversion
 Source: "{#BinDir}\x64\Dokey.exe"; DestDir: "{app}"; Check: UseX64; Flags: ignoreversion
 Source: "{#BinDir}\x86\Dokey.exe"; DestDir: "{app}"; Check: UseX86; Flags: ignoreversion
