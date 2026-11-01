@@ -18,6 +18,7 @@
 #include <cwctype>
 #include <deque>
 #include <mutex>
+#include <string>
 #include <thread>
 
 #include "dokey/dokey.h"
@@ -38,6 +39,7 @@ DWORD g_inputThreadId = 0;
 std::thread g_inputThread;
 std::thread g_senderThread;
 std::atomic<bool> g_imeActive{false};
+std::atomic<HWND> g_macroEditor{nullptr};
 
 std::atomic<int> g_pending{0};
 std::atomic<unsigned> g_markedWords{0};  // shown in the control panel
@@ -61,6 +63,20 @@ bool g_chromium = false;
 bool g_swallowed[256] = {};
 bool g_comboArmed = false;  // Ctrl+Shift pressed with nothing else in between
 bool g_wordMarked = false;  // the current word was already counted in g_markedWords
+std::wstring g_foregroundExe;
+bool g_excluded = false;         // the foreground app is on the excluded list: English
+bool g_macrosSuspended = false;  // the macro editor has the focus
+
+void ApplyMacros() {
+    std::string utf8;
+    if (g_settings.macrosEnabled && !g_macrosSuspended && !g_settings.macros.empty()) {
+        const std::wstring& m = g_settings.macros;
+        int n = WideCharToMultiByte(CP_UTF8, 0, m.c_str(), static_cast<int>(m.size()), nullptr, 0, nullptr, nullptr);
+        utf8.resize(static_cast<size_t>(n));
+        if (n > 0) WideCharToMultiByte(CP_UTF8, 0, m.c_str(), static_cast<int>(m.size()), &utf8[0], n, nullptr, nullptr);
+    }
+    dokey_set_macros(g_engine, utf8.c_str());
+}
 
 void ApplyEngineOptions() {
     dokey_options o = {};
@@ -68,11 +84,30 @@ void ApplyEngineOptions() {
     o.encoding = DOKEY_UNICODE;
     o.modern_tone_style = g_settings.modernTone ? 1 : 0;
     o.check_spelling = g_settings.checkSpelling ? 1 : 0;
+    o.quick_telex = g_settings.quickTelex ? 1 : 0;
     if (g_engine) {
         dokey_set_options(g_engine, &o);
         dokey_reset(g_engine);
     } else {
         g_engine = dokey_create(&o);
+    }
+    ApplyMacros();
+    g_excluded = IsExcluded(g_settings, g_foregroundExe);
+}
+
+// Shortcuts must not expand while the user edits them in the control panel.
+void UpdateMacroSuspension() {
+    HWND editor = g_macroEditor.load();
+    bool suspend = false;
+    if (editor) {
+        DWORD pid = 0;
+        DWORD thread = GetWindowThreadProcessId(GetForegroundWindow(), &pid);
+        GUITHREADINFO info = {sizeof(info)};
+        suspend = pid == GetCurrentProcessId() && GetGUIThreadInfo(thread, &info) && info.hwndFocus == editor;
+    }
+    if (suspend != g_macrosSuspended) {
+        g_macrosSuspended = suspend;
+        ApplyMacros();
     }
 }
 
@@ -118,7 +153,16 @@ void SenderLoop() {
             continue;
         }
         UINT sent;
-        if (job.pauseMs > 0 && split > 0 && split < inputs.size()) {
+        if (job.perKeyMs > 0) {
+            // Google Docs/Sheets: one key (down + up) at a time, with a pause
+            // after the deletions and between keys.
+            sent = 0;
+            for (size_t i = 0; i + 1 < inputs.size(); i += 2) {
+                if (i == split && split > 0) Sleep(job.pauseMs);
+                sent += SendInput(2, inputs.data() + i, sizeof(INPUT));
+                if (i + 2 < inputs.size()) Sleep(job.perKeyMs);
+            }
+        } else if (job.pauseMs > 0 && split > 0 && split < inputs.size()) {
             // Chromium: let the deletions land before the new text arrives.
             sent = SendInput(static_cast<UINT>(split), inputs.data(), sizeof(INPUT));
             Sleep(job.pauseMs);
@@ -159,16 +203,46 @@ bool IsNeutral(DWORD vk) {
     }
 }
 
-void UpdateFocus(HWND focus) {
+void UpdateFocus(HWND focus, bool foregroundChanged) {
     HWND foreground = GetForegroundWindow();
     wchar_t cls[64] = {};
     GetClassNameW(foreground, cls, 64);
     // Chrome, Edge, Brave, Opera, Electron apps (VS Code, Slack, Discord...).
     g_chromium = wcsncmp(cls, L"Chrome_WidgetWin_", 17) == 0;
     g_lastFocus = focus;
+    if (foregroundChanged) {
+        DWORD pid = 0;
+        GetWindowThreadProcessId(foreground, &pid);
+        g_foregroundExe = ExeNameOf(pid);
+        g_excluded = IsExcluded(g_settings, g_foregroundExe);
+    }
+}
+
+// Google Docs, Sheets and Slides (English or Vietnamese titles) drop keys sent
+// in one burst: they get one key at a time.
+bool IsGoogleDocs() {
+    wchar_t title[256] = {};
+    GetWindowTextW(GetForegroundWindow(), title, 256);  // no message sent: cannot hang
+    static const wchar_t* const kTitles[] = {L"Google Docs", L"Google Sheets", L"Google Slides", L"Google Tài liệu",
+                                             L"Google Trang tính", L"Google Trang trình bày"};
+    for (const wchar_t* t : kTitles) {
+        if (wcsstr(title, t)) return true;
+    }
+    return false;
 }
 
 void Toggle() {
+    if (g_excluded) {
+        // The hotkey in an excluded app takes it off the list (and turns Vietnamese on).
+        g_excluded = false;
+        SetExcluded(g_settings, g_foregroundExe, false);
+        auto* exe = new std::wstring(g_foregroundExe);
+        if (!PostMessageW(g_owner, WM_DOKEY_UNEXCLUDE, 0, reinterpret_cast<LPARAM>(exe))) delete exe;
+        if (g_settings.vietnamese) {
+            dokey_reset(g_engine);
+            return;
+        }
+    }
     g_settings.vietnamese = !g_settings.vietnamese;
     dokey_reset(g_engine);
     PostMessageW(g_owner, WM_DOKEY_TOGGLED, g_settings.vietnamese ? 1 : 0, 0);
@@ -208,6 +282,38 @@ bool PassOrDefer(const KBDLLHOOKSTRUCT& k) {
     return true;
 }
 
+// Queues the engine's edit for `k` (ch: the character typed, 0 for Backspace/Esc).
+bool SendEdit(const KBDLLHOOKSTRUCT& k, wchar_t ch, const dokey_edit& edit) {
+    if (edit.backspaces > 0 && !g_wordMarked && ch != 0) {
+        g_markedWords++;
+        g_wordMarked = true;
+    }
+    if (edit.length > 0 && !IsWordChar(edit.text[edit.length - 1])) g_wordMarked = false;
+
+    Job job;
+    job.backspaces = edit.backspaces;
+    job.text.assign(reinterpret_cast<const char16_t*>(edit.text), static_cast<size_t>(edit.length));
+    if (ch != 0 && ch < 0x20 && !job.text.empty() && job.text.back() == ch) {
+        // Enter/Tab ended the word: send the real key, not a control character.
+        job.text.pop_back();
+        Job replay = ReplayJob(k);
+        job.replayVk = replay.replayVk;
+        job.replayScan = replay.replayScan;
+        job.replayExtended = replay.replayExtended;
+    }
+    if (g_chromium && job.backspaces > 0 && !job.text.empty()) {
+        job.pauseMs = g_settings.chromiumPauseMs;
+        if (IsGoogleDocs()) {
+            const bool slow = g_settings.chromiumPauseMs >= 30;
+            job.perKeyMs = slow ? 4 : 2;
+            job.pauseMs = slow ? 12 : 6;
+        }
+    }
+    Enqueue(std::move(job));
+    g_swallowed[k.vkCode] = true;
+    return true;
+}
+
 // Returns true to swallow the key.
 bool OnKeyDown(const KBDLLHOOKSTRUCT& k) {
     const DWORD vk = k.vkCode;
@@ -238,14 +344,22 @@ bool OnKeyDown(const KBDLLHOOKSTRUCT& k) {
         dokey_reset(g_engine);
         return PassOrDefer(k);
     }
-    if (!g_settings.vietnamese || g_imeActive.load()) return PassOrDefer(k);
+    if (!g_settings.vietnamese || g_excluded || g_imeActive.load()) return PassOrDefer(k);
 
     if (ctrl || alt || win) {  // shortcuts
         dokey_reset(g_engine);
         return PassOrDefer(k);
     }
+    dokey_edit edit;
     if (vk == VK_BACK) {
-        dokey_backspace(g_engine);
+        // The engine may rewrite the word (the tone moves back: hoàn -> hòa)
+        // or reopen the word before a space.
+        if (dokey_backspace_edit(g_engine, &edit)) return SendEdit(k, 0, edit);
+        return PassOrDefer(k);
+    }
+    if (vk == VK_ESCAPE && g_settings.escUndo && !shift) {
+        if (dokey_undo(g_engine, &edit)) return SendEdit(k, 0, edit);  // tiếng -> tieesng
+        dokey_reset(g_engine);
         return PassOrDefer(k);
     }
     if (IsNeutral(vk)) return PassOrDefer(k);
@@ -256,7 +370,7 @@ bool OnKeyDown(const KBDLLHOOKSTRUCT& k) {
         return PassOrDefer(k);
     }
 
-    dokey_edit edit;
+    UpdateMacroSuspension();
     if (!dokey_key(g_engine, ch, &edit)) {
         if (!IsWordChar(ch)) g_wordMarked = false;
         if (!IsPending()) return false;
@@ -267,27 +381,7 @@ bool OnKeyDown(const KBDLLHOOKSTRUCT& k) {
         return true;
     }
 
-    if (edit.backspaces > 0 && !g_wordMarked) {
-        g_markedWords++;
-        g_wordMarked = true;
-    }
-    if (edit.length > 0 && !IsWordChar(edit.text[edit.length - 1])) g_wordMarked = false;
-
-    Job job;
-    job.backspaces = edit.backspaces;
-    job.text.assign(reinterpret_cast<const char16_t*>(edit.text), static_cast<size_t>(edit.length));
-    if (ch < 0x20 && !job.text.empty() && job.text.back() == ch) {
-        // Enter/Tab ended the word: send the real key, not a control character.
-        job.text.pop_back();
-        Job replay = ReplayJob(k);
-        job.replayVk = replay.replayVk;
-        job.replayScan = replay.replayScan;
-        job.replayExtended = replay.replayExtended;
-    }
-    if (g_chromium && job.backspaces > 0 && !job.text.empty()) job.pauseMs = g_settings.chromiumPauseMs;
-    Enqueue(std::move(job));
-    g_swallowed[vk] = true;
-    return true;
+    return SendEdit(k, ch, edit);
 }
 
 bool OnKeyUp(const KBDLLHOOKSTRUCT& k) {
@@ -333,13 +427,13 @@ LRESULT CALLBACK MouseProc(int code, WPARAM wParam, LPARAM lParam) {
 void CALLBACK WinEventProc(HWINEVENTHOOK, DWORD event, HWND hwnd, LONG, LONG, DWORD, DWORD) {
     if (event == EVENT_SYSTEM_FOREGROUND) {
         dokey_reset(g_engine);
-        UpdateFocus(hwnd);
+        UpdateFocus(hwnd, true);
         PostMessageW(g_owner, WM_DOKEY_FOCUS, 0, 0);
     } else if (event == EVENT_OBJECT_FOCUS && hwnd != g_lastFocus) {
         // Only a change of window counts: Chromium raises focus events inside
         // one window (popups, accessibility) while the user is still typing.
         dokey_reset(g_engine);
-        UpdateFocus(hwnd);
+        UpdateFocus(hwnd, false);
     }
 }
 
@@ -353,7 +447,7 @@ void InputThread(HANDLE ready, bool* ok) {
     const DWORD flags = WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS;
     g_foregroundHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, nullptr, WinEventProc, 0, 0, flags);
     g_focusHook = SetWinEventHook(EVENT_OBJECT_FOCUS, EVENT_OBJECT_FOCUS, nullptr, WinEventProc, 0, 0, flags);
-    UpdateFocus(GetForegroundWindow());
+    UpdateFocus(GetForegroundWindow(), true);
     *ok = g_keyboardHook != nullptr;
     SetEvent(ready);
     if (!g_keyboardHook) return;
@@ -423,5 +517,21 @@ void UpdateKeyboard(const Settings& settings) {
 void SetImeActive(bool active) { g_imeActive.store(active); }
 
 unsigned MarkedWordCount() { return g_markedWords.load(); }
+
+void SetMacroEditor(HWND editor) { g_macroEditor.store(editor); }
+
+std::wstring ExeNameOf(DWORD pid) {
+    HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!process) return L"";
+    wchar_t path[MAX_PATH];
+    DWORD size = MAX_PATH;
+    BOOL ok = QueryFullProcessImageNameW(process, 0, path, &size);
+    CloseHandle(process);
+    if (!ok) return L"";
+    const wchar_t* slash = wcsrchr(path, L'\\');
+    std::wstring name = slash ? slash + 1 : path;
+    for (auto& c : name) c = static_cast<wchar_t>(towlower(c));
+    return name;
+}
 
 } // namespace dokey_win

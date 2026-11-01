@@ -52,23 +52,32 @@ void TestBuildInputs() {
     Check(BuildInputs(Job(), &split).empty(), "empty job, no events");
 }
 
-// Applies the engine's edits to a text buffer, as an application would.
-std::u16string Type(const char* keys, int method) {
+// Applies the engine's edits to a text buffer, as keyboard.cpp does:
+// '\b' is Backspace (dokey_backspace_edit), '\x1b' is Esc with undo on.
+std::u16string Type(const char* keys, int method, const char* macros = nullptr) {
     dokey_options o = {};
     o.method = method;
     o.encoding = DOKEY_UNICODE;
     o.modern_tone_style = 1;
     o.check_spelling = 1;
     dokey_engine* e = dokey_create(&o);
+    dokey_set_macros(e, macros);
     std::u16string buffer;
     for (const char* p = keys; *p; p++) {
-        if (*p == '\b') {
-            dokey_backspace(e);
-            if (!buffer.empty()) buffer.pop_back();
-            continue;
-        }
         dokey_edit edit;
-        if (dokey_key(e, static_cast<unsigned char>(*p), &edit)) {
+        int handled;
+        if (*p == '\b') {
+            handled = dokey_backspace_edit(e, &edit);
+            if (!handled && !buffer.empty()) buffer.pop_back();
+        } else if (*p == '\x1b') {
+            handled = dokey_undo(e, &edit);
+        } else {
+            handled = dokey_key(e, static_cast<unsigned char>(*p), &edit);
+        }
+        if (*p == '\b' || *p == '\x1b') {
+            if (!handled) continue;
+        }
+        if (handled) {
             Job job;
             job.backspaces = edit.backspaces;
             job.text.assign(reinterpret_cast<const char16_t*>(edit.text), static_cast<size_t>(edit.length));
@@ -88,6 +97,11 @@ void TestEngineContract() {
     Check(Type("Vie65t", DOKEY_VNI) == u"Việt", "VNI: Việt");
     Check(Type("windows ", DOKEY_TELEX) == u"windows ", "English word kept");
     Check(Type("tieesng\b\bs", DOKEY_TELEX).size() > 0, "backspace inside a word");
+    Check(Type("Haxy ", DOKEY_TELEX) == u"Hãy ", "Telex: Hãy");
+    Check(Type("xin \bf", DOKEY_TELEX) == u"xìn", "Backspace after the space reopens the word");
+    Check(Type("tieesng\x1b", DOKEY_TELEX) == u"tieesng", "Esc undoes the marks");
+    Check(Type("btw ", DOKEY_TELEX, "btw = by the way") == u"by the way ", "macro expands on space");
+    Check(Type("Btw ", DOKEY_TELEX, "btw = by the way") == u"By the way ", "macro keeps the capital");
 }
 
 } // namespace

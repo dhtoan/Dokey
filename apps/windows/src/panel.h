@@ -15,6 +15,7 @@ struct PanelStatus {
     bool imeActive = false;      // a Chinese/Japanese/Korean IME is on: Dokey stands aside
     std::wstring appName;        // the last application the user typed in
     bool appChromium = false;    // Chrome, Edge, Electron...
+    std::wstring appExe;         // its exe name ("chrome.exe")
     unsigned markedWords = 0;    // words Dokey added marks to since it started
 };
 
@@ -27,7 +28,7 @@ struct PanelCallbacks {
 bool InitPanel(HINSTANCE instance, Settings* settings, const PanelCallbacks& callbacks);
 // Closes the panel and stops GDI+.
 void ShutdownPanel();
-// Opens the panel (or brings it to the front) on a page: 0 dashboard, 1 typing, 2 apps, 3 about.
+// Opens the panel (or brings it to the front) on a page: 0 dashboard, 1 typing, 2 quick typing, 3 apps, 4 about.
 void ShowPanel(int page);
 // Redraws the panel after the settings changed elsewhere (tray menu, hotkey).
 void RefreshPanel();

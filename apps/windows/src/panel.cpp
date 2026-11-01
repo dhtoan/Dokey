@@ -20,6 +20,7 @@ using std::min;
 #include <gdiplus.h>
 
 #include "dokey/dokey.h"
+#include "keyboard.h"
 #include "resource.h"
 #include "version.h"
 
@@ -32,13 +33,14 @@ namespace {
 const wchar_t kPanelClass[] = L"DokeyPanelWindow";
 constexpr float kWidth = 860, kHeight = 500, kSidebar = 68;
 constexpr UINT_PTR kRefreshTimer = 1;
+constexpr UINT_PTR kMacroSaveTimer = 2;  // saves the macro list shortly after the last edit
 constexpr UINT kRefreshMs = 1500;
 constexpr DWORD kSlowPauseMs = 30;  // "slow machine" pause in Chromium windows
 const COLORREF kWellColor = RGB(78, 37, 140);  // the "Gõ thử" well, also the edit box background
 const wchar_t kTryPlaceholder[] = L"Gõ thử ở đây, ví dụ: Vieetj Nam, dduowngf, Haxy…";
 
-enum Page { PAGE_DASHBOARD, PAGE_TYPING, PAGE_APPS, PAGE_ABOUT, PAGE_COUNT };
-const wchar_t* const kTitles[PAGE_COUNT] = {L"Bảng điều khiển", L"Kiểu gõ", L"Ứng dụng", L"Giới thiệu"};
+enum Page { PAGE_DASHBOARD, PAGE_TYPING, PAGE_QUICK, PAGE_APPS, PAGE_ABOUT, PAGE_COUNT };
+const wchar_t* const kTitles[PAGE_COUNT] = {L"Bảng điều khiển", L"Kiểu gõ", L"Gõ nhanh", L"Ứng dụng", L"Giới thiệu"};
 
 enum HotId {
     HOT_NONE = 0,
@@ -54,6 +56,11 @@ enum HotId {
     HOT_SLOW,
     HOT_STARTUP,
     HOT_GITHUB,
+    HOT_MACROS,
+    HOT_QUICK_TELEX,
+    HOT_ESC_UNDO,
+    HOT_EXCLUDE_ADD,
+    HOT_EXCLUDE_FIRST,  // + index in the excluded list; keep last
 };
 
 struct HotArea {
@@ -68,6 +75,8 @@ PanelCallbacks g_callbacks = {};
 HWND g_panel = nullptr;
 HWND g_tryEdit = nullptr;  // the "Gõ thử" box on the dashboard
 HFONT g_tryFont = nullptr;
+HWND g_macroEdit = nullptr;  // the macro list on the "Gõ nhanh" page
+HFONT g_macroFont = nullptr;
 HBRUSH g_wellBrush = nullptr;
 int g_page = PAGE_DASHBOARD;
 int g_hover = HOT_NONE;
@@ -125,12 +134,14 @@ void AddRoundedPolygon(GraphicsPath& path, const std::vector<PointF>& points, fl
     path.CloseFigure();
 }
 
-enum class Weight { Regular, Semibold, Bold };
+enum class Weight { Regular, Semibold, Bold, Mono };
 
 void Label(Graphics& g, const std::wstring& text, const RectF& r, float size, Weight weight, const Color& color,
               StringAlignment horizontal = StringAlignmentNear, StringAlignment vertical = StringAlignmentNear,
               bool wrap = false) {
-    FontFamily family(weight == Weight::Semibold ? L"Segoe UI Semibold" : L"Segoe UI");
+    FontFamily family(weight == Weight::Semibold ? L"Segoe UI Semibold"
+                      : weight == Weight::Mono   ? L"Consolas"
+                                                 : L"Segoe UI");
     Font font(family.IsAvailable() ? &family : FontFamily::GenericSansSerif(), size,
               weight == Weight::Bold ? FontStyleBold : FontStyleRegular, UnitPixel);
     StringFormat format;
@@ -140,6 +151,15 @@ void Label(Graphics& g, const std::wstring& text, const RectF& r, float size, We
     if (!wrap) format.SetFormatFlags(StringFormatFlagsNoWrap);
     SolidBrush brush(color);
     g.DrawString(text.c_str(), -1, &font, r, &format, &brush);
+}
+
+float TextWidth(Graphics& g, const std::wstring& text, float size, Weight weight) {
+    FontFamily family(weight == Weight::Semibold ? L"Segoe UI Semibold" : L"Segoe UI");
+    Font font(family.IsAvailable() ? &family : FontFamily::GenericSansSerif(), size,
+              weight == Weight::Bold ? FontStyleBold : FontStyleRegular, UnitPixel);
+    RectF box;
+    g.MeasureString(text.c_str(), -1, &font, PointF(0, 0), StringFormat::GenericTypographic(), &box);
+    return box.Width;
 }
 
 void FillAccent(Graphics& g, GraphicsPath& path, const RectF& r) {
@@ -448,6 +468,13 @@ void DrawSidebarIcon(Graphics& g, int page, const RectF& r, const Color& color) 
             g.FillRectangle(&brush, RectF(cx - 5, cy + 2, 10, 1.8f));
             break;
         }
+        case PAGE_QUICK: {
+            PointF bolt[] = {PointF(cx + 1.5f, cy - 10), PointF(cx - 6.5f, cy + 1.5f), PointF(cx - 0.5f, cy + 1.5f),
+                             PointF(cx - 2, cy + 10), PointF(cx + 6.5f, cy - 2), PointF(cx + 0.5f, cy - 2),
+                             PointF(cx + 2.5f, cy - 10)};
+            g.FillPolygon(&brush, bolt, 7);
+            break;
+        }
         case PAGE_APPS:
             for (int i = 0; i < 9; i++) g.FillEllipse(&brush, RectF(cx - 8.5f + (i % 3) * 6.5f, cy - 8.5f + (i / 3) * 6.5f, 4, 4));
             break;
@@ -534,7 +561,10 @@ void DrawDashboard(Graphics& g, const RectF& c, const PanelStatus& st) {
     DrawStatCard(g, mode, L"Chế độ gõ", s.vietnamese ? L"Tiếng Việt" : L"Tiếng Anh", 28,
                  (s.vietnamese ? L"Đang bật · " : L"Đang tắt · ") + HotkeyText() + L" để chuyển", s.vietnamese,
                  s.vietnamese ? kModeOn : kModeOff, 96, HOT_MODE);
-    if (st.imeActive) {
+    if (IsExcluded(s, st.appExe)) {
+        DrawStatCard(g, state, L"Trạng thái", L"Tạm nghỉ", 22, L"Không gõ tiếng Việt trong " + st.appName, false,
+                     kPaused, 80);
+    } else if (st.imeActive) {
         DrawStatCard(g, state, L"Trạng thái", L"Tạm nghỉ", 22, L"Bộ gõ Trung/Nhật/Hàn đang bật", false, kPaused, 80);
     } else {
         DrawStatCard(g, state, L"Trạng thái", L"Sẵn sàng", 22, L"Dokey đang nghe bàn phím", true, kReady, 80);
@@ -635,23 +665,93 @@ void DrawTypingPage(Graphics& g, const RectF& c) {
           White(kSecondaryAlpha), StringAlignmentNear, StringAlignmentNear, true);
 }
 
+// The macro list's well on the "Gõ nhanh" page, where the live panel puts a multi-line edit box.
+RectF MacroWell() {
+    const RectF c = ContentRect(PAGE_QUICK);
+    return RectF(c.X, SettingsCardRect(c, 3).GetBottom() + 32, c.Width, 118);
+}
+
+void DrawQuickPage(Graphics& g, const RectF& c) {
+    const Settings& s = *g_settings;
+    DrawHero(g, RectF(c.X, c.Y, c.Width, 88), L"Gõ nhanh", L"Gõ tắt, Quick Telex và hoàn tác bằng Esc.", kCount);
+    RectF card = SettingsCardRect(c, 3);
+    std::vector<float> y = DrawSettingsCard(g, card, {
+        {L"Gõ tắt", L"Gõ từ tắt rồi dấu cách: vn → Việt Nam, ko → không"},
+        {L"Quick Telex", L"cc → ch, gg → gi, kk → kh, nn → ng, pp → ph, qq → qu, tt → th (đầu từ)"},
+        {L"Hoàn tác bằng Esc", L"Bấm Esc khi đang gõ để trả từ về đúng phím đã gõ: tiếng → tieesng"},
+    });
+    const float right = card.GetRight() - 18;
+    DrawToggle(g, right, y[0], s.macrosEnabled, HOT_MACROS);
+    DrawToggle(g, right, y[1], s.quickTelex, HOT_QUICK_TELEX);
+    DrawToggle(g, right, y[2], s.escUndo, HOT_ESC_UNDO);
+
+    const RectF well = MacroWell();
+    Label(g, L"Danh sách gõ tắt (mỗi dòng: từ tắt = nội dung; dòng bắt đầu bằng # là ghi chú)",
+          RectF(c.X + 2, well.Y - 22, c.Width - 4, 18), 12, Weight::Semibold, White(kSecondaryAlpha));
+    GraphicsPath wellPath;
+    AddRoundRect(wellPath, well, 10);
+    SolidBrush wellBrush(Rgb(kWellColor & 0xFF, (kWellColor >> 8) & 0xFF, (kWellColor >> 16) & 0xFF));
+    g.FillPath(&wellBrush, &wellPath);
+    if (!g_macroEdit) {  // rendering to a file: show the list itself
+        Label(g, s.macros, RectF(well.X + 12, well.Y + 8, well.Width - 24, well.Height - 16), 13, Weight::Mono,
+              White(225), StringAlignmentNear, StringAlignmentNear, true);
+    }
+    Label(g, L"Mẹo: gõ \"xin\", dấu cách rồi Backspace là quay lại sửa dấu từ đó (\"f\" ra \"xìn\"). "
+             L"Xoá phụ âm cuối thì dấu thanh tự về đúng chỗ.",
+          RectF(c.X + 2, well.GetBottom() + 8, c.Width - 4, 34), 12, Weight::Regular, White(kSecondaryAlpha),
+          StringAlignmentNear, StringAlignmentNear, true);
+}
+
 void DrawAppsPage(Graphics& g, const RectF& c, const PanelStatus& st) {
+    const Settings& s = *g_settings;
     DrawHero(g, RectF(c.X, c.Y, c.Width, 88), L"Ứng dụng",
              L"Dokey tự nhận biết trình duyệt, Electron và ứng dụng thường.", kApps);
-    RectF card = SettingsCardRect(c, 2);
+    RectF card = SettingsCardRect(c, 3);
     std::vector<float> y = DrawSettingsCard(g, card, {
         {L"Tương thích máy chậm", L"Nghỉ lâu hơn giữa phím xoá và chữ mới trong Chrome, Edge, Electron"},
         {L"Khởi động cùng Windows", L"Tự chạy Dokey khi đăng nhập"},
+        {L"Ứng dụng loại trừ", L"Luôn gõ tiếng Anh trong các ứng dụng này; bấm phím chuyển ở đó để bỏ loại trừ"},
     });
     const float right = card.GetRight() - 18;
-    DrawToggle(g, right, y[0], g_settings->chromiumPauseMs >= kSlowPauseMs, HOT_SLOW);
+    DrawToggle(g, right, y[0], s.chromiumPauseMs >= kSlowPauseMs, HOT_SLOW);
     DrawToggle(g, right, y[1], IsStartupEnabled(), HOT_STARTUP);
+    if (!st.appExe.empty() && !IsExcluded(s, st.appExe)) {
+        std::wstring text = L"Thêm " + st.appName;
+        const float width = std::min(220.0f, TextWidth(g, text, 13, Weight::Semibold) + 32);
+        DrawAccentButton(g, RectF(right - width, y[2] - 14, width, 28), text.c_str(), HOT_EXCLUDE_ADD);
+    }
+
+    // The excluded apps as chips; clicking one removes it.
+    float x = c.X, top = card.GetBottom() + 10;
+    if (s.excludedApps.empty()) {
+        Label(g, L"Chưa loại trừ ứng dụng nào.", RectF(x + 2, top, c.Width, 26), 12, Weight::Regular,
+              White(kSecondaryAlpha), StringAlignmentNear, StringAlignmentCenter);
+    }
+    for (size_t i = 0; i < s.excludedApps.size(); i++) {
+        const std::wstring& exe = s.excludedApps[i];
+        const float width = TextWidth(g, exe, 12, Weight::Semibold) + 40;
+        if (x + width > c.GetRight()) break;
+        RectF chip(x, top, width, 26);
+        const int id = HOT_EXCLUDE_FIRST + static_cast<int>(i);
+        GraphicsPath path;
+        AddRoundRect(path, chip, 13);
+        SolidBrush fill(White(g_hover == id ? 46 : 26));
+        g.FillPath(&fill, &path);
+        Label(g, exe, RectF(chip.X + 12, chip.Y, width - 30, chip.Height), 12, Weight::Semibold, White(235),
+              StringAlignmentNear, StringAlignmentCenter);
+        Pen cross(White(200), 1.5f);
+        const float cx = chip.GetRight() - 14, cy = chip.Y + 13;
+        g.DrawLine(&cross, cx - 3.5f, cy - 3.5f, cx + 3.5f, cy + 3.5f);
+        g.DrawLine(&cross, cx - 3.5f, cy + 3.5f, cx + 3.5f, cy - 3.5f);
+        AddHot(chip, id);
+        x += width + 8;
+    }
 
     const wchar_t* note =
         L"Trình duyệt và ứng dụng Electron (Chrome, Edge, Cốc Cốc, VS Code, Zalo…): Dokey nghỉ một chút giữa phím "
-        L"xoá và chữ mới để trang web kịp xử lý. Ứng dụng thường (Notepad, Word, Excel…): Dokey xoá và gõ chữ mới "
-        L"trong một lần gửi phím.";
-    RectF noteRect(c.X + 2, card.GetBottom() + 12, c.Width - 4, 54);
+        L"xoá và chữ mới để trang web kịp xử lý. Google Docs, Sheets, Slides: Dokey gửi từng phím một. "
+        L"Ứng dụng thường (Notepad, Word, Excel…): Dokey xoá và gõ chữ mới trong một lần gửi phím.";
+    RectF noteRect(c.X + 2, top + 38, c.Width - 4, 54);
     Label(g, note, noteRect, 12, Weight::Regular, White(kSecondaryAlpha), StringAlignmentNear, StringAlignmentNear,
           true);
     if (!st.appName.empty()) {
@@ -700,6 +800,7 @@ void Render(Graphics& g, const PanelStatus& st) {
     switch (g_page) {
         case PAGE_DASHBOARD: DrawDashboard(g, content, st); break;
         case PAGE_TYPING: DrawTypingPage(g, content); break;
+        case PAGE_QUICK: DrawQuickPage(g, content); break;
         case PAGE_APPS: DrawAppsPage(g, content, st); break;
         default: DrawAboutPage(g, content); break;
     }
@@ -762,12 +863,44 @@ void LayoutTryEdit(HWND hwnd) {
     SetWindowPos(g_tryEdit, nullptr, px(well.X + 14), px(well.Y + (well.Height - textHeight) / 2), px(well.Width - 28),
                  px(textHeight), SWP_NOZORDER | SWP_NOACTIVATE);
     ShowWindow(g_tryEdit, g_page == PAGE_DASHBOARD ? SW_SHOWNA : SW_HIDE);
+
+    if (!g_macroEdit) return;
+    if (g_macroFont) DeleteObject(g_macroFont);
+    g_macroFont = CreateFontW(-px(14), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS,
+                              CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, FIXED_PITCH, L"Consolas");
+    SendMessageW(g_macroEdit, WM_SETFONT, reinterpret_cast<WPARAM>(g_macroFont), TRUE);
+    SendMessageW(g_macroEdit, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN, 0);
+    const RectF macros = MacroWell();
+    SetWindowPos(g_macroEdit, nullptr, px(macros.X + 12), px(macros.Y + 8), px(macros.Width - 24),
+                 px(macros.Height - 16), SWP_NOZORDER | SWP_NOACTIVATE);
+    ShowWindow(g_macroEdit, g_page == PAGE_QUICK ? SW_SHOWNA : SW_HIDE);
+}
+
+// Reads the macro edit box back into the settings ("\r\n" -> "\n").
+void SaveMacros() {
+    if (!g_macroEdit) return;
+    int length = GetWindowTextLengthW(g_macroEdit);
+    std::wstring text(static_cast<size_t>(length) + 1, L'\0');
+    GetWindowTextW(g_macroEdit, &text[0], length + 1);
+    text.resize(static_cast<size_t>(length));
+    std::wstring normalized;
+    for (wchar_t c : text) {
+        if (c != L'\r') normalized.push_back(c);
+    }
+    if (normalized != g_settings->macros) {
+        g_settings->macros = normalized;
+        if (g_callbacks.settingsChanged) g_callbacks.settingsChanged();
+    }
 }
 
 void SelectPage(int page) {
+    if (g_page == PAGE_QUICK && page != PAGE_QUICK) SaveMacros();
     g_page = page;
     if (g_panel) {
-        if (page != PAGE_DASHBOARD && GetFocus() == g_tryEdit) SetFocus(g_panel);
+        HWND focus = GetFocus();
+        if ((page != PAGE_DASHBOARD && focus == g_tryEdit) || (page != PAGE_QUICK && focus == g_macroEdit)) {
+            SetFocus(g_panel);
+        }
         LayoutTryEdit(g_panel);
     }
     RefreshPanel();
@@ -796,7 +929,17 @@ void OnClick(int id) {
         case HOT_GITHUB:
             ShellExecuteW(g_panel, L"open", L"https://github.com/dhtoan/Dokey", nullptr, nullptr, SW_SHOWNORMAL);
             return;
+        case HOT_MACROS: s.macrosEnabled = !s.macrosEnabled; break;
+        case HOT_QUICK_TELEX: s.quickTelex = !s.quickTelex; break;
+        case HOT_ESC_UNDO: s.escUndo = !s.escUndo; break;
+        case HOT_EXCLUDE_ADD:
+            if (g_callbacks.status) SetExcluded(s, g_callbacks.status().appExe, true);
+            break;
         default:
+            if (id >= HOT_EXCLUDE_FIRST && id - HOT_EXCLUDE_FIRST < static_cast<int>(s.excludedApps.size())) {
+                s.excludedApps.erase(s.excludedApps.begin() + (id - HOT_EXCLUDE_FIRST));
+                break;
+            }
             return;
     }
     Changed();
@@ -839,14 +982,30 @@ LRESULT CALLBACK PanelProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // "Gõ thử": a plain edit box, so Dokey types into it with Backspace like any normal app.
             g_tryEdit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | ES_AUTOHSCROLL, 0, 0, 10, 10, hwnd, nullptr,
                                         g_instance, nullptr);
-            if (g_tryEdit) {
-                SendMessageW(g_tryEdit, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(kTryPlaceholder));
-                LayoutTryEdit(hwnd);
+            if (g_tryEdit) SendMessageW(g_tryEdit, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(kTryPlaceholder));
+            // The macro list, edited in place and saved shortly after each change.
+            g_macroEdit = CreateWindowExW(0, L"EDIT", L"",
+                                          WS_CHILD | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | ES_NOHIDESEL,
+                                          0, 0, 10, 10, hwnd, nullptr, g_instance, nullptr);
+            if (g_macroEdit) {
+                std::wstring text;
+                for (wchar_t c : g_settings->macros) {
+                    if (c == L'\n') text.push_back(L'\r');
+                    text.push_back(c);
+                }
+                SetWindowTextW(g_macroEdit, text.c_str());
+                SetMacroEditor(g_macroEdit);
             }
+            LayoutTryEdit(hwnd);
             return 0;
         }
+        case WM_COMMAND:
+            if (reinterpret_cast<HWND>(lParam) == g_macroEdit && HIWORD(wParam) == EN_CHANGE) {
+                SetTimer(hwnd, kMacroSaveTimer, 700, nullptr);
+            }
+            return 0;
         case WM_CTLCOLOREDIT:
-            if (reinterpret_cast<HWND>(lParam) == g_tryEdit) {
+            if (reinterpret_cast<HWND>(lParam) == g_tryEdit || reinterpret_cast<HWND>(lParam) == g_macroEdit) {
                 HDC dc = reinterpret_cast<HDC>(wParam);
                 SetTextColor(dc, RGB(255, 255, 255));
                 SetBkColor(dc, kWellColor);
@@ -886,8 +1045,11 @@ LRESULT CALLBACK PanelProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_LBUTTONDOWN: {
             const int x = GET_X_LPARAM(lParam), y = GET_Y_LPARAM(lParam);
             const float scale = DpiOf(hwnd) / 96.0f;
-            const bool inWell = g_page == PAGE_DASHBOARD && TryWell().Contains(PointF(x / scale, y / scale));
-            SetFocus(inWell && g_tryEdit ? g_tryEdit : hwnd);
+            const PointF p(x / scale, y / scale);
+            HWND target = hwnd;
+            if (g_page == PAGE_DASHBOARD && g_tryEdit && TryWell().Contains(p)) target = g_tryEdit;
+            if (g_page == PAGE_QUICK && g_macroEdit && MacroWell().Contains(p)) target = g_macroEdit;
+            SetFocus(target);
             int hot = HitTest(hwnd, x, y);
             if (hot != HOT_NONE) OnClick(hot);
             return 0;
@@ -897,6 +1059,10 @@ LRESULT CALLBACK PanelProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             return 0;
         case WM_TIMER:
             if (wParam == kRefreshTimer && !IsIconic(hwnd)) InvalidateRect(hwnd, nullptr, FALSE);
+            if (wParam == kMacroSaveTimer) {
+                KillTimer(hwnd, kMacroSaveTimer);
+                SaveMacros();
+            }
             return 0;
         case WM_DPICHANGED: {
             const RECT* r = reinterpret_cast<const RECT*>(lParam);
@@ -908,9 +1074,15 @@ LRESULT CALLBACK PanelProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         }
         case WM_DESTROY:
             KillTimer(hwnd, kRefreshTimer);
-            g_tryEdit = nullptr;  // destroyed with its parent
+            KillTimer(hwnd, kMacroSaveTimer);
+            SaveMacros();  // the children still exist during WM_DESTROY
+            SetMacroEditor(nullptr);
+            g_tryEdit = nullptr;  // destroyed with their parent
+            g_macroEdit = nullptr;
             if (g_tryFont) DeleteObject(g_tryFont);
             g_tryFont = nullptr;
+            if (g_macroFont) DeleteObject(g_macroFont);
+            g_macroFont = nullptr;
             g_panel = nullptr;
             g_hover = HOT_NONE;
             g_trackingMouse = false;
@@ -1000,17 +1172,19 @@ int RenderPanelImages(const wchar_t* prefix) {
     PanelStatus demo;
     demo.appName = L"Google Chrome";
     demo.appChromium = true;
+    demo.appExe = L"chrome.exe";
     demo.markedWords = 128;
     const Settings saved = *g_settings;
+    SetExcluded(*g_settings, L"zalo.exe", true);  // show a chip on the apps page
     struct Shot {
         int page;
         float scale;
         bool english;
         bool ime;
     };
-    // The four pages, the dashboard in English with an IME on, and at 150% scale.
+    // The five pages, the dashboard in English with an IME on, and at 150% scale.
     const Shot shots[] = {{0, 1, false, false}, {1, 1, false, false}, {2, 1, false, false}, {3, 1, false, false},
-                          {0, 1, true, true},   {0, 1.5f, false, false}};
+                          {4, 1, false, false}, {0, 1, true, true},   {0, 1.5f, false, false}};
     int failures = 0, n = 0;
     for (const Shot& shot : shots) {
         g_page = shot.page;

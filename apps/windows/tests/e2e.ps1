@@ -31,11 +31,11 @@ public static class W {
         i[0].u.ki.dwFlags = up ? 2u : 0u;
         SendInput(1, i, Marshal.SizeOf(typeof(INPUT)));
     }
-    // Types `text` one key press at a time, `delayMs` apart. '\n' is Enter.
+    // Types `text` one key press at a time, `delayMs` apart. '\n' is Enter, '\b' Backspace.
     public static void Type(string text, int delayMs) {
         foreach (char c in text) {
             ushort vk; bool shift = false;
-            if (c == '\n') { vk = 0x0D; } else { short s = VkKeyScan(c); vk = (ushort)(s & 0xFF); shift = (s & 0x100) != 0; }
+            if (c == '\n') { vk = 0x0D; } else if (c == '\b') { vk = 0x08; } else { short s = VkKeyScan(c); vk = (ushort)(s & 0xFF); shift = (s & 0x100) != 0; }
             if (shift) Key(0x10, false);
             Key(vk, false);
             Key(vk, true);
@@ -62,7 +62,9 @@ $exitCode = 0
 try {
     $line = "Vieetj Nam dduowngf windows Tooi yeeu tieengs Vieetj "
     [W]::Type($line + "`n", 40)  # a normal typist
-    [W]::Type($line, 0)          # as fast as SendInput goes: tests ordering
+    [W]::Type($line + "`n", 0)   # as fast as SendInput goes: tests ordering
+    # Dokey 0.4: reopen a word with Backspace after its space, and a text shortcut.
+    [W]::Type("Haxy xin`bf btw ", 40)
     Start-Sleep -Seconds 2
     $edit = [W]::FindWindowEx($notepad.MainWindowHandle, [IntPtr]::Zero, "Edit", $null)
     $len = [int][W]::SendMessage($edit, 0x000E, [IntPtr]::Zero, [IntPtr]::Zero)
@@ -71,7 +73,8 @@ try {
     $text = $sb.ToString()
     $viet = "Vi$([char]0x1EC7)t"
     $want = "$viet Nam $([char]0x0111)$([char]0x01B0)$([char]0x1EDD)ng windows T$([char]0x00F4)i y$([char]0x00EA)u ti$([char]0x1EBF)ng $viet "
-    $expected = $want + "`r`n" + $want
+    $third = "H$([char]0x00E3)y x$([char]0x00EC)n by the way "
+    $expected = $want + "`r`n" + $want + "`r`n" + $third
     $codes = ($text.ToCharArray() | ForEach-Object { 'U+{0:X4}' -f [int]$_ }) -join ' '
     Write-Host "Typed:    $codes"
     Write-Host "Text: $text"

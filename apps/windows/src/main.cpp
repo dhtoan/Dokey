@@ -5,6 +5,7 @@
 #include <shellapi.h>
 #include <windowsx.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -42,6 +43,7 @@ enum Command : UINT {
     CMD_HOTKEY_CTRL_SHIFT,
     CMD_HOTKEY_ALT_Z,
     CMD_STARTUP,
+    CMD_EXCLUDE,
     CMD_ABOUT,
     CMD_EXIT,
 };
@@ -54,6 +56,7 @@ UINT g_taskbarCreated = 0;
 HWND g_mainWindow = nullptr;
 bool g_imeActive = false;
 std::wstring g_appName;  // the application the user last typed in
+std::wstring g_appExe;   // its exe name, for the excluded list
 bool g_appChromium = false;
 
 // ---- icons -------------------------------------------------------------------
@@ -249,6 +252,7 @@ void TrackForegroundApp() {
     if (pid == lastPid && !g_appName.empty()) return;
     lastPid = pid;
     g_appName = AppNameOf(pid);
+    g_appExe = ExeNameOf(pid);
 }
 
 void PanelSettingsChanged() { Apply(g_mainWindow); }
@@ -258,6 +262,7 @@ PanelStatus PanelState() {
     status.imeActive = g_imeActive;
     status.appName = g_appName;
     status.appChromium = g_appChromium;
+    status.appExe = g_appExe;
     status.markedWords = MarkedWordCount();
     return status;
 }
@@ -285,6 +290,10 @@ void ShowMenu(HWND hwnd, int x, int y) {
     AppendMenuW(hotkeys, check(g_settings.hotkey == HOTKEY_ALT_Z), CMD_HOTKEY_ALT_Z, L"Alt+Z");
     AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(hotkeys), L"Phím tắt chuyển Anh/Việt");
     AppendMenuW(menu, check(IsStartupEnabled()), CMD_STARTUP, L"Khởi động cùng Windows");
+    if (!g_appExe.empty()) {
+        std::wstring label = L"Không gõ tiếng Việt trong " + g_appName;
+        AppendMenuW(menu, check(IsExcluded(g_settings, g_appExe)), CMD_EXCLUDE, label.c_str());
+    }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, CMD_ABOUT, L"Giới thiệu Dokey");
     AppendMenuW(menu, MF_STRING, CMD_EXIT, L"Thoát");
@@ -309,7 +318,8 @@ void OnCommand(HWND hwnd, UINT id) {
         case CMD_HOTKEY_ALT_Z: g_settings.hotkey = HOTKEY_ALT_Z; break;
         case CMD_STARTUP: SetStartupEnabled(!IsStartupEnabled()); return;
         case CMD_PANEL: ShowPanel(0); return;
-        case CMD_ABOUT: ShowPanel(3); return;
+        case CMD_EXCLUDE: SetExcluded(g_settings, g_appExe, !IsExcluded(g_settings, g_appExe)); break;
+        case CMD_ABOUT: ShowPanel(4); return;
         case CMD_EXIT: DestroyWindow(hwnd); return;
         default: return;
     }
@@ -390,6 +400,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             CheckIme(true);
             TrackForegroundApp();
             return 0;
+        case WM_DOKEY_UNEXCLUDE: {
+            std::unique_ptr<std::wstring> exe(reinterpret_cast<std::wstring*>(lParam));
+            if (exe) SetExcluded(g_settings, *exe, false);
+            SaveSettings(g_settings);  // the input thread already has the change
+            RefreshPanel();
+            return 0;
+        }
         case WM_DOKEY_SHOWPANEL:
             ShowPanel(0);
             return 0;

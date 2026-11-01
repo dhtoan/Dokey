@@ -25,6 +25,7 @@ struct Job {
     WORD replayScan = 0;
     bool replayExtended = false;
     DWORD pauseMs = 0;       // pause between the backspaces and the rest (Chromium)
+    DWORD perKeyMs = 0;      // > 0: one key per SendInput with this pause (Google Docs)
 };
 
 inline INPUT MakeKey(WORD vk, WORD scan, DWORD flags) {

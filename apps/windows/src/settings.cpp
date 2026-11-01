@@ -2,6 +2,8 @@
 // Copyright (c) 2026 Do Huy Toan. All rights reserved.
 #include "settings.h"
 
+#include <algorithm>
+
 #include "dokey/dokey.h"
 
 namespace dokey_win {
@@ -25,10 +27,58 @@ void WriteDword(HKEY key, const wchar_t* name, DWORD value) {
     RegSetValueExW(key, name, 0, REG_DWORD, reinterpret_cast<const BYTE*>(&value), sizeof(value));
 }
 
+std::wstring ReadString(HKEY key, const wchar_t* name, const std::wstring& fallback) {
+    DWORD size = 0, type = 0;
+    if (RegQueryValueExW(key, name, nullptr, &type, nullptr, &size) != ERROR_SUCCESS || type != REG_SZ) return fallback;
+    std::wstring value(size / sizeof(wchar_t) + 1, L'\0');
+    if (RegQueryValueExW(key, name, nullptr, nullptr, reinterpret_cast<BYTE*>(&value[0]), &size) != ERROR_SUCCESS) {
+        return fallback;
+    }
+    value.resize(wcslen(value.c_str()));
+    return value;
+}
+
+void WriteString(HKEY key, const wchar_t* name, const std::wstring& value) {
+    RegSetValueExW(key, name, 0, REG_SZ, reinterpret_cast<const BYTE*>(value.c_str()),
+                   static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t)));
+}
+
+std::vector<std::wstring> SplitLines(const std::wstring& text) {
+    std::vector<std::wstring> lines;
+    size_t start = 0;
+    while (start <= text.size()) {
+        size_t end = text.find(L'\n', start);
+        if (end == std::wstring::npos) end = text.size();
+        std::wstring line = text.substr(start, end - start);
+        if (!line.empty()) lines.push_back(line);
+        start = end + 1;
+    }
+    return lines;
+}
+
 } // namespace
+
+const wchar_t kDefaultMacros[] =
+    L"# Gõ tắt: mỗi dòng \"từ tắt = nội dung\". Gõ từ tắt rồi dấu cách để thay.\n"
+    L"# Viết hoa từ tắt để viết hoa nội dung: vn -> Việt Nam, Vn, VN -> VIỆT NAM.\n"
+    L"vn = Việt Nam\n"
+    L"ko = không\n"
+    L"dc = được\n"
+    L"btw = by the way\n";
+
+bool IsExcluded(const Settings& s, const std::wstring& exe) {
+    return !exe.empty() && std::find(s.excludedApps.begin(), s.excludedApps.end(), exe) != s.excludedApps.end();
+}
+
+void SetExcluded(Settings& s, const std::wstring& exe, bool excluded) {
+    auto& apps = s.excludedApps;
+    apps.erase(std::remove(apps.begin(), apps.end(), exe), apps.end());
+    if (excluded && !exe.empty()) apps.push_back(exe);
+}
 
 Settings LoadSettings() {
     Settings s;
+    s.macros = kDefaultMacros;
     HKEY key;
     if (RegOpenKeyExW(HKEY_CURRENT_USER, kKey, 0, KEY_READ, &key) != ERROR_SUCCESS) return s;
     s.vietnamese = ReadDword(key, L"Vietnamese", s.vietnamese) != 0;
@@ -38,6 +88,11 @@ Settings LoadSettings() {
     s.hotkey = ReadDword(key, L"Hotkey", s.hotkey) == HOTKEY_ALT_Z ? HOTKEY_ALT_Z : HOTKEY_CTRL_SHIFT;
     DWORD pause = ReadDword(key, L"ChromiumPauseMs", s.chromiumPauseMs);
     s.chromiumPauseMs = pause > 100 ? 100 : pause;
+    s.quickTelex = ReadDword(key, L"QuickTelex", s.quickTelex) != 0;
+    s.escUndo = ReadDword(key, L"EscUndo", s.escUndo) != 0;
+    s.macrosEnabled = ReadDword(key, L"MacrosEnabled", s.macrosEnabled) != 0;
+    s.macros = ReadString(key, L"Macros", s.macros);
+    s.excludedApps = SplitLines(ReadString(key, L"ExcludedApps", L""));
     RegCloseKey(key);
     return s;
 }
@@ -53,6 +108,13 @@ void SaveSettings(const Settings& s) {
     WriteDword(key, L"ModernTone", s.modernTone);
     WriteDword(key, L"Hotkey", static_cast<DWORD>(s.hotkey));
     WriteDword(key, L"ChromiumPauseMs", s.chromiumPauseMs);
+    WriteDword(key, L"QuickTelex", s.quickTelex);
+    WriteDword(key, L"EscUndo", s.escUndo);
+    WriteDword(key, L"MacrosEnabled", s.macrosEnabled);
+    WriteString(key, L"Macros", s.macros);
+    std::wstring apps;
+    for (const auto& app : s.excludedApps) apps += app + L"\n";
+    WriteString(key, L"ExcludedApps", apps);
     RegCloseKey(key);
 }
 
