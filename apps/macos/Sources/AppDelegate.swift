@@ -348,7 +348,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         Bộ gõ tiếng Việt cho macOS, chạy trên lõi Dokey Core.
         Telex, VNI, kiểm tra chính tả, giữ nguyên từ tiếng Anh.
 
-        © 2026 Do Huy Toan. All rights reserved.
+        © 2026 Do Huy Toan (dhtoan). All rights reserved.
+        Phần mềm độc quyền: cấm sao chép, sửa đổi, phân phối lại.
         """
         if let icon = NSApp.applicationIconImage { alert.icon = icon }
         NSApp.activate(ignoringOtherApps: true)

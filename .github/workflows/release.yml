@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Do Huy Toan (dhtoan). All rights reserved. See LICENSE.
 name: Release
 
 # Push a tag such as v0.1.0 to build every platform and publish a release.

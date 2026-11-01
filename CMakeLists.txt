@@ -1,3 +1,4 @@
+# Copyright (c) 2026 Do Huy Toan (dhtoan). All rights reserved. See LICENSE.
 cmake_minimum_required(VERSION 3.16)
 project(DokeyCore VERSION 0.3.4 LANGUAGES CXX)
 
@@ -30,7 +31,7 @@ install(TARGETS dokey_core dokey
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(DIRECTORY include/dokey DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(FILES README.md SPEC.md DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/dokey)
+install(FILES README.md SPEC.md LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/dokey)
 
 enable_testing()
 add_executable(dokey_tests tests/engine_tests.cpp)

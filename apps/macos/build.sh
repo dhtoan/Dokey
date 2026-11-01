@@ -72,6 +72,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 lipo -create "${binaries[@]}" -output "$APP/Contents/MacOS/Dokey"
 sed -e "s/@VERSION@/$VERSION/" -e "s/@BUILD@/$BUILD/" "$HERE/Resources/Info.plist" > "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
+cp "$ROOT/LICENSE" "$APP/Contents/Resources/LICENSE.txt"
 
 echo "==> Icon"
 "$SWIFTC" "${SWIFT_FLAGS[@]}" -O "$HERE/tools/make_icon.swift" -o "$OUT/obj/make_icon"
@@ -109,6 +110,7 @@ if [ "$MAKE_DMG" = 1 ]; then
     DMG="$OUT/Dokey-$VERSION.dmg"
     mkdir -p "$STAGE"
     cp -R "$APP" "$STAGE/"
+    cp "$ROOT/LICENSE" "$STAGE/LICENSE.txt"
     ln -s /Applications "$STAGE/Applications"
     hdiutil create -volname "Dokey $VERSION" -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null
     rm -rf "$STAGE"
