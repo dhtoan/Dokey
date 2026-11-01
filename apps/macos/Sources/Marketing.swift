@@ -41,7 +41,9 @@ enum Marketing {
             shots.append(shot)
             guard write(shot, to: "\(dir)/\(name).png") else { return 1 }
         }
-        guard write(banner(screenshot: shots[0]), to: "\(dir)/banner.png") else { return 1 }
+        guard write(banner(screenshot: shots[0]), to: "\(dir)/banner.png"),
+              write(banner(screenshot: shots[0], height: 640, rounded: false, pixelScale: 1), to: "\(dir)/social.png")
+        else { return 1 }
         return 0
     }
 
@@ -91,18 +93,25 @@ enum Marketing {
         }
     }
 
-    private static func banner(screenshot: NSImage) -> NSImage {
-        let size = NSSize(width: 1280, height: 520)
-        return draw(size: size) {
+    /// The README banner (rounded) or, with `height` 640 and no rounding, the
+    /// 1280x640 social preview used by GitHub, Facebook, Zalo and X.
+    private static func banner(screenshot: NSImage, height: CGFloat = 520, rounded: Bool = true,
+                               pixelScale: CGFloat? = nil) -> NSImage {
+        let size = NSSize(width: 1280, height: height)
+        return draw(size: size, pixelScale: pixelScale) {
             let bounds = NSRect(origin: .zero, size: size)
-            let shape = NSBezierPath(roundedRect: bounds, xRadius: 28, yRadius: 28)
-            shape.addClip()
+            if rounded { NSBezierPath(roundedRect: bounds, xRadius: 28, yRadius: 28).addClip() }
             NSGradient(colors: [Palette.backgroundTop, Palette.backgroundMiddle, Palette.backgroundBottom])?.draw(in: bounds, angle: -25)
             for (color, point, radius) in [(Palette.glowPink, NSPoint(x: 1050, y: 80), CGFloat(520)),
                                            (Palette.glowBlue, NSPoint(x: 180, y: 520), CGFloat(460))] {
                 NSGradient(starting: color.withAlphaComponent(0.40), ending: color.withAlphaComponent(0))?
                     .draw(fromCenter: point, radius: 0, toCenter: point, radius: radius, options: [])
             }
+
+            // Centre the 520-point-high composition vertically.
+            let shift = NSAffineTransform()
+            shift.translateX(by: 0, yBy: (height - 520) / 2)
+            shift.concat()
 
             // Product screenshot on the right, cropped by the banner edge.
             let shotHeight: CGFloat = 470
@@ -148,7 +157,8 @@ enum Marketing {
     }
 
     /// Draws into a bitmap of `size` points at `scale`.
-    private static func draw(size: NSSize, _ body: () -> Void) -> NSImage {
+    private static func draw(size: NSSize, pixelScale: CGFloat? = nil, _ body: () -> Void) -> NSImage {
+        let scale = pixelScale ?? Self.scale
         let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale), pixelsHigh: Int(size.height * scale),
                                    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                                    colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!

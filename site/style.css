@@ -1,0 +1,62 @@
+/* Dokey website. Copyright (c) 2026 Do Huy Toan (dhtoan). All rights reserved. */
+:root {
+  --bg1: #29105f; --bg2: #4f1c9e; --bg3: #7326b3;
+  --pink: #fa5cd9; --violet: #9938f2; --green: #61e68c;
+  --text: #ffffff; --muted: rgba(255,255,255,.68); --card: rgba(255,255,255,.07); --line: rgba(255,255,255,.12);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; color: var(--text); line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: radial-gradient(900px 600px at 85% 10%, rgba(238,77,217,.35), transparent 60%),
+              radial-gradient(800px 600px at 10% 90%, rgba(77,115,255,.30), transparent 60%),
+              linear-gradient(160deg, var(--bg1), var(--bg2) 50%, var(--bg3));
+  background-attachment: fixed; min-height: 100vh;
+}
+a { color: #ffd1f5; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; gap: 12px; flex-wrap: wrap; }
+nav .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; color: var(--text); text-decoration: none; }
+nav .brand img { width: 34px; height: 34px; border-radius: 9px; }
+nav .links a { color: var(--muted); text-decoration: none; margin-left: 18px; font-weight: 600; font-size: 15px; }
+nav .links a:hover { color: var(--text); }
+.hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 36px; align-items: center; padding: 40px 0 56px; }
+.hero h1 { font-size: clamp(34px, 5vw, 56px); line-height: 1.1; margin: 0 0 16px; letter-spacing: -.02em; }
+.hero p.lead { font-size: 19px; color: var(--muted); margin: 0 0 26px; }
+.hero img.shot { width: 112%; height: auto; margin: -4% -6%; }
+.btns { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 999px; font-weight: 700; text-decoration: none; color: #fff; }
+.btn.primary { background: linear-gradient(90deg, var(--pink), var(--violet)); box-shadow: 0 10px 30px rgba(250,92,217,.35); }
+.btn.ghost { background: var(--card); border: 1px solid var(--line); }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+.chip { padding: 5px 12px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-size: 13px; font-weight: 600; color: var(--muted); }
+section { padding: 48px 0; }
+h2 { font-size: clamp(26px, 3.4vw, 36px); margin: 0 0 10px; letter-spacing: -.01em; }
+.sub { color: var(--muted); margin: 0 0 28px; font-size: 17px; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+.card h3 { margin: 0 0 6px; font-size: 18px; }
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+.card .ic { font-size: 26px; margin-bottom: 8px; display: block; }
+table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 14px; overflow: hidden; }
+th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 15px; vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+code { background: rgba(0,0,0,.25); padding: 2px 6px; border-radius: 6px; font-size: .92em; }
+pre { background: rgba(0,0,0,.3); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; white-space: pre-wrap; word-break: break-all; }
+.two > *, .grid > * { min-width: 0; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.two img { width: 100%; height: auto; border-radius: 12px; }
+details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; margin-bottom: 10px; }
+summary { cursor: pointer; font-weight: 700; font-size: 16px; }
+details p { color: var(--muted); margin: 10px 0 2px; }
+.sponsor { display: grid; grid-template-columns: auto auto 1fr; gap: 22px; align-items: start; }
+.qr { background: #fff; border-radius: 14px; padding: 10px; text-align: center; color: #333; font-size: 13px; width: 220px; }
+.qr img { width: 200px; height: 200px; display: block; margin: 0 auto 6px; }
+footer { padding: 36px 0 50px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); margin-top: 30px; }
+@media (max-width: 860px) {
+  .hero, .two { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: 1fr; }
+  .sponsor { grid-template-columns: 1fr; justify-items: center; }
+  nav .links a { margin-left: 12px; }
+}

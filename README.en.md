@@ -14,7 +14,9 @@
 [![License](https://img.shields.io/badge/license-proprietary-B91C1C)](LICENSE)
 [![Support Dokey](https://img.shields.io/badge/%E2%98%95_Support-Dokey-F59E0B)](#-support-dokey)
 
-### Right the first time. In every app. On every machine.
+# Dokey: Vietnamese input method for Mac and Windows
+
+### Right the first time. No jumbled or lost letters, in every app.
 
 [![Tiếng Việt](https://img.shields.io/badge/Ng%C3%B4n_ng%E1%BB%AF-Ti%E1%BA%BFng_Vi%E1%BB%87t-DA251D)](README.md)
 [![English](https://img.shields.io/badge/Language-English-1F6FEB)](README.en.md)
@@ -25,7 +27,7 @@
 
 ---
 
-**Dokey** is a Vietnamese input method rewritten from scratch. On every keystroke it rebuilds the whole word and checks it against a dictionary of 3,759 syllables, so what you see on screen always matches what you typed. No jumbled letters, no lost letters, even in Chrome, Edge, Claude or Electron apps.
+**Dokey** is a free Vietnamese input method (keyboard) for **macOS** (Intel and Apple Silicon) and **Windows 10/11**, supporting **Telex** and **VNI**, rewritten from scratch. On every keystroke it rebuilds the whole word and checks it against a dictionary of 3,759 syllables, so what you see on screen always matches what you typed. No jumbled letters, no lost letters, even in Chrome, Edge, Claude or Electron apps.
 
 <div align="center">
 <img src="docs/images/dashboard.png" alt="The Dokey control panel on macOS" width="88%">
@@ -186,6 +188,27 @@ The installer is not code-signed, so SmartScreen may warn: choose **More info �
 </details>
 
 ## ❓ FAQ
+
+<details>
+<summary><b>What is a good Vietnamese keyboard for Mac?</b></summary>
+
+Dokey is a free Vietnamese input method for macOS 10.13 and later, on Intel and Apple Silicon. It supports Telex and VNI, spell checking, keeps English words as typed, and is built to avoid jumbled letters in Chrome, Edge, Safari, ChatGPT, Claude, Notion and VS Code.
+
+</details>
+
+<details>
+<summary><b>Why does Vietnamese typing jumble letters in Chrome?</b></summary>
+
+Chrome and Electron apps handle keys in a separate process, so the delete keys and the new text can arrive out of order or be dropped. Dokey inserts corrections right at the capture point, selects the old letters and types the whole replacement in one go, and never uses the code of a key that is still held.
+
+</details>
+
+<details>
+<summary><b>Is Dokey free? Does it use Unikey or OpenKey code?</b></summary>
+
+Dokey is free for personal use, with no ads and no paid tier. It is written entirely from scratch around its own C++17 engine, Dokey Core, and contains no code from any other input method.
+
+</details>
 
 <details>
 <summary><b>Installed, but no accents appear?</b></summary>

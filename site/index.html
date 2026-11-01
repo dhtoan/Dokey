@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dokey – Bộ gõ tiếng Việt cho Mac và Windows, không nhảy chữ, không mất chữ</title>
+<meta name="description" content="Dokey là bộ gõ tiếng Việt miễn phí cho macOS và Windows: Telex, VNI, kiểm tra chính tả, không nhảy chữ trong Chrome, Edge, ChatGPT, Claude. Gõ tắt, Quick Telex, giữ nguyên từ tiếng Anh.">
+<meta name="author" content="Do Huy Toan (dhtoan)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://dhtoan.github.io/Dokey/">
+<link rel="alternate" hreflang="vi" href="https://dhtoan.github.io/Dokey/">
+<link rel="alternate" hreflang="en" href="https://dhtoan.github.io/Dokey/en/">
+<link rel="alternate" hreflang="x-default" href="https://dhtoan.github.io/Dokey/">
+<link rel="icon" href="assets/icon.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
+<meta name="theme-color" content="#4f1c9e">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Dokey">
+<meta property="og:locale" content="vi_VN">
+<meta property="og:title" content="Dokey – Bộ gõ tiếng Việt cho Mac và Windows, không nhảy chữ, không mất chữ">
+<meta property="og:description" content="Dokey là bộ gõ tiếng Việt miễn phí cho macOS và Windows: Telex, VNI, kiểm tra chính tả, không nhảy chữ trong Chrome, Edge, ChatGPT, Claude. Gõ tắt, Quick Telex, giữ nguyên từ tiếng Anh.">
+<meta property="og:url" content="https://dhtoan.github.io/Dokey/">
+<meta property="og:image" content="https://dhtoan.github.io/Dokey/assets/social.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="Bảng điều khiển của bộ gõ Dokey trên macOS">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dokey – Bộ gõ tiếng Việt cho Mac và Windows, không nhảy chữ, không mất chữ">
+<meta name="twitter:description" content="Dokey là bộ gõ tiếng Việt miễn phí cho macOS và Windows: Telex, VNI, kiểm tra chính tả, không nhảy chữ trong Chrome, Edge, ChatGPT, Claude. Gõ tắt, Quick Telex, giữ nguyên từ tiếng Anh.">
+<meta name="twitter:image" content="https://dhtoan.github.io/Dokey/assets/social.png">
+<link rel="stylesheet" href="style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Dokey", "alternateName": "Bộ gõ tiếng Việt Dokey", "description": "Dokey là bộ gõ tiếng Việt miễn phí cho macOS và Windows: Telex, VNI, kiểm tra chính tả, không nhảy chữ trong Chrome, Edge, ChatGPT, Claude. Gõ tắt, Quick Telex, giữ nguyên từ tiếng Anh.", "applicationCategory": "UtilitiesApplication", "applicationSubCategory": "Vietnamese input method", "operatingSystem": "macOS 10.13+, Windows 10, Windows 11", "softwareVersion": "0.4.0", "inLanguage": ["vi", "en"], "url": "https://dhtoan.github.io/Dokey/", "downloadUrl": "https://github.com/dhtoan/Dokey/releases/latest", "image": "https://dhtoan.github.io/Dokey/assets/social.png", "screenshot": "https://dhtoan.github.io/Dokey/assets/dashboard.png", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "VND"}, "author": {"@type": "Person", "name": "Do Huy Toan", "alternateName": "dhtoan", "url": "https://github.com/dhtoan"}, "keywords": "bộ gõ tiếng Việt, gõ tiếng Việt trên Mac, Telex, VNI, Vietnamese keyboard, Vietnamese input method, macOS, Windows"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Bộ gõ tiếng Việt nào tốt cho Mac?", "acceptedAnswer": {"@type": "Answer", "text": "Dokey là bộ gõ tiếng Việt miễn phí cho macOS 10.13 trở lên, chạy trên cả Intel và Apple Silicon. Dokey hỗ trợ Telex, VNI, kiểm tra chính tả, giữ nguyên từ tiếng Anh, và được thiết kế để không nhảy chữ trong Chrome, Edge, Safari, ChatGPT, Claude, Notion và VS Code."}}, {"@type": "Question", "name": "Vì sao gõ tiếng Việt trên Chrome hay bị nhảy chữ, và Dokey sửa thế nào?", "acceptedAnswer": {"@type": "Answer", "text": "Chrome và các ứng dụng Electron xử lý phím ở một tiến trình riêng, nên phím xoá và chữ mới có thể đến lệch thứ tự hoặc bị bỏ qua. Dokey chèn phím sửa ngay tại vị trí bắt phím, bôi đen chữ cũ rồi gõ đè cả cụm trong một lần, và không dùng mã phím của phím bạn đang giữ."}}, {"@type": "Question", "name": "Gõ tiếng Việt trong ChatGPT hoặc Claude bị mất chữ (Hãy thành Hy) phải làm sao?", "acceptedAnswer": {"@type": "Answer", "text": "Đây là lỗi thường gặp với các ô soạn thảo kiểu ProseMirror khi bộ gõ gửi phím Backspace và chữ thay thế. Dokey 0.3.2 trở lên đã sửa lỗi này; chỉ cần cài Dokey và cấp quyền Trợ năng."}}, {"@type": "Question", "name": "Dokey có miễn phí không?", "acceptedAnswer": {"@type": "Answer", "text": "Có. Dokey miễn phí cho người dùng cá nhân, không quảng cáo và không có bản trả phí. Người dùng có thể ủng hộ tự nguyện để Dokey có chữ ký số của Apple."}}, {"@type": "Question", "name": "Dokey có an toàn không, có ghi lại phím gõ không?", "acceptedAnswer": {"@type": "Answer", "text": "Dokey chạy hoàn toàn trên máy, không kết nối mạng và không lưu phím gõ. Dokey cần quyền Trợ năng trên macOS vì mọi bộ gõ kiểu bắt phím đều cần quyền này để sửa chữ."}}, {"@type": "Question", "name": "Dokey có gõ được Telex và VNI không?", "acceptedAnswer": {"@type": "Answer", "text": "Có. Dokey hỗ trợ Telex và VNI, Unicode dựng sẵn và Unicode tổ hợp, đặt dấu kiểu mới (hoà, khoẻ) hoặc kiểu cũ (hòa, khỏe)."}}, {"@type": "Question", "name": "Dokey có dùng mã nguồn của Unikey hay OpenKey không?", "acceptedAnswer": {"@type": "Answer", "text": "Không. Dokey được viết mới hoàn toàn với lõi Dokey Core bằng C++17 và không chứa mã của bộ gõ nào khác."}}, {"@type": "Question", "name": "Làm sao chuyển nhanh giữa tiếng Việt và tiếng Anh?", "acceptedAnswer": {"@type": "Answer", "text": "Trên Mac bấm rồi thả Control + Shift (⌃⇧), trên Windows bấm Ctrl + Shift. Dokey còn nhớ chế độ Anh/Việt riêng cho từng ứng dụng."}}]}</script>
+</head>
+<body>
+<div class="wrap">
+<nav aria-label="Main">
+  <a class="brand" href="https://dhtoan.github.io/Dokey/"><img src="assets/icon.png" alt="" width="34" height="34">Dokey</a>
+  <div class="links"><a href="#tinh-nang">Tính năng</a><a href="#tai-ve">Tải về</a><a href="#hoi-dap">Hỏi đáp</a><a href="#ung-ho">Ủng hộ</a><a href="en/" hreflang="en">English</a></div>
+</nav>
+
+<header class="hero">
+  <div>
+    <h1>Bộ gõ tiếng Việt gõ đúng ngay lần đầu</h1>
+    <p class="lead">Dokey là bộ gõ tiếng Việt miễn phí cho macOS và Windows. Không nhảy chữ, không mất chữ, kể cả trong Chrome, Edge, ChatGPT, Claude và các ứng dụng Electron. Từ tiếng Anh được giữ nguyên.</p>
+    <div class="btns">
+      <a class="btn primary" href="#tai-ve">⬇ Tải Dokey miễn phí</a>
+      <a class="btn ghost" href="https://github.com/dhtoan/Dokey">Xem mã nguồn</a>
+    </div>
+    <div class="chips"><span class="chip">macOS 10.13+ · Intel &amp; Apple Silicon</span><span class="chip">Windows 10/11</span><span class="chip">Telex · VNI</span><span class="chip">Phiên bản 0.4.0</span></div>
+  </div>
+  <img class="shot" src="assets/dashboard.png" alt="Bảng điều khiển của bộ gõ Dokey trên macOS" width="1458" height="918">
+</header>
+
+<main>
+<section id="tinh-nang">
+  <h2>Vì sao chọn Dokey?</h2>
+  <p class="sub">Viết lại từ con số 0 để giải quyết tận gốc những lỗi khó chịu nhất khi gõ tiếng Việt.</p>
+  <div class="grid">
+<div class="card"><span class="ic" aria-hidden="true">⚡</span><h3>Không nhảy chữ, không mất chữ</h3><p>Phím sửa chữ được chèn ngay tại chỗ, luôn đi trước phím bạn gõ tiếp. Trong trình duyệt và Electron, Dokey bôi đen rồi gõ đè cả cụm.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">📖</span><h3>Hiểu chính tả tiếng Việt</h3><p>Kiểm tra với 3.964 âm tiết. Dấu chỉ được thêm khi kết quả là tiếng Việt hợp lệ.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">🔤</span><h3>Giữ nguyên tiếng Anh</h3><p>windows, chrome, github, password, session… không bị thêm dấu hay mất chữ.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">✍️</span><h3>Gõ dấu tự do</h3><p>tieengs, tienges, tiengse đều ra “tiếng”. Gõ xong từ, bấm Backspace để quay lại sửa dấu.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">🚀</span><h3>Gõ nhanh</h3><p>Gõ tắt (vn → Việt Nam), Quick Telex (cc → ch, nn → ng), hoàn tác bằng Esc.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">🔒</span><h3>Riêng tư, nhẹ</h3><p>Chạy hoàn toàn trên máy, không kết nối mạng, không thu thập dữ liệu, không lưu phím gõ.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Gõ thử Telex và VNI</h2>
+  <table><tr><th>Telex</th><td><code>dduowngf → đường · nguoiwf → người · Haxy → Hãy · DDawks Lawks → Đắk Lắk</code></td></tr>
+<tr><th>VNI</th><td><code>d9u7o7ng2 → đường · Vie65t Nam → Việt Nam</code></td></tr></table>
+  <div class="two" style="margin-top:18px">
+    <img src="assets/typing.png" alt="Dokey: Telex, VNI" loading="lazy">
+    <img src="assets/windows.jpg" alt="Dokey Windows" loading="lazy">
+  </div>
+</section>
+
+<section id="tai-ve">
+  <h2>Tải về</h2>
+  <p class="sub">Miễn phí cho người dùng cá nhân. <a href="https://github.com/dhtoan/Dokey/releases/latest">GitHub Releases</a></p>
+  <div class="two">
+    <div class="card"><h3>🍎 macOS</h3><p>Mở Terminal, chạy lệnh dưới đây rồi bật Dokey trong Cài đặt › Quyền riêng tư &amp; Bảo mật › Trợ năng. Hoặc tải file .dmg ở trang Releases.</p><pre><code>gh release download -R dhtoan/Dokey --pattern install-macos.sh --dir /tmp --clobber &amp;&amp; bash /tmp/install-macos.sh</code></pre></div>
+    <div class="card"><h3>🪟 Windows</h3><p>Tải Dokey-&lt;phiên bản&gt;-Windows-Setup.exe ở trang Releases (x86, x64, ARM64). Nếu SmartScreen cảnh báo, chọn More info → Run anyway.</p><p style="margin-top:14px"><a class="btn primary" href="https://github.com/dhtoan/Dokey/releases/latest">⬇ Setup.exe</a></p></div>
+  </div>
+</section>
+
+<section id="hoi-dap">
+  <h2>Câu hỏi thường gặp</h2>
+<details><summary>Bộ gõ tiếng Việt nào tốt cho Mac?</summary><p>Dokey là bộ gõ tiếng Việt miễn phí cho macOS 10.13 trở lên, chạy trên cả Intel và Apple Silicon. Dokey hỗ trợ Telex, VNI, kiểm tra chính tả, giữ nguyên từ tiếng Anh, và được thiết kế để không nhảy chữ trong Chrome, Edge, Safari, ChatGPT, Claude, Notion và VS Code.</p></details>
+<details><summary>Vì sao gõ tiếng Việt trên Chrome hay bị nhảy chữ, và Dokey sửa thế nào?</summary><p>Chrome và các ứng dụng Electron xử lý phím ở một tiến trình riêng, nên phím xoá và chữ mới có thể đến lệch thứ tự hoặc bị bỏ qua. Dokey chèn phím sửa ngay tại vị trí bắt phím, bôi đen chữ cũ rồi gõ đè cả cụm trong một lần, và không dùng mã phím của phím bạn đang giữ.</p></details>
+<details><summary>Gõ tiếng Việt trong ChatGPT hoặc Claude bị mất chữ (Hãy thành Hy) phải làm sao?</summary><p>Đây là lỗi thường gặp với các ô soạn thảo kiểu ProseMirror khi bộ gõ gửi phím Backspace và chữ thay thế. Dokey 0.3.2 trở lên đã sửa lỗi này; chỉ cần cài Dokey và cấp quyền Trợ năng.</p></details>
+<details><summary>Dokey có miễn phí không?</summary><p>Có. Dokey miễn phí cho người dùng cá nhân, không quảng cáo và không có bản trả phí. Người dùng có thể ủng hộ tự nguyện để Dokey có chữ ký số của Apple.</p></details>
+<details><summary>Dokey có an toàn không, có ghi lại phím gõ không?</summary><p>Dokey chạy hoàn toàn trên máy, không kết nối mạng và không lưu phím gõ. Dokey cần quyền Trợ năng trên macOS vì mọi bộ gõ kiểu bắt phím đều cần quyền này để sửa chữ.</p></details>
+<details><summary>Dokey có gõ được Telex và VNI không?</summary><p>Có. Dokey hỗ trợ Telex và VNI, Unicode dựng sẵn và Unicode tổ hợp, đặt dấu kiểu mới (hoà, khoẻ) hoặc kiểu cũ (hòa, khỏe).</p></details>
+<details><summary>Dokey có dùng mã nguồn của Unikey hay OpenKey không?</summary><p>Không. Dokey được viết mới hoàn toàn với lõi Dokey Core bằng C++17 và không chứa mã của bộ gõ nào khác.</p></details>
+<details><summary>Làm sao chuyển nhanh giữa tiếng Việt và tiếng Anh?</summary><p>Trên Mac bấm rồi thả Control + Shift (⌃⇧), trên Windows bấm Ctrl + Shift. Dokey còn nhớ chế độ Anh/Việt riêng cho từng ứng dụng.</p></details>
+</section>
+
+<section id="ung-ho">
+  <h2>Ủng hộ Dokey</h2>
+  <div class="sponsor">
+<div class="qr"><img src="https://img.vietqr.io/image/TCB-6868686139-compact.svg?addInfo=dokey&amp;accountName=App+Dokey" alt="Chuyển khoản ngân hàng" loading="lazy"><b>Chuyển khoản ngân hàng</b><br>Techcombank · App Dokey · nội dung dokey</div>
+<div class="qr"><img src="assets/momo.png" alt="Ví MoMo" loading="lazy"><b>Ví MoMo</b><br>Quét bằng MoMo hoặc app ngân hàng</div>
+    <p class="sub">Dokey luôn miễn phí. Nếu Dokey giúp bạn gõ tiếng Việt dễ chịu hơn, mời tác giả một ly cà phê. Mục tiêu 99 USD/năm (khoảng 2.600.000 đ) cho tài khoản Apple Developer, để Dokey cài không cảnh báo và không phải cấp lại quyền Trợ năng sau mỗi lần cập nhật.</p>
+  </div>
+</section>
+</main>
+
+<footer>© 2026 Đỗ Huy Toàn (dhtoan). Phần mềm độc quyền, cấm sao chép, sửa đổi, phân phối lại. · <a href="https://github.com/dhtoan/Dokey">GitHub</a> · <a href="https://github.com/dhtoan/Dokey/blob/main/LICENSE">License</a></footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dokey – Vietnamese input method for Mac and Windows, no jumbled or lost letters</title>
+<meta name="description" content="Dokey is a free Vietnamese input method (keyboard) for macOS and Windows: Telex, VNI, spell checking, no jumbled letters in Chrome, Edge, ChatGPT or Claude. Text shortcuts, Quick Telex, English words kept.">
+<meta name="author" content="Do Huy Toan (dhtoan)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://dhtoan.github.io/Dokey/en/">
+<link rel="alternate" hreflang="vi" href="https://dhtoan.github.io/Dokey/">
+<link rel="alternate" hreflang="en" href="https://dhtoan.github.io/Dokey/en/">
+<link rel="alternate" hreflang="x-default" href="https://dhtoan.github.io/Dokey/">
+<link rel="icon" href="../assets/icon.png">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<meta name="theme-color" content="#4f1c9e">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Dokey">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Dokey – Vietnamese input method for Mac and Windows, no jumbled or lost letters">
+<meta property="og:description" content="Dokey is a free Vietnamese input method (keyboard) for macOS and Windows: Telex, VNI, spell checking, no jumbled letters in Chrome, Edge, ChatGPT or Claude. Text shortcuts, Quick Telex, English words kept.">
+<meta property="og:url" content="https://dhtoan.github.io/Dokey/en/">
+<meta property="og:image" content="https://dhtoan.github.io/Dokey/assets/social.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Dokey Vietnamese input method control panel on macOS">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dokey – Vietnamese input method for Mac and Windows, no jumbled or lost letters">
+<meta name="twitter:description" content="Dokey is a free Vietnamese input method (keyboard) for macOS and Windows: Telex, VNI, spell checking, no jumbled letters in Chrome, Edge, ChatGPT or Claude. Text shortcuts, Quick Telex, English words kept.">
+<meta name="twitter:image" content="https://dhtoan.github.io/Dokey/assets/social.png">
+<link rel="stylesheet" href="../style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Dokey", "alternateName": "Bộ gõ tiếng Việt Dokey", "description": "Dokey is a free Vietnamese input method (keyboard) for macOS and Windows: Telex, VNI, spell checking, no jumbled letters in Chrome, Edge, ChatGPT or Claude. Text shortcuts, Quick Telex, English words kept.", "applicationCategory": "UtilitiesApplication", "applicationSubCategory": "Vietnamese input method", "operatingSystem": "macOS 10.13+, Windows 10, Windows 11", "softwareVersion": "0.4.0", "inLanguage": ["vi", "en"], "url": "https://dhtoan.github.io/Dokey/", "downloadUrl": "https://github.com/dhtoan/Dokey/releases/latest", "image": "https://dhtoan.github.io/Dokey/assets/social.png", "screenshot": "https://dhtoan.github.io/Dokey/assets/dashboard.png", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "VND"}, "author": {"@type": "Person", "name": "Do Huy Toan", "alternateName": "dhtoan", "url": "https://github.com/dhtoan"}, "keywords": "bộ gõ tiếng Việt, gõ tiếng Việt trên Mac, Telex, VNI, Vietnamese keyboard, Vietnamese input method, macOS, Windows"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What is a good Vietnamese input method for Mac?", "acceptedAnswer": {"@type": "Answer", "text": "Dokey is a free Vietnamese input method for macOS 10.13 and later, on Intel and Apple Silicon. It supports Telex and VNI, spell checking, keeps English words as typed, and is built to avoid jumbled letters in Chrome, Edge, Safari, ChatGPT, Claude, Notion and VS Code."}}, {"@type": "Question", "name": "Why does Vietnamese typing jumble letters in Chrome, and how does Dokey fix it?", "acceptedAnswer": {"@type": "Answer", "text": "Chrome and Electron apps handle keys in a separate process, so the delete keys and the new text can arrive out of order or be dropped. Dokey inserts corrections right at the capture point, selects the old letters and types the whole replacement in one go, and never uses the code of a key that is still held."}}, {"@type": "Question", "name": "Typing Vietnamese in ChatGPT or Claude loses letters (Hãy becomes Hy). What can I do?", "acceptedAnswer": {"@type": "Answer", "text": "This is a common problem with ProseMirror-style editors when an input method sends Backspaces and replacement text. Dokey 0.3.2 and later fix it; install Dokey and grant Accessibility permission."}}, {"@type": "Question", "name": "Is Dokey free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Dokey is free for personal use, with no ads and no paid tier. Users can support it voluntarily so Dokey can be signed by Apple."}}, {"@type": "Question", "name": "Is Dokey safe? Does it record keystrokes?", "acceptedAnswer": {"@type": "Answer", "text": "Dokey runs entirely on your machine, makes no network connections and stores no keystrokes. It needs Accessibility permission on macOS because every key-capturing input method does."}}, {"@type": "Question", "name": "Does Dokey support Telex and VNI?", "acceptedAnswer": {"@type": "Answer", "text": "Yes: Telex and VNI, precomposed and combining Unicode, modern (hoà, khoẻ) or traditional (hòa, khỏe) tone placement."}}, {"@type": "Question", "name": "Does Dokey use Unikey or OpenKey code?", "acceptedAnswer": {"@type": "Answer", "text": "No. Dokey is written entirely from scratch around its own C++17 engine, Dokey Core, and contains no code from any other input method."}}, {"@type": "Question", "name": "How do I switch between Vietnamese and English?", "acceptedAnswer": {"@type": "Answer", "text": "On Mac press and release Control + Shift (⌃⇧); on Windows press Ctrl + Shift. Dokey also remembers the mode for each app."}}]}</script>
+</head>
+<body>
+<div class="wrap">
+<nav aria-label="Main">
+  <a class="brand" href="https://dhtoan.github.io/Dokey/en/"><img src="../assets/icon.png" alt="" width="34" height="34">Dokey</a>
+  <div class="links"><a href="#features">Features</a><a href="#download">Download</a><a href="#faq">FAQ</a><a href="#support">Support</a><a href="../" hreflang="vi">Tiếng Việt</a></div>
+</nav>
+
+<header class="hero">
+  <div>
+    <h1>Vietnamese typing, right the first time</h1>
+    <p class="lead">Dokey is a free Vietnamese input method for macOS and Windows. No jumbled or lost letters, even in Chrome, Edge, ChatGPT, Claude and Electron apps. English words stay as typed.</p>
+    <div class="btns">
+      <a class="btn primary" href="#download">⬇ Download Dokey free</a>
+      <a class="btn ghost" href="https://github.com/dhtoan/Dokey">View the source</a>
+    </div>
+    <div class="chips"><span class="chip">macOS 10.13+ · Intel &amp; Apple Silicon</span><span class="chip">Windows 10/11</span><span class="chip">Telex · VNI</span><span class="chip">Version 0.4.0</span></div>
+  </div>
+  <img class="shot" src="../assets/dashboard.png" alt="The Dokey Vietnamese input method control panel on macOS" width="1458" height="918">
+</header>
+
+<main>
+<section id="features">
+  <h2>Why Dokey?</h2>
+  <p class="sub">Rewritten from scratch to fix the most annoying Vietnamese typing bugs at the root.</p>
+  <div class="grid">
+<div class="card"><span class="ic" aria-hidden="true">⚡</span><h3>No jumbled or lost letters</h3><p>Corrections are inserted right where keys are captured, always ahead of your next key. In browsers and Electron apps Dokey selects and types over the whole replacement.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">📖</span><h3>Understands Vietnamese spelling</h3><p>Checks against 3,964 syllables; marks are only added when the result is valid Vietnamese.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">🔤</span><h3>Keeps English words</h3><p>windows, chrome, github, password, session… get no accents and lose no letters.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">✍️</span><h3>Free mark placement</h3><p>tieengs, tienges and tiengse all give “tiếng”. After a word, press Backspace to go back and fix its marks.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">🚀</span><h3>Quick typing</h3><p>Text shortcuts (vn → Việt Nam), Quick Telex (cc → ch, nn → ng), undo with Esc.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">🔒</span><h3>Private and light</h3><p>Runs entirely on your machine: no network, no data collection, no keystroke logging.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Telex and VNI examples</h2>
+  <table><tr><th>Telex</th><td><code>dduowngf → đường · nguoiwf → người · Haxy → Hãy · DDawks Lawks → Đắk Lắk</code></td></tr>
+<tr><th>VNI</th><td><code>d9u7o7ng2 → đường · Vie65t Nam → Việt Nam</code></td></tr></table>
+  <div class="two" style="margin-top:18px">
+    <img src="../assets/typing.png" alt="Dokey: Telex, VNI" loading="lazy">
+    <img src="../assets/windows.jpg" alt="Dokey Windows" loading="lazy">
+  </div>
+</section>
+
+<section id="download">
+  <h2>Download</h2>
+  <p class="sub">Free for personal use. <a href="https://github.com/dhtoan/Dokey/releases/latest">GitHub Releases</a></p>
+  <div class="two">
+    <div class="card"><h3>🍎 macOS</h3><p>Open Terminal, run the command below, then enable Dokey in System Settings › Privacy &amp; Security › Accessibility. Or download the .dmg from Releases.</p><pre><code>gh release download -R dhtoan/Dokey --pattern install-macos.sh --dir /tmp --clobber &amp;&amp; bash /tmp/install-macos.sh</code></pre></div>
+    <div class="card"><h3>🪟 Windows</h3><p>Download Dokey-&lt;version&gt;-Windows-Setup.exe from Releases (x86, x64, ARM64). If SmartScreen warns, choose More info → Run anyway.</p><p style="margin-top:14px"><a class="btn primary" href="https://github.com/dhtoan/Dokey/releases/latest">⬇ Setup.exe</a></p></div>
+  </div>
+</section>
+
+<section id="faq">
+  <h2>FAQ</h2>
+<details><summary>What is a good Vietnamese input method for Mac?</summary><p>Dokey is a free Vietnamese input method for macOS 10.13 and later, on Intel and Apple Silicon. It supports Telex and VNI, spell checking, keeps English words as typed, and is built to avoid jumbled letters in Chrome, Edge, Safari, ChatGPT, Claude, Notion and VS Code.</p></details>
+<details><summary>Why does Vietnamese typing jumble letters in Chrome, and how does Dokey fix it?</summary><p>Chrome and Electron apps handle keys in a separate process, so the delete keys and the new text can arrive out of order or be dropped. Dokey inserts corrections right at the capture point, selects the old letters and types the whole replacement in one go, and never uses the code of a key that is still held.</p></details>
+<details><summary>Typing Vietnamese in ChatGPT or Claude loses letters (Hãy becomes Hy). What can I do?</summary><p>This is a common problem with ProseMirror-style editors when an input method sends Backspaces and replacement text. Dokey 0.3.2 and later fix it; install Dokey and grant Accessibility permission.</p></details>
+<details><summary>Is Dokey free?</summary><p>Yes. Dokey is free for personal use, with no ads and no paid tier. Users can support it voluntarily so Dokey can be signed by Apple.</p></details>
+<details><summary>Is Dokey safe? Does it record keystrokes?</summary><p>Dokey runs entirely on your machine, makes no network connections and stores no keystrokes. It needs Accessibility permission on macOS because every key-capturing input method does.</p></details>
+<details><summary>Does Dokey support Telex and VNI?</summary><p>Yes: Telex and VNI, precomposed and combining Unicode, modern (hoà, khoẻ) or traditional (hòa, khỏe) tone placement.</p></details>
+<details><summary>Does Dokey use Unikey or OpenKey code?</summary><p>No. Dokey is written entirely from scratch around its own C++17 engine, Dokey Core, and contains no code from any other input method.</p></details>
+<details><summary>How do I switch between Vietnamese and English?</summary><p>On Mac press and release Control + Shift (⌃⇧); on Windows press Ctrl + Shift. Dokey also remembers the mode for each app.</p></details>
+</section>
+
+<section id="support">
+  <h2>Support Dokey</h2>
+  <div class="sponsor">
+<div class="qr"><img src="https://img.vietqr.io/image/TCB-6868686139-compact.svg?addInfo=dokey&amp;accountName=App+Dokey" alt="Bank transfer (Vietnam)" loading="lazy"><b>Bank transfer (Vietnam)</b><br>Techcombank · App Dokey · note dokey</div>
+<div class="qr"><img src="../assets/momo.png" alt="MoMo wallet" loading="lazy"><b>MoMo wallet</b><br>Scan with MoMo or a banking app</div>
+    <p class="sub">Dokey is and will stay free. If it makes your Vietnamese typing nicer, buy the author a coffee. The goal is 99 USD a year for an Apple Developer account, so Dokey installs without warnings and keeps its Accessibility permission across updates.</p>
+  </div>
+</section>
+</main>
+
+<footer>© 2026 Do Huy Toan (dhtoan). Proprietary software: copying, modification and redistribution prohibited. · <a href="https://github.com/dhtoan/Dokey">GitHub</a> · <a href="https://github.com/dhtoan/Dokey/blob/main/LICENSE">License</a></footer>
+</div>
+</body>
+</html>

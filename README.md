@@ -14,7 +14,9 @@
 [![License](https://img.shields.io/badge/license-proprietary-B91C1C)](LICENSE)
 [![Ủng hộ Dokey](https://img.shields.io/badge/%E2%98%95_%E1%BB%A6ng_h%E1%BB%99-Dokey-F59E0B)](#-đồng-hành-cùng-dokey)
 
-### Gõ đúng ngay lần đầu. Ở mọi ứng dụng. Trên mọi máy.
+# Dokey: bộ gõ tiếng Việt cho Mac và Windows
+
+### Gõ đúng ngay lần đầu. Không nhảy chữ, không mất chữ, ở mọi ứng dụng.
 
 [![Tiếng Việt](https://img.shields.io/badge/Ng%C3%B4n_ng%E1%BB%AF-Ti%E1%BA%BFng_Vi%E1%BB%87t-DA251D)](README.md)
 [![English](https://img.shields.io/badge/Language-English-1F6FEB)](README.en.md)
@@ -25,7 +27,7 @@
 
 ---
 
-**Dokey** là bộ gõ tiếng Việt viết lại hoàn toàn từ đầu. Mỗi phím bấm, Dokey dựng lại cả từ và kiểm tra với từ điển 3.759 âm tiết, nên chữ trên màn hình luôn khớp với những gì bạn gõ. Dokey không nhảy chữ, không mất chữ, kể cả trong Chrome, Edge, Claude hay các ứng dụng Electron.
+**Dokey** là bộ gõ tiếng Việt miễn phí cho **macOS** (Intel và Apple Silicon) và **Windows 10/11**, hỗ trợ **Telex** và **VNI**, viết lại hoàn toàn từ đầu. Mỗi phím bấm, Dokey dựng lại cả từ và kiểm tra với từ điển 3.759 âm tiết, nên chữ trên màn hình luôn khớp với những gì bạn gõ. Dokey không nhảy chữ, không mất chữ, kể cả trong Chrome, Edge, Claude hay các ứng dụng Electron.
 
 <div align="center">
 <img src="docs/images/dashboard.png" alt="Bảng điều khiển Dokey trên macOS" width="88%">
@@ -190,6 +192,34 @@ Bộ cài chưa ký số nên SmartScreen có thể cảnh báo: chọn **More i
 </details>
 
 ## ❓ Câu hỏi thường gặp
+
+<details>
+<summary><b>Bộ gõ tiếng Việt nào tốt cho Mac?</b></summary>
+
+Dokey là bộ gõ tiếng Việt miễn phí cho macOS 10.13 trở lên, chạy trên cả Intel và Apple Silicon. Dokey hỗ trợ Telex, VNI, kiểm tra chính tả, giữ nguyên từ tiếng Anh, và được thiết kế để không nhảy chữ trong Chrome, Edge, Safari, ChatGPT, Claude, Notion và VS Code.
+
+</details>
+
+<details>
+<summary><b>Vì sao gõ tiếng Việt trên Chrome hay bị nhảy chữ?</b></summary>
+
+Chrome và các ứng dụng Electron xử lý phím ở một tiến trình riêng, nên phím xoá và chữ mới có thể đến lệch thứ tự hoặc bị bỏ qua. Dokey chèn phím sửa ngay tại vị trí bắt phím, bôi đen chữ cũ rồi gõ đè cả cụm trong một lần, và không dùng mã phím của phím bạn đang giữ.
+
+</details>
+
+<details>
+<summary><b>Gõ tiếng Việt trong ChatGPT, Claude bị mất chữ (Hãy thành Hy)?</b></summary>
+
+Đây là lỗi thường gặp với các ô soạn thảo kiểu ProseMirror. Dokey 0.3.2 trở lên đã sửa lỗi này: cài Dokey và cấp quyền Trợ năng là gõ được bình thường.
+
+</details>
+
+<details>
+<summary><b>Dokey có miễn phí không? Có dùng mã của Unikey hay OpenKey không?</b></summary>
+
+Dokey miễn phí cho người dùng cá nhân, không quảng cáo, không có bản trả phí. Dokey được viết mới hoàn toàn với lõi Dokey Core (C++17) và không chứa mã của bộ gõ nào khác.
+
+</details>
 
 <details>
 <summary><b>Đã cài nhưng gõ không ra dấu?</b></summary>

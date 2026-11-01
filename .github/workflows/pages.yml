@@ -1,0 +1,46 @@
+# Copyright (c) 2026 Do Huy Toan (dhtoan). All rights reserved. See LICENSE.
+name: Website
+
+# Publishes site/ to GitHub Pages (https://dhtoan.github.io/Dokey/).
+# To turn it on: make the repository public (or use a plan with private Pages),
+# set Settings > Pages > Source to "GitHub Actions", and add the repository
+# variable PAGES_ENABLED = true (Settings > Secrets and variables > Actions > Variables).
+on:
+  push:
+    branches: [ "main" ]
+    paths: [ "site/**", "docs/images/**", "apps/windows/docs/**", "CMakeLists.txt", ".github/workflows/pages.yml" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: vars.PAGES_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the site
+        run: |
+          bash site/assets.sh
+          python3 site/generate.py
+          mkdir -p _site/en
+          cp site/index.html site/style.css site/robots.txt site/sitemap.xml site/llms.txt _site/
+          cp site/en/index.html _site/en/
+          cp -R site/assets _site/assets
+          ls -R _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
