@@ -18,10 +18,16 @@ Bộ cài chưa được ký số, nên Windows SmartScreen có thể cảnh bá
 
 ![Bảng điều khiển Dokey trên Windows](docs/panel.jpg)
 
-- **Bảng điều khiển** mở ra khi chạy Dokey (Start menu, biểu tượng ngoài màn hình), kể cả khi Dokey đang chạy sẵn, hoặc từ mục "Mở bảng điều khiển" trong menu khay. Có các trang: tổng quan (chế độ gõ, trạng thái, kiểu gõ, ứng dụng đang dùng, số từ đã thêm dấu, nút Bật/Tắt), kiểu gõ, ứng dụng và giới thiệu. Khi khởi động cùng Windows, Dokey chạy ngầm ở khay (`--background`), không mở bảng.
+- **Bảng điều khiển** mở ra khi chạy Dokey (Start menu, biểu tượng ngoài màn hình), kể cả khi Dokey đang chạy sẵn, hoặc từ mục "Mở bảng điều khiển" trong menu khay. Có các trang: tổng quan (chế độ gõ, trạng thái, kiểu gõ, ứng dụng đang dùng, số từ đã thêm dấu, ô gõ thử, nút Bật/Tắt), kiểu gõ, gõ nhanh, ứng dụng và giới thiệu. Khi khởi động cùng Windows, Dokey chạy ngầm ở khay (`--background`), không mở bảng.
 - Biểu tượng **V** (đỏ) / **E** (xám) ở khay hệ thống: bấm chuột trái để chuyển Việt/Anh, chuột phải để mở menu.
 - Phím tắt chuyển Việt/Anh: **Ctrl+Shift** (bấm rồi thả) hoặc **Alt+Z**, chọn trong menu.
 - Menu: kiểu gõ Telex/VNI, kiểm tra chính tả, dấu kiểu mới (hoà, khoẻ) hay kiểu cũ (hòa, khỏe), khởi động cùng Windows.
+- **Gõ nhanh** (trang riêng trong bảng điều khiển):
+  - *Gõ tắt*: mỗi dòng `từ tắt = nội dung`, sửa ngay trong bảng; gõ từ tắt rồi dấu cách để thay (`btw` → by the way, `Btw` → By the way, `BTW` → BY THE WAY). Bật sẵn với vài từ mẫu.
+  - *Quick Telex* (mặc định tắt): ở đầu từ, `cc gg kk nn pp qq tt` → `ch gi kh ng ph qu th`.
+  - *Hoàn tác bằng Esc* (mặc định tắt): trả từ đang gõ về đúng các phím đã gõ (tiếng → tieesng).
+- **Backspace thông minh:** gõ xong một từ và một dấu cách, bấm Backspace là quay lại sửa dấu từ đó (`xin` ␣ ⌫ `f` → xìn); xoá chữ làm dấu thanh đổi chỗ thì dấu tự về đúng vị trí.
+- **Ứng dụng loại trừ:** luôn gõ tiếng Anh trong các ứng dụng chọn ở trang Ứng dụng hoặc mục "Không gõ tiếng Việt trong …" của menu khay. Bấm phím chuyển trong ứng dụng đó để bỏ loại trừ.
 - Cài đặt lưu ở `HKCU\Software\Dokey`.
 
 ## Cách hoạt động
@@ -32,6 +38,7 @@ Bộ cài chưa được ký số, nên Windows SmartScreen có thể cảnh bá
 | Gửi chữ | Khi `dokey_key` trả 1: xoá và chèn chữ (`KEYEVENTF_UNICODE`) bằng **một lần `SendInput`** trên luồng gửi. Khi trả 0: phím gốc đi qua. |
 | Không nhảy chữ | Mỗi sự kiện Dokey gửi đều gắn `dwExtraInfo`. Từ lúc xếp việc tới lúc hook thấy sự kiện cuối của nó quay về, các phím người dùng gõ tiếp được xếp sau, nên không thể vượt lên trước chữ của Dokey. |
 | Chrome, Edge, Electron | Nhận ra cửa sổ lớp `Chrome_WidgetWin_*` và nghỉ ngắn (mặc định 12 ms, `ChromiumPauseMs` trong registry) giữa phím xoá và chữ mới. |
+| Google Docs, Sheets, Slides | Nhận ra qua tiêu đề cửa sổ (tiếng Anh hoặc tiếng Việt): gửi từng phím một, nghỉ 2 ms giữa các phím và 6 ms trước chữ mới (gấp đôi khi bật Tương thích máy chậm). |
 | Đặt lại từ | Khi click chuột, đổi cửa sổ, phím mũi tên/Home/End/Delete/Esc, phím tắt Ctrl/Alt/Win. |
 | Bộ gõ khác | Nếu bộ gõ Trung/Nhật/Hàn (hoặc Telex của Microsoft) đang bật, Dokey tạm đứng ngoài. Trạng thái được hỏi bằng `SendMessageTimeout` trên luồng giao diện và lưu tạm. |
 | Bàn phím | Ký tự được lấy theo bố cục bàn phím của cửa sổ đang gõ (`ToUnicodeEx`), nên bố cục không phải Latin sẽ không bị biến đổi. |
