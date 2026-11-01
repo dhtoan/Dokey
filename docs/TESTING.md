@@ -7,7 +7,7 @@ Trang này ghi lại trung thực những gì đã và chưa được kiểm th�
 | Hạng mục | Trạng thái |
 |---|---|
 | `build.sh` tạo `Dokey.app` Universal (x86_64 + arm64) và `.dmg` trên MacBook Intel, macOS 14, chỉ có Command Line Tools | ✅ Đã chạy |
-| `Dokey --self-test`: gọi engine qua API C từ Swift (Telex, VNI, giữ từ tiếng Anh, tự sửa cuối từ, kiểu dấu cũ), phân loại ứng dụng, vẽ biểu tượng | ✅ Chạy trong mỗi lần build và trên CI (macOS 14, Apple Silicon) |
+| `Dokey --self-test`: gọi engine qua API C từ Swift (Telex, VNI, giữ từ tiếng Anh, tự sửa cuối từ, kiểu dấu cũ), phân loại ứng dụng, vẽ biểu tượng | ✅ Chạy trong mỗi lần build và trên CI (macOS 15, Apple Silicon) |
 | Ứng dụng khởi động và chạy không lỗi khi chưa có quyền Trợ năng; các trang của bảng điều khiển được vẽ ra ảnh để xem lại (`Dokey --render-panel`) | ✅ Máy Intel, macOS 14 |
 | Gõ bằng bản 0.3.0 (có quyền Trợ năng), phím giả lập ở mức HID, 8–120 ms/phím, đọc lại chữ: TextEdit, Terminal, textarea và contenteditable trong Edge | ✅ Đúng hết (`Hãy Việt tiếng đường người`) |
 | Bản 0.3.0 trong trình soạn thảo ProseMirror (trên Edge) và thanh địa chỉ Edge | ❌ Lỗi: ProseMirror bỏ qua Backspace tổng hợp (`Hayãy`); thanh địa chỉ đôi khi ra `Haãy` |
