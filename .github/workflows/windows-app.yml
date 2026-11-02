@@ -58,8 +58,8 @@ jobs:
       - name: Unit tests (x64, x86)
         shell: bash
         run: |
-          ctest --test-dir build/x64 -C Release -R dokey_windows_tests --output-on-failure
-          ctest --test-dir build/x86 -C Release -R dokey_windows_tests --output-on-failure
+          ctest --test-dir build/x64 -C Release -R "dokey_windows_(updater_)?tests" --output-on-failure
+          ctest --test-dir build/x86 -C Release -R "dokey_windows_(updater_)?tests" --output-on-failure
 
       - name: Check binaries
         shell: pwsh
@@ -90,6 +90,15 @@ jobs:
             Write-Host "$arch self-test exit code: $($p.ExitCode)"
             if ($p.ExitCode -ne 0) { throw "$arch self-test failed" }
           }
+
+      - name: Updater (download and verify the latest release)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force update-test | Out-Null
+          $p = Start-Process "dist\bin\x64\Dokey.exe" -ArgumentList '--download-update', "$pwd\update-test" -PassThru -Wait
+          Get-Content update-test\result.txt -Encoding UTF8
+          if ($p.ExitCode -ne 0) { throw "download-update exit code $($p.ExitCode)" }
+          Get-ChildItem update-test\*.exe | Format-Table Name, Length
 
       - name: Render the control panel
         shell: powershell
@@ -137,7 +146,10 @@ jobs:
         shell: pwsh
         run: |
           $setup = Get-ChildItem dist\Dokey-*-Windows-Setup.exe | Select-Object -First 1
-          $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/LOG=install.log' -PassThru -Wait
+          # As Dokey's updater runs it: /relaunch=1 starts the new Dokey with --updated.
+          $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/relaunch=1', '/LOG=install.log' -PassThru
+          # Not -Wait: it would also wait for the Dokey that Setup starts.
+          $p.WaitForExit()
           Get-Content install.log -Tail 15
           if ($p.ExitCode -ne 0) { throw "Setup exit code $($p.ExitCode)" }
           $exe = "$env:LOCALAPPDATA\Programs\Dokey\Dokey.exe"
@@ -150,6 +162,14 @@ jobs:
           $shortcut = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Dokey.lnk'
           if (-not $shortcut) { throw "Start menu shortcut missing" }
           Write-Host "Shortcut: $($shortcut.FullName)"
+          $started = $null
+          foreach ($i in 1..20) {
+            $started = Get-CimInstance Win32_Process -Filter "Name = 'Dokey.exe'" | Where-Object CommandLine -like '*--updated*'
+            if ($started) { break }
+            Start-Sleep -Milliseconds 500
+          }
+          if (-not $started) { throw "Setup /relaunch=1 did not start Dokey --updated" }
+          Write-Host "Relaunched: $($started.CommandLine)"
           $run = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name Dokey -ErrorAction SilentlyContinue
           Write-Host "Run key: $($run.Dokey)"
           $uninstaller = "$env:LOCALAPPDATA\Programs\Dokey\unins000.exe"

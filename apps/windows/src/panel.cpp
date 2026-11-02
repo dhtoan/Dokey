@@ -71,6 +71,8 @@ enum HotId {
     HOT_EXCLUDE_ADD,
     HOT_LANG_VIETNAMESE,
     HOT_LANG_KOREAN,
+    HOT_UPDATES,
+    HOT_AUTO_UPDATE,
     HOT_EXCLUDE_FIRST,  // + index in the excluded list; keep last
 };
 
@@ -864,12 +866,14 @@ void DrawAppsPage(Graphics& g, const RectF& c, const PanelStatus& st) {
              Tr(L"Dokey tự nhận biết trình duyệt, Electron và ứng dụng thường.",
                 L"Dokey는 브라우저, Electron, 일반 앱을 자동으로 구분합니다."),
              kApps);
-    RectF card = SettingsCardRect(c, 3);
+    RectF card = SettingsCardRect(c, 4);
     std::vector<float> y = DrawSettingsCard(g, card, {
         {Tr(L"Tương thích máy chậm", L"느린 PC 호환"),
          Tr(L"Nghỉ lâu hơn giữa phím xoá và chữ mới trong Chrome, Edge, Electron",
             L"Chrome, Edge, Electron에서 지우기와 새 글자 사이에 더 오래 대기")},
         {Tr(L"Khởi động cùng Windows", L"Windows 시작 시 실행"), Tr(L"Tự chạy Dokey khi đăng nhập", L"로그인할 때 Dokey 자동 실행")},
+        {Tr(L"Tự kiểm tra bản mới", L"새 버전 자동 확인"),
+         Tr(L"Báo khi có bản phát hành mới, cập nhật ngay trên máy", L"새 버전이 나오면 알리고 바로 업데이트합니다")},
         {Tr(L"Ứng dụng loại trừ", L"제외할 앱"),
          Tr(L"Luôn gõ tiếng Anh trong các ứng dụng này; bấm phím chuyển ở đó để bỏ loại trừ",
             L"이 앱에서는 항상 영어로 입력, 그 앱에서 전환 키를 누르면 해제")},
@@ -877,10 +881,11 @@ void DrawAppsPage(Graphics& g, const RectF& c, const PanelStatus& st) {
     const float right = card.GetRight() - 18;
     DrawToggle(g, right, y[0], s.chromiumPauseMs >= kSlowPauseMs, HOT_SLOW);
     DrawToggle(g, right, y[1], IsStartupEnabled(), HOT_STARTUP);
+    DrawToggle(g, right, y[2], s.autoCheckUpdates, HOT_AUTO_UPDATE);
     if (!st.appExe.empty() && !IsExcluded(s, st.appExe)) {
         std::wstring text = Tr(L"Thêm ", L"추가: ") + st.appName;
         const float width = std::min(220.0f, TextWidth(g, text, 13, Weight::Semibold) + 32);
-        DrawAccentButton(g, RectF(right - width, y[2] - 14, width, 28), text.c_str(), HOT_EXCLUDE_ADD);
+        DrawAccentButton(g, RectF(right - width, y[3] - 14, width, 28), text.c_str(), HOT_EXCLUDE_ADD);
     }
 
     // The excluded apps as chips; clicking one removes it.
@@ -928,7 +933,7 @@ void DrawAppsPage(Graphics& g, const RectF& c, const PanelStatus& st) {
     }
 }
 
-void DrawAboutPage(Graphics& g, const RectF& c) {
+void DrawAboutPage(Graphics& g, const RectF& c, const PanelStatus& st) {
     const float cx = c.X + c.Width / 2;
     DrawEmblem(g, kAbout, RectF(cx - 60, c.Y + 6, 120, 120));
     float y = c.Y + 130;
@@ -947,7 +952,11 @@ void DrawAboutPage(Graphics& g, const RectF& c) {
           RectF(c.X + c.Width * 0.1f, y, c.Width * 0.8f, 64), 13, Weight::Regular, White(kSecondaryAlpha),
           StringAlignmentCenter, StringAlignmentNear, true);
     y += 76;
-    DrawAccentButton(g, RectF(cx - 110, y, 220, 32), Tr(L"Trang dự án trên GitHub", L"GitHub 프로젝트 페이지"), HOT_GITHUB);
+    const std::wstring update = st.updateVersion.empty()
+                                    ? std::wstring(Tr(L"Kiểm tra cập nhật", L"업데이트 확인"))
+                                    : Tr(L"Cập nhật lên ", L"업데이트: ") + st.updateVersion;
+    DrawAccentButton(g, RectF(cx - 226, y, 220, 32), update.c_str(), HOT_UPDATES);
+    DrawAccentButton(g, RectF(cx + 6, y, 220, 32), Tr(L"Trang dự án trên GitHub", L"GitHub 프로젝트 페이지"), HOT_GITHUB);
     y += 46;
     Label(g, L"© 2026 Do Huy Toan. All rights reserved.", RectF(c.X, y, c.Width, 18), 11, Weight::Regular,
           White(115), StringAlignmentCenter);
@@ -971,7 +980,7 @@ void Render(Graphics& g, const PanelStatus& st) {
         case PAGE_TYPING: DrawTypingPage(g, content); break;
         case PAGE_QUICK: DrawQuickPage(g, content); break;
         case PAGE_APPS: DrawAppsPage(g, content, st); break;
-        default: DrawAboutPage(g, content); break;
+        default: DrawAboutPage(g, content, st); break;
     }
     if (g_page == PAGE_DASHBOARD) {  // the on/off orb lives on the dashboard only
         const float cx = content.X + content.Width / 2;
@@ -1098,6 +1107,10 @@ void OnClick(int id) {
         case HOT_GITHUB:
             ShellExecuteW(g_panel, L"open", L"https://github.com/dhtoan/Dokey", nullptr, nullptr, SW_SHOWNORMAL);
             return;
+        case HOT_UPDATES:
+            if (g_callbacks.checkUpdates) g_callbacks.checkUpdates();
+            return;
+        case HOT_AUTO_UPDATE: s.autoCheckUpdates = !s.autoCheckUpdates; break;
         case HOT_LANG_VIETNAMESE: s.language = LANGUAGE_VIETNAMESE; s.vietnamese = true; break;
         case HOT_LANG_KOREAN: s.language = LANGUAGE_KOREAN; s.vietnamese = true; break;
         case HOT_MACROS: s.macrosEnabled = !s.macrosEnabled; break;

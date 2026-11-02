@@ -17,11 +17,13 @@ struct PanelStatus {
     bool appChromium = false;    // Chrome, Edge, Electron...
     std::wstring appExe;         // its exe name ("chrome.exe")
     unsigned markedWords = 0;    // words Dokey added marks to since it started
+    std::wstring updateVersion;  // a newer release Dokey found, empty when none
 };
 
 struct PanelCallbacks {
     void (*settingsChanged)();   // the panel edited *settings: save and apply them
     PanelStatus (*status)();
+    void (*checkUpdates)();      // "Kiểm tra cập nhật": check, or offer the release already found
 };
 
 // Starts GDI+ and registers the window class. `settings` stays owned by the caller.
