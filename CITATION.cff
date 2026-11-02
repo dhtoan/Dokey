@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use or discuss Dokey, please cite the paper below."
+title: "Dokey"
+type: software
+authors:
+  - family-names: "Do Huy Toan"
+    orcid: "https://orcid.org/0009-0007-5803-4405"
+    website: "https://dhtoan.github.io/"
+repository-code: "https://github.com/dhtoan/Dokey"
+url: "https://dhtoan.github.io/papers/dokey-2026/"
+abstract: "Dokey is a Vietnamese input method for macOS and Windows (Telex, VNI) that rebuilds the whole word from the raw keys on every keystroke."
+keywords:
+  - Vietnamese
+  - input method
+  - IME
+  - text entry
+  - keyboard
+version: "0.5.1"
+date-released: "2026-11-02"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.23888629"
+    description: "Working paper describing Dokey"
+preferred-citation:
+  type: report
+  title: "Dokey: A Vietnamese Input Method That Rebuilds the Whole Word on Every Keystroke"
+  authors:
+    - family-names: "Do Huy Toan"
+      orcid: "https://orcid.org/0009-0007-5803-4405"
+  doi: "10.5281/zenodo.23888629"
+  url: "https://doi.org/10.5281/zenodo.23888629"
+  publisher:
+    name: "Zenodo"
+  year: 2026
+  month: 11
+  notes: "Working paper, version 2"
