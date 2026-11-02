@@ -41,11 +41,13 @@ add_executable(Dokey WIN32
     src/keyboard.cpp
     src/panel.cpp
     src/settings.cpp
+    src/updater.cpp
     res/dokey.rc
     res/dokey.manifest
 )
 target_include_directories(Dokey PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated" "${CMAKE_CURRENT_SOURCE_DIR}/res")
-target_link_libraries(Dokey PRIVATE dokey_core imm32 user32 gdi32 gdiplus dwmapi shell32 advapi32 version)
+target_link_libraries(Dokey PRIVATE dokey_core imm32 user32 gdi32 gdiplus dwmapi shell32 advapi32 version
+                                    winhttp bcrypt comctl32 ole32)
 target_compile_definitions(Dokey PRIVATE
     UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00)
 if(MSVC)
@@ -62,3 +64,13 @@ if(MSVC)
     target_compile_options(dokey_windows_tests PRIVATE /utf-8 /W4)
 endif()
 add_test(NAME dokey_windows_tests COMMAND dokey_windows_tests)
+
+# Release parsing and version comparison of the updater (no network).
+add_executable(dokey_windows_updater_tests tests/updater_tests.cpp src/updater.cpp)
+target_include_directories(dokey_windows_updater_tests PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated" src)
+target_link_libraries(dokey_windows_updater_tests PRIVATE winhttp bcrypt shell32 ole32 version)
+target_compile_definitions(dokey_windows_updater_tests PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00)
+if(MSVC)
+    target_compile_options(dokey_windows_updater_tests PRIVATE /utf-8 /W4)
+endif()
+add_test(NAME dokey_windows_updater_tests COMMAND dokey_windows_updater_tests)

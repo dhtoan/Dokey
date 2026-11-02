@@ -73,6 +73,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\Dokey.exe"; Description: "{cm:LaunchProgram,Dokey}"; Flags: nowait postinstall skipifsilent
+; Dokey's own updater runs Setup /SILENT /relaunch=1: start the new Dokey afterwards.
+Filename: "{app}\Dokey.exe"; Parameters: "--updated"; Flags: nowait runasoriginaluser; Check: Relaunch
 
 [Code]
 const
@@ -91,6 +93,11 @@ end;
 function UseX86: Boolean;
 begin
   Result := (not IsArm64) and (not IsX64OS);
+end;
+
+function Relaunch: Boolean;
+begin
+  Result := ExpandConstant('{param:relaunch|0}') = '1';
 end;
 
 { Asks a running Dokey to quit (it removes its hooks and tray icon). }

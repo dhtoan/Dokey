@@ -58,8 +58,8 @@ jobs:
       - name: Unit tests (x64, x86)
         shell: bash
         run: |
-          ctest --test-dir build/x64 -C Release -R dokey_windows_tests --output-on-failure
-          ctest --test-dir build/x86 -C Release -R dokey_windows_tests --output-on-failure
+          ctest --test-dir build/x64 -C Release -R "dokey_windows_(updater_)?tests" --output-on-failure
+          ctest --test-dir build/x86 -C Release -R "dokey_windows_(updater_)?tests" --output-on-failure
 
       - name: Check binaries
         shell: pwsh
@@ -90,6 +90,15 @@ jobs:
             Write-Host "$arch self-test exit code: $($p.ExitCode)"
             if ($p.ExitCode -ne 0) { throw "$arch self-test failed" }
           }
+
+      - name: Updater (download and verify the latest release)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force update-test | Out-Null
+          $p = Start-Process "dist\bin\x64\Dokey.exe" -ArgumentList '--download-update', "$pwd\update-test" -PassThru -Wait
+          Get-Content update-test\result.txt -Encoding UTF8
+          if ($p.ExitCode -ne 0) { throw "download-update exit code $($p.ExitCode)" }
+          Get-ChildItem update-test\*.exe | Format-Table Name, Length
 
       - name: Render the control panel
         shell: powershell

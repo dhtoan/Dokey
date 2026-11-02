@@ -25,6 +25,9 @@ struct Settings {
     bool macrosEnabled = true;
     std::wstring macros;       // "shortcut = text" lines, # for comments
     std::vector<std::wstring> excludedApps;  // lower-case exe names, always English
+    bool autoCheckUpdates = true;   // look for a new release in the background and say so
+    std::wstring skippedVersion;    // a release the user chose to skip
+    ULONGLONG lastUpdateCheck = 0;  // seconds since 1970 of the last successful check
 };
 
 extern const wchar_t kDefaultMacros[];
