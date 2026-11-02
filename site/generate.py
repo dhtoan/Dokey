@@ -164,6 +164,7 @@ def page(c):
         "screenshot": BASE + "assets/dashboard.png",
         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "VND"},
         "author": {"@type": "Person", "name": "Do Huy Toan", "alternateName": "dhtoan", "url": "https://github.com/dhtoan"},
+        "subjectOf": {"@type": "ScholarlyArticle", "name": "Dokey: A Vietnamese Input Method That Rebuilds the Whole Word on Every Keystroke", "url": "https://doi.org/10.5281/zenodo.23888629", "datePublished": "2026-11-02"},
         "keywords": "bộ gõ tiếng Việt, gõ tiếng Việt trên Mac, Telex, VNI, Vietnamese keyboard, Vietnamese input method, macOS, Windows",
     }
     faq = {
@@ -276,7 +277,7 @@ def page(c):
 </section>
 </main>
 
-<footer>{e(c['footer'])} · <a href="{REPO}">GitHub</a> · <a href="{REPO}/blob/main/LICENSE">License</a></footer>
+<footer>{e(c['footer'])} · <a href="{REPO}">GitHub</a> · <a href="{REPO}/blob/main/LICENSE">License</a> · <a href="https://doi.org/10.5281/zenodo.23888629">Paper (DOI)</a></footer>
 </div>
 </body>
 </html>
@@ -319,6 +320,7 @@ def main():
 - [Website (English)]({BASE}en/)
 - [Source and README]({REPO})
 - [Releases]({RELEASES})
+- [Paper: Dokey: A Vietnamese Input Method That Rebuilds the Whole Word on Every Keystroke (DOI 10.5281/zenodo.23888629)](https://doi.org/10.5281/zenodo.23888629)
 
 ## FAQ
 """ + "\n".join(f"- **{q}** {a}" for q, a in CONTENT['en']['faq']) + "\n")

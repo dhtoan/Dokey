@@ -9,6 +9,7 @@
 ![macOS](https://img.shields.io/badge/macOS-10.13%2B-111111)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-20%2C635%20passing-2EA44F)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23888629.svg)](https://doi.org/10.5281/zenodo.23888629)
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-AppKit-F05138?logo=swift&logoColor=white)
 [![License](https://img.shields.io/badge/license-proprietary-B91C1C)](LICENSE)
@@ -381,6 +382,14 @@ Want your name in **Supporters** below? Add it to the transfer note (for example
 ### 💛 Supporters
 
 *No one yet. Be the first!*
+
+## 📄 Paper
+
+The design, implementation and test results of Dokey are described in a working paper:
+
+> Do Huy Toan (2026). *Dokey: A Vietnamese Input Method That Rebuilds the Whole Word on Every Keystroke* (Version 2) [Working paper]. Zenodo. https://doi.org/10.5281/zenodo.23888629
+
+PDF: [dhtoan.github.io/papers/dokey-2026](https://dhtoan.github.io/papers/dokey-2026/) · [Zenodo](https://zenodo.org/records/23888629)
 
 ## ⚖️ License
 
