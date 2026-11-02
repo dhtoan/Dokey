@@ -146,7 +146,8 @@ jobs:
         shell: pwsh
         run: |
           $setup = Get-ChildItem dist\Dokey-*-Windows-Setup.exe | Select-Object -First 1
-          $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/LOG=install.log' -PassThru -Wait
+          # As Dokey's updater runs it: /relaunch=1 starts the new Dokey with --updated.
+          $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/relaunch=1', '/LOG=install.log' -PassThru -Wait
           Get-Content install.log -Tail 15
           if ($p.ExitCode -ne 0) { throw "Setup exit code $($p.ExitCode)" }
           $exe = "$env:LOCALAPPDATA\Programs\Dokey\Dokey.exe"
@@ -159,6 +160,14 @@ jobs:
           $shortcut = Get-ChildItem "$env:APPDATA\Microsoft\Windows\Start Menu\Programs" -Recurse -Filter 'Dokey.lnk'
           if (-not $shortcut) { throw "Start menu shortcut missing" }
           Write-Host "Shortcut: $($shortcut.FullName)"
+          $started = $null
+          foreach ($i in 1..20) {
+            $started = Get-CimInstance Win32_Process -Filter "Name = 'Dokey.exe'" | Where-Object CommandLine -like '*--updated*'
+            if ($started) { break }
+            Start-Sleep -Milliseconds 500
+          }
+          if (-not $started) { throw "Setup /relaunch=1 did not start Dokey --updated" }
+          Write-Host "Relaunched: $($started.CommandLine)"
           $run = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name Dokey -ErrorAction SilentlyContinue
           Write-Host "Run key: $($run.Dokey)"
           $uninstaller = "$env:LOCALAPPDATA\Programs\Dokey\unins000.exe"
