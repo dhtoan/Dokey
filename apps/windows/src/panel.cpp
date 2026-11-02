@@ -174,7 +174,15 @@ std::vector<std::pair<std::wstring, bool>> HangulRuns(const std::wstring& text) 
     for (wchar_t c : text) {
         const bool neutral = c < 0x80 && !iswalnum(static_cast<wint_t>(c));
         const bool hangul = IsHangul(c);
-        if (runs.empty() || (!neutral && runs.back().second != hangul)) runs.push_back({std::wstring(), hangul});
+        if (runs.empty() || (!neutral && runs.back().second != hangul)) {
+            // Trailing spaces are not measured reliably: they start the next run instead.
+            std::wstring spaces;
+            while (!runs.empty() && !runs.back().first.empty() && runs.back().first.back() == L' ') {
+                spaces.push_back(L' ');
+                runs.back().first.pop_back();
+            }
+            runs.push_back({spaces, hangul});
+        }
         runs.back().first.push_back(c);
     }
     return runs;
