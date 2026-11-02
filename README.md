@@ -164,6 +164,8 @@ Chi tiết: [apps/macos/README.md](apps/macos/README.md) · Đã kiểm thử nh
 
 Cùng một giao diện trên Windows 10/11, vẽ bằng GDI+. Tải bộ cài `Dokey-<phiên bản>-Windows-Setup.exe` ở trang [Releases](https://github.com/dhtoan/Dokey/releases/latest).
 
+**Cập nhật:** từ bản 0.5.2, Dokey tự kiểm tra bản mới và hiện thông báo của Windows. Bấm vào thông báo (hoặc menu khay › **Cập nhật lên Dokey X**) rồi chọn **Cập nhật ngay**: Dokey tự tải bộ cài, kiểm tra mã SHA-256 và phiên bản, cài đè đúng chỗ cũ rồi tự mở lại. Tắt ở trang Ứng dụng › **Tự kiểm tra bản mới**.
+
 <details>
 <summary><b>Dokey cho Windows 10/11</b>: bộ cài <code>Dokey-&lt;phiên bản&gt;-Windows-Setup.exe</code> cho x86, x64 và ARM64</summary>
 
@@ -186,6 +188,7 @@ Cùng một giao diện trên Windows 10/11, vẽ bằng GDI+. Tải bộ cài `
 | `Dokey.exe --self-test`: cài và gỡ hook bàn phím/chuột | ✅ CI, x64 và x86 |
 | **Gõ thật vào Notepad**: phím giả lập bằng `SendInput`, gõ thường (40 ms/phím) và gõ dồn hết tốc độ, đọc lại chữ trong Notepad: `Việt Nam đường windows Tôi yêu tiếng Việt` | ✅ CI, x64 (máy ảo) |
 | Bộ cài: cài im lặng, chọn đúng bản x64, có lối tắt Start menu, gỡ cài đặt sạch | ✅ CI, x64 (máy ảo) |
+| Tự cập nhật: đọc bản mới nhất trên GitHub, tải bộ cài thật, khớp SHA-256 và phiên bản; bộ cài chạy `/relaunch=1` tự mở lại `Dokey.exe --updated` | ✅ CI, x64 (máy ảo). Hộp thoại và thông báo ở khay chưa thử bằng tay |
 | Gõ trong Chrome, Edge, VS Code, Word… | ❌ Chưa kiểm thử |
 | Máy thật Windows 10/11, máy chậm, máy ARM64, bản x86 trên Windows 32-bit | ❌ Chưa kiểm thử |
 | Giao diện khay, menu, phím tắt chuyển Anh/Việt, khởi động cùng Windows | ❌ Chưa kiểm thử bằng tay |

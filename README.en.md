@@ -164,6 +164,8 @@ Details: [apps/macos/README.md](apps/macos/README.md) (Vietnamese) · What has b
 
 The same interface on Windows 10/11, drawn with GDI+. Download `Dokey-<version>-Windows-Setup.exe` from [Releases](https://github.com/dhtoan/Dokey/releases/latest).
 
+**Updates:** from 0.5.2, Dokey checks for a new release and shows a Windows notification. Click it (or tray menu › **Update to Dokey X**) and choose **Update now**: Dokey downloads the installer, checks its SHA-256 and version, installs over the old copy in the same place and starts again. Turn it off in the panel: Ứng dụng › **Tự kiểm tra bản mới**.
+
 <details>
 <summary><b>Dokey for Windows 10/11</b>: one installer, <code>Dokey-&lt;version&gt;-Windows-Setup.exe</code>, for x86, x64 and ARM64</summary>
 
