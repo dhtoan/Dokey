@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://dhtoan.github.io/Dokey/sitemap.xml
+Sitemap: https://dhtoan.github.io/dokey/sitemap.xml
