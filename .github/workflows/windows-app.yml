@@ -147,7 +147,9 @@ jobs:
         run: |
           $setup = Get-ChildItem dist\Dokey-*-Windows-Setup.exe | Select-Object -First 1
           # As Dokey's updater runs it: /relaunch=1 starts the new Dokey with --updated.
-          $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/relaunch=1', '/LOG=install.log' -PassThru -Wait
+          $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/relaunch=1', '/LOG=install.log' -PassThru
+          # Not -Wait: it would also wait for the Dokey that Setup starts.
+          $p.WaitForExit()
           Get-Content install.log -Tail 15
           if ($p.ExitCode -ne 0) { throw "Setup exit code $($p.ExitCode)" }
           $exe = "$env:LOCALAPPDATA\Programs\Dokey\Dokey.exe"
