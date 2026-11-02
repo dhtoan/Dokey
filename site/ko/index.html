@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dokey – 글자가 씹히지 않는 맥(macOS) 한글 입력기 · 두벌식</title>
+<meta name="description" content="Dokey는 macOS용 무료 한글 입력기입니다. 두벌식 자판으로 조합 중 밑줄 없이 바로 완성된 글자를 입력해, Chrome, Claude, ChatGPT, Notion에서도 한글이 씹히거나 자모가 분리되지 않도록 설계했습니다. 베트남어도 지원합니다.">
+<meta name="author" content="Do Huy Toan (dhtoan)">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://dhtoan.github.io/Dokey/ko/">
+<link rel="alternate" hreflang="vi" href="https://dhtoan.github.io/Dokey/">
+<link rel="alternate" hreflang="en" href="https://dhtoan.github.io/Dokey/en/">
+<link rel="alternate" hreflang="ko" href="https://dhtoan.github.io/Dokey/ko/">
+<link rel="alternate" hreflang="x-default" href="https://dhtoan.github.io/Dokey/">
+<link rel="icon" href="../assets/icon.png">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<meta name="theme-color" content="#4f1c9e">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Dokey">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:title" content="Dokey – 글자가 씹히지 않는 맥(macOS) 한글 입력기 · 두벌식">
+<meta property="og:description" content="Dokey는 macOS용 무료 한글 입력기입니다. 두벌식 자판으로 조합 중 밑줄 없이 바로 완성된 글자를 입력해, Chrome, Claude, ChatGPT, Notion에서도 한글이 씹히거나 자모가 분리되지 않도록 설계했습니다. 베트남어도 지원합니다.">
+<meta property="og:url" content="https://dhtoan.github.io/Dokey/ko/">
+<meta property="og:image" content="https://dhtoan.github.io/Dokey/assets/ko-social.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="Dokey 한글 입력기 제어판 (macOS)">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dokey – 글자가 씹히지 않는 맥(macOS) 한글 입력기 · 두벌식">
+<meta name="twitter:description" content="Dokey는 macOS용 무료 한글 입력기입니다. 두벌식 자판으로 조합 중 밑줄 없이 바로 완성된 글자를 입력해, Chrome, Claude, ChatGPT, Notion에서도 한글이 씹히거나 자모가 분리되지 않도록 설계했습니다. 베트남어도 지원합니다.">
+<meta name="twitter:image" content="https://dhtoan.github.io/Dokey/assets/ko-social.png">
+<link rel="stylesheet" href="../style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Dokey", "alternateName": "Bộ gõ tiếng Việt Dokey", "description": "Dokey는 macOS용 무료 한글 입력기입니다. 두벌식 자판으로 조합 중 밑줄 없이 바로 완성된 글자를 입력해, Chrome, Claude, ChatGPT, Notion에서도 한글이 씹히거나 자모가 분리되지 않도록 설계했습니다. 베트남어도 지원합니다.", "applicationCategory": "UtilitiesApplication", "applicationSubCategory": "Vietnamese input method", "operatingSystem": "macOS 10.13+, Windows 10, Windows 11", "softwareVersion": "0.5.0", "inLanguage": ["vi", "en", "ko"], "url": "https://dhtoan.github.io/Dokey/", "downloadUrl": "https://github.com/dhtoan/Dokey/releases/latest", "image": "https://dhtoan.github.io/Dokey/assets/ko-social.png", "screenshot": "https://dhtoan.github.io/Dokey/assets/dashboard.png", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "VND"}, "author": {"@type": "Person", "name": "Do Huy Toan", "alternateName": "dhtoan", "url": "https://github.com/dhtoan"}, "subjectOf": {"@type": "ScholarlyArticle", "name": "Dokey: A Vietnamese Input Method That Rebuilds the Whole Word on Every Keystroke", "url": "https://doi.org/10.5281/zenodo.23888629", "datePublished": "2026-11-02"}, "keywords": "맥 한글 입력기, macOS 한글 입력기, 두벌식, 한글 씹힘, 자모 분리, Korean input method, Mac"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "맥에서 Chrome이나 Claude를 쓸 때 한글이 씹히는 이유는 무엇인가요?", "acceptedAnswer": {"@type": "Answer", "text": "Chrome과 Electron 앱은 키 입력을 별도 프로세스에서 처리하기 때문에, 입력기가 보낸 수정 키와 새 글자가 어긋나거나 사라질 수 있습니다. Dokey는 수정할 글자만 입력 위치에서 바로 선택해 덮어쓰고, 사용자가 누르고 있는 키의 코드를 쓰지 않아 글자 씹힘을 줄였습니다."}}, {"@type": "Question", "name": "Enter를 누르면 마지막 글자가 중복되거나 자모가 분리돼요. Dokey는 어떤가요?", "acceptedAnswer": {"@type": "Answer", "text": "이 문제는 보통 조합 중인 글자(밑줄 표시)를 앱이 제대로 확정하지 못해 생깁니다. Dokey는 조합 중 밑줄을 쓰지 않고 항상 완성된 글자를 바로 입력하므로, 이런 유형의 문제가 생기지 않도록 설계되었습니다."}}, {"@type": "Question", "name": "Dokey는 무료인가요?", "acceptedAnswer": {"@type": "Answer", "text": "네. 개인 사용자는 무료로 사용할 수 있고, 광고나 유료 버전이 없습니다."}}, {"@type": "Question", "name": "Dokey는 안전한가요? 키 입력을 기록하나요?", "acceptedAnswer": {"@type": "Answer", "text": "Dokey는 Mac 안에서만 동작하며 네트워크에 연결하지 않고 키 입력을 저장하지도 않습니다. macOS에서 키를 받아 고치려면 모든 입력기와 마찬가지로 손쉬운 사용 권한이 필요합니다."}}, {"@type": "Question", "name": "어떤 자판을 지원하나요?", "acceptedAnswer": {"@type": "Answer", "text": "한국어는 표준 두벌식을 지원합니다. 세벌식은 아직 지원하지 않습니다. 베트남어는 Telex와 VNI를 지원합니다."}}, {"@type": "Question", "name": "한글과 영문은 어떻게 전환하나요?", "acceptedAnswer": {"@type": "Answer", "text": "Control + Shift(⌃⇧)를 눌렀다 떼면 한글과 영문이 바뀝니다. 다른 단축키로 바꿀 수 있고, 앱마다 마지막 모드를 기억합니다."}}, {"@type": "Question", "name": "macOS 기본 한글 입력기와 함께 써도 되나요?", "acceptedAnswer": {"@type": "Answer", "text": "Dokey를 쓸 때는 macOS 입력 소스를 ABC(또는 U.S.)로 두세요. 기본 2벌식 입력 소스가 켜져 있으면 두 입력기가 동시에 조합하게 됩니다."}}]}</script>
+</head>
+<body>
+<div class="wrap">
+<nav aria-label="Main">
+  <a class="brand" href="https://dhtoan.github.io/Dokey/ko/"><img src="../assets/icon.png" alt="" width="34" height="34">Dokey</a>
+  <div class="links"><a href="#features">기능</a><a href="#download">다운로드</a><a href="#faq">자주 묻는 질문</a><a href="../" hreflang="vi">Tiếng Việt</a><a href="../en/" hreflang="en">English</a></div>
+</nav>
+
+<header class="hero">
+  <div>
+    <h1>글자가 씹히지 않는 맥 한글 입력기</h1>
+    <p class="lead">Dokey는 macOS용 무료 입력기입니다. 두벌식으로 입력하면 조합 중인 글자에 밑줄 없이 바로 완성된 글자가 나타납니다. Chrome, Edge, Claude, ChatGPT, Notion 같은 웹·Electron 앱에서도 한글이 씹히거나 자모가 분리되지 않도록 만들었습니다.</p>
+    <div class="btns">
+      <a class="btn primary" href="#download">⬇ Dokey 무료 다운로드</a>
+      <a class="btn ghost" href="https://github.com/dhtoan/Dokey">소스 보기</a>
+    </div>
+    <div class="chips"><span class="chip">macOS 10.13+ · Intel &amp; Apple Silicon</span><span class="chip">두벌식</span><span class="chip">한국어 베타</span><span class="chip">버전 0.5.0</span></div>
+  </div>
+  <img class="shot" src="../assets/ko-dashboard.png" alt="Dokey 한글 입력기 제어판 (macOS)" width="1458" height="918">
+</header>
+
+<main>
+<section id="features">
+  <h2>왜 Dokey인가요?</h2>
+  <p class="sub">웹과 Electron 앱에서 자주 겪는 한글 입력 문제를 처음부터 다시 설계해 해결했습니다.</p>
+  <div class="grid">
+<div class="card"><span class="ic" aria-hidden="true">⚡</span><h3>글자 씹힘 방지</h3><p>키를 누를 때마다 음절 전체를 다시 조합하고, 바뀐 글자만 입력 위치에서 바로 고칩니다.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">✍️</span><h3>밑줄 없는 즉시 입력</h3><p>조합 중 밑줄(마크드 텍스트)을 쓰지 않아, Enter를 눌러도 마지막 글자가 두 번 입력되지 않도록 설계했습니다.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">⌨️</span><h3>표준 두벌식</h3><p>키 위치로 읽기 때문에 키보드 배열과 관계없이 정확합니다. Shift + q w e r t로 ㅃ ㅉ ㄸ ㄲ ㅆ.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">⌫</span><h3>자모 단위 지우기</h3><p>Backspace는 한 자모씩 지웁니다: 한 → 하 → ㅎ.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">🇻🇳</span><h3>베트남어도 함께</h3><p>Telex·VNI 베트남어 입력과 맞춤법 검사를 같은 앱에서. 메뉴 막대에서 바로 전환하세요.</p></div>
+<div class="card"><span class="ic" aria-hidden="true">🔒</span><h3>개인정보 보호</h3><p>모든 처리는 Mac 안에서만 이루어집니다. 네트워크 연결도, 키 입력 기록도 없습니다.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>입력 예시</h2>
+  <table><tr><th>두벌식</th><td><code>dkssudgktpdy → 안녕하세요 · rkatkgkqslek → 감사합니다 · gksrnr → 한국</code></td></tr>
+<tr><th>베트남어 Telex</th><td><code>Vieetj Nam → Việt Nam · dduowngf → đường</code></td></tr></table>
+  <div class="two" style="margin-top:18px">
+    <img src="../assets/ko-typing.png" alt="Dokey 입력 방식 설정: 한국어 두벌식, 베트남어 Telex·VNI" loading="lazy">
+  </div>
+</section>
+
+<section id="download">
+  <h2>다운로드</h2>
+  <p class="sub">개인 사용자는 무료입니다. <a href="https://github.com/dhtoan/Dokey/releases/latest">GitHub Releases</a></p>
+  <div class="two">
+    <div class="card"><h3>🍎 macOS</h3><p>터미널에서 아래 명령을 실행한 뒤 시스템 설정 › 개인정보 보호 및 보안 › 손쉬운 사용에서 Dokey를 켜세요. 그다음 메뉴 막대의 Dokey 아이콘 › 입력 언어 › 한국어를 고르고, macOS 입력 소스는 ABC로 두세요.</p><pre><code>gh release download -R dhtoan/Dokey --pattern install-macos.sh --dir /tmp --clobber &amp;&amp; bash /tmp/install-macos.sh</code></pre></div>
+    <div class="card"><h3>🪟 Windows</h3><p>Windows용 Dokey는 현재 베트남어를 지원합니다. 한국어 지원은 준비 중입니다.</p><p style="margin-top:14px"><a class="btn primary" href="https://github.com/dhtoan/Dokey/releases/latest">⬇ Setup.exe</a></p></div>
+  </div>
+</section>
+
+<section id="faq">
+  <h2>자주 묻는 질문</h2>
+<details><summary>맥에서 Chrome이나 Claude를 쓸 때 한글이 씹히는 이유는 무엇인가요?</summary><p>Chrome과 Electron 앱은 키 입력을 별도 프로세스에서 처리하기 때문에, 입력기가 보낸 수정 키와 새 글자가 어긋나거나 사라질 수 있습니다. Dokey는 수정할 글자만 입력 위치에서 바로 선택해 덮어쓰고, 사용자가 누르고 있는 키의 코드를 쓰지 않아 글자 씹힘을 줄였습니다.</p></details>
+<details><summary>Enter를 누르면 마지막 글자가 중복되거나 자모가 분리돼요. Dokey는 어떤가요?</summary><p>이 문제는 보통 조합 중인 글자(밑줄 표시)를 앱이 제대로 확정하지 못해 생깁니다. Dokey는 조합 중 밑줄을 쓰지 않고 항상 완성된 글자를 바로 입력하므로, 이런 유형의 문제가 생기지 않도록 설계되었습니다.</p></details>
+<details><summary>Dokey는 무료인가요?</summary><p>네. 개인 사용자는 무료로 사용할 수 있고, 광고나 유료 버전이 없습니다.</p></details>
+<details><summary>Dokey는 안전한가요? 키 입력을 기록하나요?</summary><p>Dokey는 Mac 안에서만 동작하며 네트워크에 연결하지 않고 키 입력을 저장하지도 않습니다. macOS에서 키를 받아 고치려면 모든 입력기와 마찬가지로 손쉬운 사용 권한이 필요합니다.</p></details>
+<details><summary>어떤 자판을 지원하나요?</summary><p>한국어는 표준 두벌식을 지원합니다. 세벌식은 아직 지원하지 않습니다. 베트남어는 Telex와 VNI를 지원합니다.</p></details>
+<details><summary>한글과 영문은 어떻게 전환하나요?</summary><p>Control + Shift(⌃⇧)를 눌렀다 떼면 한글과 영문이 바뀝니다. 다른 단축키로 바꿀 수 있고, 앱마다 마지막 모드를 기억합니다.</p></details>
+<details><summary>macOS 기본 한글 입력기와 함께 써도 되나요?</summary><p>Dokey를 쓸 때는 macOS 입력 소스를 ABC(또는 U.S.)로 두세요. 기본 2벌식 입력 소스가 켜져 있으면 두 입력기가 동시에 조합하게 됩니다.</p></details>
+</section>
+
+<section id="support">
+  <h2>Dokey 응원하기</h2>
+  <div class="sponsor" style="display:block">
+
+    <p class="sub">Dokey는 앞으로도 무료입니다. 마음에 드셨다면 GitHub에 ⭐를 눌러 주시고, 주변에 소개해 주세요. 버그나 잘 안 되는 앱이 있으면 GitHub Issues로 알려 주시면 바로 고치겠습니다.</p>
+  </div>
+</section>
+</main>
+
+<footer>© 2026 Do Huy Toan (dhtoan). 독점 소프트웨어: 복제, 수정, 재배포를 금지합니다. · <a href="https://github.com/dhtoan/Dokey">GitHub</a> · <a href="https://github.com/dhtoan/Dokey/blob/main/LICENSE">License</a> · <a href="https://doi.org/10.5281/zenodo.23888629">Paper (DOI)</a></footer>
+</div>
+</body>
+</html>

@@ -33,9 +33,10 @@ jobs:
         run: |
           bash site/assets.sh
           python3 site/generate.py
-          mkdir -p _site/en
+          mkdir -p _site/en _site/ko
           cp site/index.html site/style.css site/robots.txt site/sitemap.xml site/llms.txt _site/
           cp site/en/index.html _site/en/
+          cp site/ko/index.html _site/ko/
           cp -R site/assets _site/assets
           ls -R _site
       - uses: actions/configure-pages@v5

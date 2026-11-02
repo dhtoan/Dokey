@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Generates the Dokey website (Vietnamese and English pages, sitemap, robots,
+# Generates the Dokey website (Vietnamese, English and Korean pages, sitemap, robots,
 # llms.txt) from one set of content, so the visible FAQ and the schema.org
 # FAQPage data always match. Run: python3 site/generate.py
 #
@@ -29,7 +29,6 @@ CONTENT = {
         "description": "Dokey là bộ gõ tiếng Việt miễn phí cho macOS và Windows: Telex, VNI, kiểm tra chính tả, "
                        "không nhảy chữ trong Chrome, Edge, ChatGPT, Claude. Gõ tắt, Quick Telex, giữ nguyên từ tiếng Anh.",
         "nav": [("#tinh-nang", "Tính năng"), ("#tai-ve", "Tải về"), ("#hoi-dap", "Hỏi đáp"), ("#ung-ho", "Ủng hộ")],
-        "switch": ("en/", "English"),
         "h1": "Bộ gõ tiếng Việt gõ đúng ngay lần đầu",
         "lead": "Dokey là bộ gõ tiếng Việt miễn phí cho macOS và Windows. Không nhảy chữ, không mất chữ, "
                 "kể cả trong Chrome, Edge, ChatGPT, Claude và các ứng dụng Electron. Từ tiếng Anh được giữ nguyên.",
@@ -87,7 +86,6 @@ CONTENT = {
         "description": "Dokey is a free Vietnamese input method (keyboard) for macOS and Windows: Telex, VNI, spell checking, "
                        "no jumbled letters in Chrome, Edge, ChatGPT or Claude. Text shortcuts, Quick Telex, English words kept.",
         "nav": [("#features", "Features"), ("#download", "Download"), ("#faq", "FAQ"), ("#support", "Support")],
-        "switch": ("../", "Tiếng Việt"),
         "h1": "Vietnamese typing, right the first time",
         "lead": "Dokey is a free Vietnamese input method for macOS and Windows. No jumbled or lost letters, even in "
                 "Chrome, Edge, ChatGPT, Claude and Electron apps. English words stay as typed.",
@@ -138,13 +136,80 @@ CONTENT = {
                ("MoMo wallet", "Scan with MoMo or a banking app", "../assets/momo.png")],
         "footer": "© 2026 Do Huy Toan (dhtoan). Proprietary software: copying, modification and redistribution prohibited.",
     },
+    "ko": {
+        "path": "ko/",
+        "lang": "ko",
+        "title": "Dokey – 글자가 씹히지 않는 맥(macOS) 한글 입력기 · 두벌식",
+        "description": "Dokey는 macOS용 무료 한글 입력기입니다. 두벌식 자판으로 조합 중 밑줄 없이 바로 완성된 글자를 입력해, "
+                       "Chrome, Claude, ChatGPT, Notion에서도 한글이 씹히거나 자모가 분리되지 않도록 설계했습니다. 베트남어도 지원합니다.",
+        "nav": [("#features", "기능"), ("#download", "다운로드"), ("#faq", "자주 묻는 질문")],
+        "h1": "글자가 씹히지 않는 맥 한글 입력기",
+        "lead": "Dokey는 macOS용 무료 입력기입니다. 두벌식으로 입력하면 조합 중인 글자에 밑줄 없이 바로 완성된 글자가 나타납니다. "
+                "Chrome, Edge, Claude, ChatGPT, Notion 같은 웹·Electron 앱에서도 한글이 씹히거나 자모가 분리되지 않도록 만들었습니다.",
+        "cta": ("Dokey 무료 다운로드", "소스 보기"),
+        "chips": ["macOS 10.13+ · Intel & Apple Silicon", "두벌식", "한국어 베타", f"버전 {VERSION}"],
+        "shot_alt": "Dokey 한글 입력기 제어판 (macOS)",
+        "shot": "ko-dashboard.png",
+        "gallery": [("ko-typing.png", "Dokey 입력 방식 설정: 한국어 두벌식, 베트남어 Telex·VNI")],
+        "social": "assets/ko-social.png",
+        "features_title": "왜 Dokey인가요?",
+        "features_sub": "웹과 Electron 앱에서 자주 겪는 한글 입력 문제를 처음부터 다시 설계해 해결했습니다.",
+        "features": [
+            ("⚡", "글자 씹힘 방지", "키를 누를 때마다 음절 전체를 다시 조합하고, 바뀐 글자만 입력 위치에서 바로 고칩니다."),
+            ("✍️", "밑줄 없는 즉시 입력", "조합 중 밑줄(마크드 텍스트)을 쓰지 않아, Enter를 눌러도 마지막 글자가 두 번 입력되지 않도록 설계했습니다."),
+            ("⌨️", "표준 두벌식", "키 위치로 읽기 때문에 키보드 배열과 관계없이 정확합니다. Shift + q w e r t로 ㅃ ㅉ ㄸ ㄲ ㅆ."),
+            ("⌫", "자모 단위 지우기", "Backspace는 한 자모씩 지웁니다: 한 → 하 → ㅎ."),
+            ("🇻🇳", "베트남어도 함께", "Telex·VNI 베트남어 입력과 맞춤법 검사를 같은 앱에서. 메뉴 막대에서 바로 전환하세요."),
+            ("🔒", "개인정보 보호", "모든 처리는 Mac 안에서만 이루어집니다. 네트워크 연결도, 키 입력 기록도 없습니다."),
+        ],
+        "examples_title": "입력 예시",
+        "examples": [("두벌식", "dkssudgktpdy → 안녕하세요 · rkatkgkqslek → 감사합니다 · gksrnr → 한국"),
+                     ("베트남어 Telex", "Vieetj Nam → Việt Nam · dduowngf → đường")],
+        "download_title": "다운로드",
+        "download_sub": "개인 사용자는 무료입니다.",
+        "mac": ("🍎 macOS", "터미널에서 아래 명령을 실행한 뒤 시스템 설정 › 개인정보 보호 및 보안 › 손쉬운 사용에서 Dokey를 켜세요. "
+                           "그다음 메뉴 막대의 Dokey 아이콘 › 입력 언어 › 한국어를 고르고, macOS 입력 소스는 ABC로 두세요."),
+        "win": ("🪟 Windows", "Windows용 Dokey는 현재 베트남어를 지원합니다. 한국어 지원은 준비 중입니다."),
+        "faq_title": "자주 묻는 질문",
+        "faq": [
+            ("맥에서 Chrome이나 Claude를 쓸 때 한글이 씹히는 이유는 무엇인가요?",
+             "Chrome과 Electron 앱은 키 입력을 별도 프로세스에서 처리하기 때문에, 입력기가 보낸 수정 키와 새 글자가 어긋나거나 사라질 수 있습니다. "
+             "Dokey는 수정할 글자만 입력 위치에서 바로 선택해 덮어쓰고, 사용자가 누르고 있는 키의 코드를 쓰지 않아 글자 씹힘을 줄였습니다."),
+            ("Enter를 누르면 마지막 글자가 중복되거나 자모가 분리돼요. Dokey는 어떤가요?",
+             "이 문제는 보통 조합 중인 글자(밑줄 표시)를 앱이 제대로 확정하지 못해 생깁니다. Dokey는 조합 중 밑줄을 쓰지 않고 항상 완성된 글자를 바로 입력하므로, "
+             "이런 유형의 문제가 생기지 않도록 설계되었습니다."),
+            ("Dokey는 무료인가요?",
+             "네. 개인 사용자는 무료로 사용할 수 있고, 광고나 유료 버전이 없습니다."),
+            ("Dokey는 안전한가요? 키 입력을 기록하나요?",
+             "Dokey는 Mac 안에서만 동작하며 네트워크에 연결하지 않고 키 입력을 저장하지도 않습니다. macOS에서 키를 받아 고치려면 모든 입력기와 마찬가지로 손쉬운 사용 권한이 필요합니다."),
+            ("어떤 자판을 지원하나요?",
+             "한국어는 표준 두벌식을 지원합니다. 세벌식은 아직 지원하지 않습니다. 베트남어는 Telex와 VNI를 지원합니다."),
+            ("한글과 영문은 어떻게 전환하나요?",
+             "Control + Shift(⌃⇧)를 눌렀다 떼면 한글과 영문이 바뀝니다. 다른 단축키로 바꿀 수 있고, 앱마다 마지막 모드를 기억합니다."),
+            ("macOS 기본 한글 입력기와 함께 써도 되나요?",
+             "Dokey를 쓸 때는 macOS 입력 소스를 ABC(또는 U.S.)로 두세요. 기본 2벌식 입력 소스가 켜져 있으면 두 입력기가 동시에 조합하게 됩니다."),
+        ],
+        "sponsor_title": "Dokey 응원하기",
+        "sponsor_text": "Dokey는 앞으로도 무료입니다. 마음에 드셨다면 GitHub에 ⭐를 눌러 주시고, 주변에 소개해 주세요. "
+                        "버그나 잘 안 되는 앱이 있으면 GitHub Issues로 알려 주시면 바로 고치겠습니다.",
+        "qr": [],
+        "footer": "© 2026 Do Huy Toan (dhtoan). 독점 소프트웨어: 복제, 수정, 재배포를 금지합니다.",
+    },
 }
 
 INSTALL = "gh release download -R dhtoan/Dokey --pattern install-macos.sh --dir /tmp --clobber &amp;&amp; bash /tmp/install-macos.sh"
 
 
+LANGS = [("vi", "", "Tiếng Việt"), ("en", "en/", "English"), ("ko", "ko/", "한국어")]
+LOCALES = {"vi": "vi_VN", "en": "en_US", "ko": "ko_KR"}
+
+
 def page(c):
     url = BASE + c["path"]
+    up = "" if c["path"] == "" else "../"
+    switch = "".join(f'<a href="{up}{p}" hreflang="{l}">{name}</a>' for l, p, name in LANGS if l != c["lang"])
+    hreflang = "\n".join(f'<link rel="alternate" hreflang="{l}" href="{BASE}{p}">' for l, p, _ in LANGS)
+    social = BASE + c.get("social", "assets/social.png")
     assets = "assets/" if c["path"] == "" else "../assets/"
     e = html.escape
     software = {
@@ -157,15 +222,17 @@ def page(c):
         "applicationSubCategory": "Vietnamese input method",
         "operatingSystem": "macOS 10.13+, Windows 10, Windows 11",
         "softwareVersion": VERSION,
-        "inLanguage": ["vi", "en"],
+        "inLanguage": ["vi", "en", "ko"],
         "url": BASE,
         "downloadUrl": RELEASES,
-        "image": BASE + "assets/social.png",
+        "image": social,
         "screenshot": BASE + "assets/dashboard.png",
         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "VND"},
         "author": {"@type": "Person", "name": "Do Huy Toan", "alternateName": "dhtoan", "url": "https://github.com/dhtoan"},
         "subjectOf": {"@type": "ScholarlyArticle", "name": "Dokey: A Vietnamese Input Method That Rebuilds the Whole Word on Every Keystroke", "url": "https://doi.org/10.5281/zenodo.23888629", "datePublished": "2026-11-02"},
-        "keywords": "bộ gõ tiếng Việt, gõ tiếng Việt trên Mac, Telex, VNI, Vietnamese keyboard, Vietnamese input method, macOS, Windows",
+        "keywords": ("맥 한글 입력기, macOS 한글 입력기, 두벌식, 한글 씹힘, 자모 분리, Korean input method, Mac"
+                     if c["lang"] == "ko" else
+                     "bộ gõ tiếng Việt, gõ tiếng Việt trên Mac, Telex, VNI, Vietnamese keyboard, Vietnamese input method, macOS, Windows"),
     }
     faq = {
         "@context": "https://schema.org",
@@ -173,7 +240,8 @@ def page(c):
         "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in c["faq"]],
     }
     ld = lambda o: '<script type="application/ld+json">' + json.dumps(o, ensure_ascii=False) + "</script>"
-    ids = {"vi": ("tinh-nang", "tai-ve", "hoi-dap", "ung-ho"), "en": ("features", "download", "faq", "support")}[c["lang"]]
+    ids = {"vi": ("tinh-nang", "tai-ve", "hoi-dap", "ung-ho"), "en": ("features", "download", "faq", "support"),
+           "ko": ("features", "download", "faq", "support")}[c["lang"]]
 
     feats = "\n".join(f'<div class="card"><span class="ic" aria-hidden="true">{i}</span><h3>{e(t)}</h3><p>{e(d)}</p></div>'
                       for i, t, d in c["features"])
@@ -182,6 +250,8 @@ def page(c):
     qrs = "\n".join(f'<div class="qr"><img src="{src}" alt="{e(title)}" loading="lazy"><b>{e(title)}</b><br>{e(note)}</div>'
                     for title, note, src in c["qr"])
     nav = "".join(f'<a href="{h}">{e(t)}</a>' for h, t in c["nav"])
+    gallery = "\n".join(f'    <img src="{assets}{src}" alt="{e(alt)}" loading="lazy">'
+                         for src, alt in c.get("gallery", [("typing.png", "Dokey: Telex, VNI"), ("windows.jpg", "Dokey Windows")]))
     return f"""<!doctype html>
 <html lang="{c['lang']}">
 <head>
@@ -192,26 +262,25 @@ def page(c):
 <meta name="author" content="Do Huy Toan (dhtoan)">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="{url}">
-<link rel="alternate" hreflang="vi" href="{BASE}">
-<link rel="alternate" hreflang="en" href="{BASE}en/">
+{hreflang}
 <link rel="alternate" hreflang="x-default" href="{BASE}">
 <link rel="icon" href="{assets}icon.png">
 <link rel="apple-touch-icon" href="{assets}icon.png">
 <meta name="theme-color" content="#4f1c9e">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Dokey">
-<meta property="og:locale" content="{'vi_VN' if c['lang'] == 'vi' else 'en_US'}">
+<meta property="og:locale" content="{LOCALES[c['lang']]}">
 <meta property="og:title" content="{e(c['title'])}">
 <meta property="og:description" content="{e(c['description'])}">
 <meta property="og:url" content="{url}">
-<meta property="og:image" content="{BASE}assets/social.png">
+<meta property="og:image" content="{social}">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="{e(c['shot_alt'])}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{e(c['title'])}">
 <meta name="twitter:description" content="{e(c['description'])}">
-<meta name="twitter:image" content="{BASE}assets/social.png">
+<meta name="twitter:image" content="{social}">
 <link rel="stylesheet" href="{'style.css' if c['path'] == '' else '../style.css'}">
 {ld(software)}
 {ld(faq)}
@@ -220,7 +289,7 @@ def page(c):
 <div class="wrap">
 <nav aria-label="Main">
   <a class="brand" href="{url}"><img src="{assets}icon.png" alt="" width="34" height="34">Dokey</a>
-  <div class="links">{nav}<a href="{c['switch'][0]}" hreflang="{'en' if c['lang'] == 'vi' else 'vi'}">{e(c['switch'][1])}</a></div>
+  <div class="links">{nav}{switch}</div>
 </nav>
 
 <header class="hero">
@@ -233,7 +302,7 @@ def page(c):
     </div>
     <div class="chips">{''.join(f'<span class="chip">{e(x)}</span>' for x in c['chips'])}</div>
   </div>
-  <img class="shot" src="{assets}dashboard.png" alt="{e(c['shot_alt'])}" width="1458" height="918">
+  <img class="shot" src="{assets}{c.get('shot', 'dashboard.png')}" alt="{e(c['shot_alt'])}" width="1458" height="918">
 </header>
 
 <main>
@@ -249,8 +318,7 @@ def page(c):
   <h2>{e(c['examples_title'])}</h2>
   <table>{examples}</table>
   <div class="two" style="margin-top:18px">
-    <img src="{assets}typing.png" alt="Dokey: Telex, VNI" loading="lazy">
-    <img src="{assets}windows.jpg" alt="Dokey Windows" loading="lazy">
+{gallery}
   </div>
 </section>
 
@@ -270,7 +338,7 @@ def page(c):
 
 <section id="{ids[3]}">
   <h2>{e(c['sponsor_title'])}</h2>
-  <div class="sponsor">
+  <div class="sponsor"{' style="display:block"' if not c['qr'] else ''}>
 {qrs}
     <p class="sub">{e(c['sponsor_text'])}</p>
   </div>
@@ -293,8 +361,9 @@ def main():
     with open(os.path.join(HERE, "sitemap.xml"), "w", encoding="utf-8") as f:
         f.write(f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  <url><loc>{BASE}</loc><xhtml:link rel="alternate" hreflang="en" href="{BASE}en/"/></url>
-  <url><loc>{BASE}en/</loc><xhtml:link rel="alternate" hreflang="vi" href="{BASE}"/></url>
+  <url><loc>{BASE}</loc><xhtml:link rel="alternate" hreflang="en" href="{BASE}en/"/><xhtml:link rel="alternate" hreflang="ko" href="{BASE}ko/"/></url>
+  <url><loc>{BASE}en/</loc><xhtml:link rel="alternate" hreflang="vi" href="{BASE}"/><xhtml:link rel="alternate" hreflang="ko" href="{BASE}ko/"/></url>
+  <url><loc>{BASE}ko/</loc><xhtml:link rel="alternate" hreflang="vi" href="{BASE}"/><xhtml:link rel="alternate" hreflang="en" href="{BASE}en/"/></url>
 </urlset>
 """)
     with open(os.path.join(HERE, "robots.txt"), "w", encoding="utf-8") as f:
@@ -303,7 +372,7 @@ def main():
     with open(os.path.join(HERE, "llms.txt"), "w", encoding="utf-8") as f:
         f.write(f"""# Dokey
 
-> Dokey is a free Vietnamese input method (bộ gõ tiếng Việt) for macOS 10.13+ (Intel and Apple Silicon) and
+> Dokey is a free Vietnamese and Korean input method (bộ gõ tiếng Việt, 한글 입력기) for macOS 10.13+ (Intel and Apple Silicon) and
 > Windows 10/11, by Do Huy Toan (dhtoan). Telex and VNI, spell checking against 3,964 Vietnamese syllables,
 > English words kept as typed, and no jumbled or lost letters in Chrome, Edge, ChatGPT, Claude and Electron apps.
 > Current version {VERSION}. Proprietary, free for personal use. Written from scratch (no Unikey/OpenKey code).
@@ -312,12 +381,14 @@ def main():
 - Install on macOS: `gh release download -R dhtoan/Dokey --pattern install-macos.sh --dir /tmp --clobber && bash /tmp/install-macos.sh`, then enable Accessibility permission.
 - Install on Windows: Dokey-<version>-Windows-Setup.exe from {RELEASES}.
 - Switch Vietnamese/English: Control+Shift (Mac), Ctrl+Shift (Windows). Mode remembered per app.
+- Korean (macOS, beta): standard 2-beolsik (두벌식) layout, chosen in the menu bar (입력 언어 › 한국어); keep the macOS input source on ABC. Composes without marked text (no underline), so web and Electron apps get finished syllables.
 - Features: text shortcuts (vn → Việt Nam), Quick Telex (cc → ch), undo with Esc, Backspace reopens the previous word, Google Docs and Spotlight handling, excluded apps.
 - Privacy: runs locally, no network, no keystroke storage.
 
 ## Links
 - [Website (Vietnamese)]({BASE})
 - [Website (English)]({BASE}en/)
+- [Website (한국어)]({BASE}ko/)
 - [Source and README]({REPO})
 - [Releases]({RELEASES})
 - [Paper: Dokey: A Vietnamese Input Method That Rebuilds the Whole Word on Every Keystroke (DOI 10.5281/zenodo.23888629)](https://doi.org/10.5281/zenodo.23888629)

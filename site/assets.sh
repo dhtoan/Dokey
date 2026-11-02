@@ -8,6 +8,7 @@ mkdir -p "$A"
 cp "$ROOT/docs/images/dashboard.png" "$ROOT/docs/images/typing.png" "$ROOT/docs/images/social.png" "$A/"
 cp "$ROOT/docs/images/sponsor/momo.png" "$A/momo.png"
 cp "$ROOT/apps/windows/docs/panel.jpg" "$A/windows.jpg"
+for f in dashboard typing social; do cp "$ROOT/docs/images/ko/$f.png" "$A/ko-$f.png"; done
 if [ -f "$ROOT/apps/macos/build/Dokey.app/Contents/Resources/AppIcon.icns" ] && command -v sips >/dev/null; then
     sips -s format png -Z 256 "$ROOT/apps/macos/build/Dokey.app/Contents/Resources/AppIcon.icns" --out "$A/icon.png" >/dev/null
 elif [ -f "$ROOT/docs/images/icon.png" ]; then

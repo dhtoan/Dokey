@@ -1,20 +1,22 @@
 # Dokey
 
-> Dokey is a free Vietnamese input method (bộ gõ tiếng Việt) for macOS 10.13+ (Intel and Apple Silicon) and
+> Dokey is a free Vietnamese and Korean input method (bộ gõ tiếng Việt, 한글 입력기) for macOS 10.13+ (Intel and Apple Silicon) and
 > Windows 10/11, by Do Huy Toan (dhtoan). Telex and VNI, spell checking against 3,964 Vietnamese syllables,
 > English words kept as typed, and no jumbled or lost letters in Chrome, Edge, ChatGPT, Claude and Electron apps.
-> Current version 0.4.0. Proprietary, free for personal use. Written from scratch (no Unikey/OpenKey code).
+> Current version 0.5.0. Proprietary, free for personal use. Written from scratch (no Unikey/OpenKey code).
 
 ## Key facts
 - Install on macOS: `gh release download -R dhtoan/Dokey --pattern install-macos.sh --dir /tmp --clobber && bash /tmp/install-macos.sh`, then enable Accessibility permission.
 - Install on Windows: Dokey-<version>-Windows-Setup.exe from https://github.com/dhtoan/Dokey/releases/latest.
 - Switch Vietnamese/English: Control+Shift (Mac), Ctrl+Shift (Windows). Mode remembered per app.
+- Korean (macOS, beta): standard 2-beolsik (두벌식) layout, chosen in the menu bar (입력 언어 › 한국어); keep the macOS input source on ABC. Composes without marked text (no underline), so web and Electron apps get finished syllables.
 - Features: text shortcuts (vn → Việt Nam), Quick Telex (cc → ch), undo with Esc, Backspace reopens the previous word, Google Docs and Spotlight handling, excluded apps.
 - Privacy: runs locally, no network, no keystroke storage.
 
 ## Links
 - [Website (Vietnamese)](https://dhtoan.github.io/Dokey/)
 - [Website (English)](https://dhtoan.github.io/Dokey/en/)
+- [Website (한국어)](https://dhtoan.github.io/Dokey/ko/)
 - [Source and README](https://github.com/dhtoan/Dokey)
 - [Releases](https://github.com/dhtoan/Dokey/releases/latest)
 - [Paper: Dokey: A Vietnamese Input Method That Rebuilds the Whole Word on Every Keystroke (DOI 10.5281/zenodo.23888629)](https://doi.org/10.5281/zenodo.23888629)

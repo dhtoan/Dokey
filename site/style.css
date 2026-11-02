@@ -60,3 +60,5 @@ footer { padding: 36px 0 50px; color: var(--muted); font-size: 14px; border-top:
   .sponsor { grid-template-columns: 1fr; justify-items: center; }
   nav .links a { margin-left: 12px; }
 }
+/* Korean: break lines between words, never inside one. */
+:lang(ko) { word-break: keep-all; overflow-wrap: break-word; }

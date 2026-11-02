@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  <url><loc>https://dhtoan.github.io/Dokey/</loc><xhtml:link rel="alternate" hreflang="en" href="https://dhtoan.github.io/Dokey/en/"/></url>
-  <url><loc>https://dhtoan.github.io/Dokey/en/</loc><xhtml:link rel="alternate" hreflang="vi" href="https://dhtoan.github.io/Dokey/"/></url>
+  <url><loc>https://dhtoan.github.io/Dokey/</loc><xhtml:link rel="alternate" hreflang="en" href="https://dhtoan.github.io/Dokey/en/"/><xhtml:link rel="alternate" hreflang="ko" href="https://dhtoan.github.io/Dokey/ko/"/></url>
+  <url><loc>https://dhtoan.github.io/Dokey/en/</loc><xhtml:link rel="alternate" hreflang="vi" href="https://dhtoan.github.io/Dokey/"/><xhtml:link rel="alternate" hreflang="ko" href="https://dhtoan.github.io/Dokey/ko/"/></url>
+  <url><loc>https://dhtoan.github.io/Dokey/ko/</loc><xhtml:link rel="alternate" hreflang="vi" href="https://dhtoan.github.io/Dokey/"/><xhtml:link rel="alternate" hreflang="en" href="https://dhtoan.github.io/Dokey/en/"/></url>
 </urlset>

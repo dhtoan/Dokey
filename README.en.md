@@ -21,6 +21,7 @@
 
 [![Tiếng Việt](https://img.shields.io/badge/Ng%C3%B4n_ng%E1%BB%AF-Ti%E1%BA%BFng_Vi%E1%BB%87t-DA251D)](README.md)
 [![English](https://img.shields.io/badge/Language-English-1F6FEB)](README.en.md)
+[![한국어](https://img.shields.io/badge/%EC%96%B8%EC%96%B4-%ED%95%9C%EA%B5%AD%EC%96%B4-0F766E)](README.ko.md)
 
 [**⬇️ Get it for macOS**](#-macos) &nbsp;·&nbsp; [**⬇️ Get it for Windows**](#-windows) &nbsp;·&nbsp; [Features](#-features) &nbsp;·&nbsp; [Developers](#-for-developers) &nbsp;·&nbsp; [Roadmap](#-roadmap)
 
@@ -130,6 +131,7 @@ gh release download -R dhtoan/Dokey --pattern install-macos.sh --dir /tmp --clob
 Then enable Dokey in **System Settings › Privacy & Security › Accessibility**. You can also download `Dokey-<version>.dmg` from [Releases](https://github.com/dhtoan/Dokey/releases/latest).
 
 - One Universal binary: Intel from macOS 10.13, Apple Silicon from macOS 11.
+- **Korean typing (2-beolsik, beta):** menu bar › Typing language › 한국어. The interface switches to Korean on a Korean Mac. See [README.ko.md](README.ko.md).
 - A **V/E** icon in the menu bar. Open Dokey.app to get the control panel, with a **Try typing** box (“Gõ thử”) built in.
 - Detects browsers, Electron/IDE apps and regular apps and picks the right way to send keys for each. A **slow-Mac mode** (“Tương thích máy chậm”) is available.
 - Builds with the Command Line Tools only, no Xcode: `apps/macos/build.sh --dmg`.

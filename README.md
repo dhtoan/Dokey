@@ -21,6 +21,7 @@
 
 [![Tiếng Việt](https://img.shields.io/badge/Ng%C3%B4n_ng%E1%BB%AF-Ti%E1%BA%BFng_Vi%E1%BB%87t-DA251D)](README.md)
 [![English](https://img.shields.io/badge/Language-English-1F6FEB)](README.en.md)
+[![한국어](https://img.shields.io/badge/%EC%96%B8%EC%96%B4-%ED%95%9C%EA%B5%AD%EC%96%B4-0F766E)](README.ko.md)
 
 [**⬇️ Tải cho macOS**](#-macos) &nbsp;·&nbsp; [**⬇️ Tải cho Windows**](#-windows) &nbsp;·&nbsp; [Tính năng](#-tính-năng) &nbsp;·&nbsp; [Nhà phát triển](#-dành-cho-nhà-phát-triển) &nbsp;·&nbsp; [Lộ trình](#-lộ-trình)
 
@@ -130,6 +131,7 @@ gh release download -R dhtoan/Dokey --pattern install-macos.sh --dir /tmp --clob
 Sau đó bật Dokey trong **System Settings › Privacy & Security › Accessibility**. Bạn cũng có thể tải `Dokey-<phiên bản>.dmg` ở trang [Releases](https://github.com/dhtoan/Dokey/releases/latest).
 
 - Một tệp Universal: Intel từ macOS 10.13, Apple Silicon từ macOS 11.
+- **Gõ tiếng Hàn (2-beolsik, beta):** chọn ở thanh menu › Ngôn ngữ gõ › 한국어. Giao diện tự chuyển sang tiếng Hàn trên máy dùng tiếng Hàn. Xem [README.ko.md](README.ko.md).
 - Biểu tượng **V/E** trên thanh menu. Bấm vào Dokey.app để mở bảng điều khiển, có ô **Gõ thử** ngay bên trong.
 - Tự nhận biết trình duyệt, ứng dụng Electron/IDE và ứng dụng thường để chọn cách gửi phím phù hợp. Có chế độ **Tương thích máy chậm**.
 - Build bằng Command Line Tools, không cần Xcode: `apps/macos/build.sh --dmg`.
