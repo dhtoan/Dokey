@@ -502,13 +502,20 @@ Edit Engine::key(char32_t ch) {
         if (!expanded && !literal_ && !raw_.empty() && raw_.size() <= kMaxWordKeys && ch <= 0xFFFF) {
             std::u16string done = render(raw_, true);
             // A longer word that is not Vietnamese and only lost a letter to a
-            // cancelled tone key is English with a double letter: pass, error,
-            // session. Show every key typed. (Short "ass" -> "as" keeps the
-            // Telex convention.)
+            // cancelled tone key is English with a double letter when the
+            // double ends the word or a vowel (or w) follows it: pass, message,
+            // password. Show every key typed. Before a consonant the double
+            // is the Telex way to type the letter once: "tesst" -> "test",
+            // "marrketing" -> "marketing". Short "ass" -> "as" keeps it too.
             std::u16string shown;
-            if (typed_.size() >= 4 && typed_.size() == raw_.size() + 0 && toneUndone(raw_, options_, shown) &&
+            if (typed_.size() >= 4 && typed_.size() == raw_.size() && toneUndone(raw_, options_, shown) &&
                 done == shown && done.size() < typed_.size()) {
-                done = typed_;
+                size_t cancel = 2;  // keys up to and including the cancelling one
+                std::u16string prefix;
+                while (cancel < raw_.size() && !toneUndone(raw_.substr(0, cancel), options_, prefix)) cancel++;
+                char16_t next = cancel < raw_.size() ? raw_[cancel] : u'\0';
+                if (next >= u'A' && next <= u'Z') next = static_cast<char16_t>(next - u'A' + u'a');
+                if (next == u'\0' || std::u16string(u"aeiouwy").find(next) != std::u16string::npos) done = typed_;
             }
             if (done != display_) {
                 edit = commit(done + static_cast<char16_t>(ch), ch);

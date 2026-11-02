@@ -124,6 +124,20 @@ static const Case kTelex[] = {
     {"ww ", "w "},
     {"asf ", "à "},
     {"asz ", "a "},
+    // a tone key doubled before a consonant is typed once; before a vowel or
+    // at the end of a longer English word both letters stay
+    {"tesst ", "test "},
+    {"marrketing ", "marketing "},
+    {"Tesst ", "Test "},
+    {"message ", "message "},
+    {"different ", "different "},
+    {"error ", "error "},
+    {"password ", "password "},
+    {"offfline ", "offline "},   // three keys type the double before a consonant
+    {"test ", "tét "},
+    {"pass ", "pass "},
+    {"class ", "class "},
+    {"less ", "less "},
     // English words are kept as typed
     {"windows ", "windows "},
     {"master ", "master "},
