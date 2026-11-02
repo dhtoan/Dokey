@@ -30,7 +30,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         if let app = NSWorkspace.shared.frontmostApplication { activate(app) }
 
         installMainMenu()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 20) { Updater.shared.check(interactive: false) }
+        Updater.shared.start()
+        NotificationCenter.default.addObserver(forName: .dokeyUpdateAvailable, object: nil, queue: .main) { [weak self] _ in
+            self?.controlPanel?.refresh()
+        }
         if !tap.start() {
             showPermissionGuide()
         } else if !launchedAtLogin {
@@ -124,7 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         updateIcon()
     }
 
-    func panelCheckUpdates() { Updater.shared.check(interactive: true) }
+    func panelCheckUpdates() { Updater.shared.showAvailable() }
 
     func panelSetLanguage(_ code: String) { setLanguage(code) }
 
@@ -265,6 +268,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
+        if let release = Updater.shared.available {
+            menu.addItem(item(tr("⬆︎ Cập nhật lên Dokey ", "⬆︎ Dokey 업데이트: ") + release.version + "…", #selector(menuInstallUpdate)))
+        }
         menu.addItem(item(tr("Mở bảng điều khiển…", "제어판 열기…"), #selector(menuControlPanel)))
         menu.addItem(.separator())
         let mode = item(settings.korean ? tr("Gõ tiếng Hàn", "한국어 입력") : tr("Gõ tiếng Việt", "베트남어 입력"),
@@ -397,6 +403,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
     }
 
     @objc private func menuCheckUpdates() { Updater.shared.check(interactive: true) }
+
+    @objc private func menuInstallUpdate() { Updater.shared.showAvailable() }
 
     @objc private func menuSetMethod(_ sender: NSMenuItem) {
         settings.method = Int32(sender.tag)

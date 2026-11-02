@@ -139,7 +139,7 @@ Sau đó bật Dokey trong **System Settings › Privacy & Security › Accessib
 <details>
 <summary><b>Cập nhật và gỡ cài đặt</b></summary>
 
-**Cập nhật:** chạy lại lệnh cài đặt ở trên, rồi cấp lại quyền Trợ năng (xoá Dokey khỏi danh sách và thêm lại). Mỗi bản phát hành có chữ ký riêng nên macOS coi là ứng dụng mới.
+**Cập nhật:** từ bản 0.5.1, Dokey tự kiểm tra bản mới (khi mở và vài giờ một lần) và gửi thông báo. Bấm **Cập nhật ngay** (trong thông báo, thanh menu hoặc bảng điều khiển): Dokey tự tải bản mới, kiểm tra mã SHA-256 và chữ ký, thay bản cũ rồi mở lại, không cần tải hay cài đè bằng tay. Tắt ở trang Ứng dụng › **Tự kiểm tra bản mới**. Bản cũ hơn: chạy lại lệnh cài đặt ở trên. Sau khi cập nhật, hãy cấp lại quyền Trợ năng (xoá Dokey khỏi danh sách và thêm lại), vì mỗi bản phát hành có chữ ký riêng nên macOS coi là ứng dụng mới.
 
 **Gỡ cài đặt:**
 

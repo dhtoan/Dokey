@@ -59,6 +59,9 @@ final class Settings {
         static let macroText = "macroText"
         static let excluded = "excludedApps"
         static let lastUpdateCheck = "lastUpdateCheck"
+        static let autoUpdate = "autoCheckUpdates"
+        static let skippedVersion = "skippedVersion"
+        static let updatedFrom = "updatedFrom"
     }
 
     private init() {
@@ -73,6 +76,7 @@ final class Settings {
             Key.slowMachine: false,
             Key.quickTelex: false,
             Key.undoWithEsc: false,
+            Key.autoUpdate: true,
             Key.macrosOn: true,
             Key.macroText: Settings.sampleMacros,
         ])
@@ -194,6 +198,24 @@ final class Settings {
     var lastUpdateCheck: Date? {
         get { defaults.object(forKey: Key.lastUpdateCheck) as? Date }
         set { defaults.set(newValue, forKey: Key.lastUpdateCheck) }
+    }
+
+    /// Look for a new release in the background (twice a day) and tell the user.
+    var autoCheckUpdates: Bool {
+        get { defaults.bool(forKey: Key.autoUpdate) }
+        set { defaults.set(newValue, forKey: Key.autoUpdate) }
+    }
+
+    /// A release the user chose to skip: no reminder for it, only for newer ones.
+    var skippedVersion: String? {
+        get { defaults.string(forKey: Key.skippedVersion) }
+        set { defaults.set(newValue, forKey: Key.skippedVersion) }
+    }
+
+    /// The version that installed an update and relaunched, so the new copy can say so.
+    var updatedFrom: String? {
+        get { defaults.string(forKey: Key.updatedFrom) }
+        set { defaults.set(newValue, forKey: Key.updatedFrom) }
     }
 
     func savedMode(forApp bundleID: String) -> Bool? {

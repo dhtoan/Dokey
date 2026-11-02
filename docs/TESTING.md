@@ -29,5 +29,6 @@ Hạn chế đã biết: trong ứng dụng Electron có cửa sổ dòng lệnh
 | 0.4: mở lại từ, Backspace đặt lại dấu, ư+o → ươ, Đắk Lắk, gõ tắt, Quick Telex, hoàn tác (lõi) | ✅ Bài kiểm thử tự động `editing()` và API C trong `tests/engine_tests.cpp` |
 | 0.4: bộ hồi quy 1.171 từ tiếng Anh/lập trình + 30 câu tiếng Việt | ✅ `corpus()`; 1.097 từ giữ nguyên, 74 từ là âm tiết tiếng Việt (liệt kê trong `tests/data/english_known.txt`) |
 | Phím dấu gõ đôi giữa từ theo quy ước Telex (`tesst` → test, `marrketing` → marketing), đồng thời giữ chữ đôi tiếng Anh trước nguyên âm và ở cuối từ (`message`, `pass`) | ✅ `editing()` và `corpus()`; quét 12.518 từ có `ss/ff/rr` trong từ điển macOS: chữ đôi trước phụ âm (`offline`, `passport`) cần gõ ba lần (`offfline`) |
+| Tự cập nhật (0.5.1): bản thử 0.4.9 chạy `--check-updates`, đọc bản v0.5.0 thật trên GitHub, hiện ghi chú phát hành, tải `.dmg`, kiểm tra SHA-256 và chữ ký, thay ứng dụng rồi tự mở lại | ✅ Máy Intel, macOS 14. Thông báo nền (UNUserNotificationCenter) chưa thử bằng tay |
 | 0.4 trên macOS: Backspace và Esc qua event tap, Spotlight, Google Docs, kiểm tra cập nhật | ❌ Chưa gõ thử thật (cần cài bản mới và cấp lại quyền Trợ năng) |
 

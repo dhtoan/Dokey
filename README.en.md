@@ -139,7 +139,7 @@ Then enable Dokey in **System Settings › Privacy & Security › Accessibility*
 <details>
 <summary><b>Updating and uninstalling</b></summary>
 
-**Update:** run the install command again, then grant Accessibility again (remove Dokey from the list and add it back). Each release has its own signature, so macOS treats it as a new app.
+**Update:** from 0.5.1, Dokey checks for a new release (at launch and every few hours) and sends a notification. Click **Update now** (in the notification, the menu bar or the control panel): Dokey downloads the release, checks its SHA-256 and signature, replaces the old copy and relaunches, with no manual download or reinstall. Turn it off in the control panel: Ứng dụng › **Tự kiểm tra bản mới**. Older versions: run the install command again. After updating, grant Accessibility again (remove Dokey from the list and add it back): each release has its own signature, so macOS treats it as a new app.
 
 **Uninstall:**
 

@@ -131,6 +131,8 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     private let perAppSwitch = ToggleSwitch()
     private let slowSwitch = ToggleSwitch()
     private let loginSwitch = ToggleSwitch()
+    private let updateSwitch = ToggleSwitch()
+    private let updateButton = AccentButton(title: tr("Kiểm tra cập nhật", "업데이트 확인"))
     private let currentAppLine = label("", size: 12, color: Palette.secondaryText, wrapping: true)
 
     convenience init() {
@@ -440,6 +442,8 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         slowSwitch.action = #selector(slowChanged)
         loginSwitch.target = self
         loginSwitch.action = #selector(loginChanged)
+        updateSwitch.target = self
+        updateSwitch.action = #selector(updateChanged)
 
         let hero = heroCard(tr("Ứng dụng", "앱"), tr("Dokey tự nhận biết trình duyệt, Electron và ứng dụng thường.", "Dokey가 브라우저, Electron 앱, 일반 앱을 자동으로 구분합니다."),
                             badge: GlossyBadge(shape: .hexagon, top: NSColor(red: 0.42, green: 0.62, blue: 1.0, alpha: 1),
@@ -448,6 +452,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
             (tr("Nhớ chế độ theo ứng dụng", "앱별 모드 기억"), tr("Mỗi ứng dụng giữ chế độ Anh/Việt của riêng nó", "앱마다 입력 모드를 따로 기억합니다"), perAppSwitch),
             (tr("Tương thích máy chậm", "느린 Mac 호환 모드"), tr("Thêm 2 ms nghỉ trong Chrome, Edge, Claude, VS Code…", "Chrome, Edge, Claude, VS Code 등에서 2ms 간격 추가"), slowSwitch),
             (tr("Khởi động cùng macOS", "로그인 시 자동 실행"), tr("Tự chạy Dokey khi đăng nhập", "로그인할 때 Dokey 자동 실행"), loginSwitch),
+            (tr("Tự kiểm tra bản mới", "새 버전 자동 확인"), tr("Báo khi có bản phát hành mới, cập nhật ngay trên máy", "새 버전이 나오면 알리고 바로 업데이트합니다"), updateSwitch),
             (tr("Ứng dụng loại trừ", "제외할 앱"), tr("Thêm từ thanh menu: \"Tắt bộ gõ trong …\"", "메뉴 막대에서 추가: \"…에서는 입력기 끄기\""), excludedRow()),
         ])
         let note = label(tr("""
@@ -489,10 +494,9 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         let github = AccentButton(title: tr("Trang dự án trên GitHub", "GitHub 프로젝트 페이지"))
         github.target = self
         github.action = #selector(openGitHub)
-        let update = AccentButton(title: tr("Kiểm tra cập nhật", "업데이트 확인"))
-        update.target = self
-        update.action = #selector(checkUpdates)
-        let link = NSStackView(views: [update, github])
+        updateButton.target = self
+        updateButton.action = #selector(checkUpdates)
+        let link = NSStackView(views: [updateButton, github])
         link.spacing = 10
         let legal = label("© 2026 Do Huy Toan (dhtoan). All rights reserved.\n"
                           + tr("Phần mềm độc quyền: cấm sao chép, sửa đổi, phân phối lại.", "독점 소프트웨어: 복제, 수정, 재배포를 금지합니다."),
@@ -600,6 +604,9 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         excludedValue.stringValue = excluded.isEmpty ? tr("Chưa có", "없음") : "\(excluded.count)" + tr(" ứng dụng", "개 앱")
         slowSwitch.isOn = settings.slowMachineMode
         loginSwitch.isOn = LoginItem.isEnabled
+        updateSwitch.isOn = settings.autoCheckUpdates
+        updateButton.title = Updater.shared.available.map { tr("Cập nhật lên ", "업데이트: ") + $0.version }
+            ?? tr("Kiểm tra cập nhật", "업데이트 확인")
     }
 
     private static func grouped(_ n: Int) -> String {
@@ -717,6 +724,11 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     }
 
     @objc private func checkUpdates() { delegate?.panelCheckUpdates() }
+
+    @objc private func updateChanged() {
+        settings.autoCheckUpdates = updateSwitch.isOn
+        if updateSwitch.isOn { Updater.shared.check(interactive: false) }
+    }
 
     @objc private func perAppChanged() {
         settings.rememberModePerApp = perAppSwitch.isOn
