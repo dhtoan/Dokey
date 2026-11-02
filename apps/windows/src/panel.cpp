@@ -217,10 +217,12 @@ void Label(Graphics& g, const std::wstring& text, const RectF& r, float size, We
                                                   : r.X;
     StringFormat format(StringFormat::GenericTypographic());
     format.SetLineAlignment(vertical);
-    format.SetFormatFlags(format.GetFormatFlags() | StringFormatFlagsMeasureTrailingSpaces | StringFormatFlagsNoWrap);
+    format.SetFormatFlags(format.GetFormatFlags() | StringFormatFlagsMeasureTrailingSpaces | StringFormatFlagsNoWrap |
+                          StringFormatFlagsNoClip);
     for (size_t i = 0; i < runs.size(); i++) {
         FontSpec spec(weight, runs[i].second, size);
-        g.DrawString(runs[i].first.c_str(), -1, &spec.font, RectF(x, r.Y, widths[i] + 4, r.Height), &format, &brush);
+        const float width = std::max(widths[i] + 4, r.GetRight() - x);
+        g.DrawString(runs[i].first.c_str(), -1, &spec.font, RectF(x, r.Y, width, r.Height), &format, &brush);
         x += widths[i];
     }
 }
