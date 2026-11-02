@@ -8,6 +8,10 @@
 #ifndef AppVersion
   #define AppVersion "0.1.0"
 #endif
+; Numeric x.y.z for the file version resource (AppVersion may be 0.5.0-beta).
+#ifndef AppNumVersion
+  #define AppNumVersion AppVersion
+#endif
 #ifndef BinDir
   #define BinDir "..\..\..\dist\bin"
 #endif
@@ -25,7 +29,7 @@ AppVerName=Dokey {#AppVersion}
 AppPublisher=Do Huy Toan
 AppPublisherURL=https://github.com/dhtoan/Dokey
 AppCopyright=© 2026 Do Huy Toan. All rights reserved.
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#AppNumVersion}
 VersionInfoDescription=Dokey Setup
 VersionInfoCopyright=© 2026 Do Huy Toan. All rights reserved.
 LicenseFile={#LicenseTxt}

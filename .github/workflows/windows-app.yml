@@ -37,6 +37,7 @@ jobs:
             VERSION=$(sed -n 's/^project(DokeyCore VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "NUMVERSION=${VERSION%%-*}" >> "$GITHUB_ENV"
           echo "Dokey for Windows $VERSION"
 
       - name: Build x86, x64, ARM64
@@ -128,7 +129,7 @@ jobs:
           # LICENSE as UTF-8 with BOM and CRLF, so the license page shows Vietnamese correctly.
           $license = (Get-Content LICENSE -Raw -Encoding UTF8) -replace "`r?`n", "`r`n"
           [IO.File]::WriteAllText("$pwd\dist\LICENSE.txt", $license, (New-Object Text.UTF8Encoding $true))
-          & $iscc "/DAppVersion=$env:VERSION" "/DBinDir=$pwd\dist\bin" "/DLicenseTxt=$pwd\dist\LICENSE.txt" "/O$pwd\dist" apps\windows\installer\Dokey.iss
+          & $iscc "/DAppVersion=$env:VERSION" "/DAppNumVersion=$env:NUMVERSION" "/DBinDir=$pwd\dist\bin" "/DLicenseTxt=$pwd\dist\LICENSE.txt" "/O$pwd\dist" apps\windows\installer\Dokey.iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
           Get-ChildItem dist\*.exe | Format-Table Name, Length
 
