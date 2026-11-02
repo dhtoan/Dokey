@@ -84,13 +84,13 @@ final class Updater {
         let alert = NSAlert()
         if let latest = latest, Self.isNewer(latest, than: currentVersion) {
             let version = latest.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
-            alert.messageText = "Đã có Dokey \(version)"
-            alert.informativeText = "Bạn đang dùng bản \(currentVersion). "
+            alert.messageText = tr("Đã có Dokey ", "새 버전: Dokey ") + version
+            alert.informativeText = tr("Bạn đang dùng bản ", "현재 버전은 ") + currentVersion + tr(". ", "입니다. ")
                 + (ghPath != nil
-                    ? "Dokey sẽ tải bản mới, cài vào Applications rồi mở lại. Sau đó hãy cấp lại quyền Trợ năng."
-                    : "Mở trang Releases để tải bản mới.")
-            alert.addButton(withTitle: ghPath != nil ? "Cập nhật ngay" : "Mở trang Releases")
-            alert.addButton(withTitle: "Để sau")
+                    ? tr("Dokey sẽ tải bản mới, cài vào Applications rồi mở lại. Sau đó hãy cấp lại quyền Trợ năng.", "Dokey가 새 버전을 내려받아 응용 프로그램 폴더에 설치하고 다시 엽니다. 그다음 손쉬운 사용 권한을 다시 허용하세요.")
+                    : tr("Mở trang Releases để tải bản mới.", "Releases 페이지에서 새 버전을 내려받으세요."))
+            alert.addButton(withTitle: ghPath != nil ? tr("Cập nhật ngay", "지금 업데이트") : tr("Mở trang Releases", "Releases 페이지 열기"))
+            alert.addButton(withTitle: tr("Để sau", "나중에"))
             NSApp.activate(ignoringOtherApps: true)
             guard alert.runModal() == .alertFirstButtonReturn else { return }
             if !install() { openReleases() }
@@ -98,15 +98,15 @@ final class Updater {
         }
         guard interactive else { return }
         if latest != nil {
-            alert.messageText = "Bạn đang dùng bản mới nhất"
+            alert.messageText = tr("Bạn đang dùng bản mới nhất", "최신 버전을 사용하고 있습니다")
             alert.informativeText = "Dokey \(currentVersion)."
             alert.addButton(withTitle: "OK")
         } else {
-            alert.messageText = "Không kiểm tra được bản mới"
-            alert.informativeText = "Kho mã Dokey đang ở chế độ riêng tư. Hãy cài GitHub CLI và đăng nhập (gh auth login), "
-                + "hoặc mở trang Releases để xem bản mới nhất."
-            alert.addButton(withTitle: "Mở trang Releases")
-            alert.addButton(withTitle: "Đóng")
+            alert.messageText = tr("Không kiểm tra được bản mới", "새 버전을 확인할 수 없습니다")
+            alert.informativeText = tr("Không kết nối được GitHub. Hãy kiểm tra mạng, hoặc mở trang Releases để xem bản mới nhất.",
+                                       "GitHub에 연결할 수 없습니다. 네트워크를 확인하거나 Releases 페이지에서 최신 버전을 확인하세요.")
+            alert.addButton(withTitle: tr("Mở trang Releases", "Releases 페이지 열기"))
+            alert.addButton(withTitle: tr("Đóng", "닫기"))
         }
         NSApp.activate(ignoringOtherApps: true)
         if alert.runModal() == .alertFirstButtonReturn && latest == nil { openReleases() }

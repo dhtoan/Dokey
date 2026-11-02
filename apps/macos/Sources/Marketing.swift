@@ -10,6 +10,7 @@ private final class SampleData: ControlPanelDelegate {
     var panelTapRunning: Bool { true }
     func panelClearExcluded() {}
     func panelCheckUpdates() {}
+    func panelSetLanguage(_ code: String) {}
     var panelEditCount: Int { 1284 }
     /// A neutral example: no third-party icons in promotional images.
     var panelFrontApp: (name: String, kind: AppKind, icon: NSImage?)? {
@@ -135,12 +136,14 @@ enum Marketing {
                 ]).draw(at: p)
             }
             text("Dokey", size: 76, weight: .heavy, alpha: 1, at: NSPoint(x: 72, y: 196))
-            text("Bộ gõ tiếng Việt thế hệ mới", size: 30, weight: .semibold, alpha: 0.95, at: NSPoint(x: 76, y: 150))
-            text("Gõ đúng ngay lần đầu. Không nhảy chữ, kể cả trong Chrome và Claude.", size: 17, weight: .regular,
+            text(tr("Bộ gõ tiếng Việt thế hệ mới", "글자가 사라지지 않는 한국어 입력기"), size: 30, weight: .semibold, alpha: 0.95, at: NSPoint(x: 76, y: 150))
+            text(tr("Gõ đúng ngay lần đầu. Không nhảy chữ, kể cả trong Chrome và Claude.",
+                    "두벌식 · Chrome, Claude, VS Code에서도 정확하게. 베트남어도 지원합니다."), size: 17, weight: .regular,
                  alpha: 0.72, at: NSPoint(x: 77, y: 116))
 
             var x: CGFloat = 76
-            for chip in ["macOS", "Windows", "Telex · VNI", "Mã nguồn mới 100%"] {
+            for chip in L10n.korean ? ["macOS", "두벌식", "한국어 · Tiếng Việt", "개인 무료"]
+                                     : ["macOS", "Windows", "Telex · VNI", "Mã nguồn mới 100%"] {
                 let attributed = NSAttributedString(string: chip, attributes: [
                     .font: NSFont.systemFont(ofSize: 14, weight: .semibold), .foregroundColor: NSColor.white,
                 ])

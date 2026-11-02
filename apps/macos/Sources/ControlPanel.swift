@@ -11,6 +11,8 @@ protocol ControlPanelDelegate: AnyObject {
     var panelTapRunning: Bool { get }
     func panelClearExcluded()
     func panelCheckUpdates()
+    /// "vi" or "ko".
+    func panelSetLanguage(_ code: String)
     /// Words Dokey has added marks to since it started.
     var panelEditCount: Int { get }
 }
@@ -80,37 +82,38 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     private let pageTitle = label("", size: 13, weight: .semibold, color: NSColor(white: 1, alpha: 0.85))
     private var pages: [NSView] = []
     private var sidebarButtons: [SidebarButton] = []
-    private let titles = ["Bảng điều khiển", "Kiểu gõ", "Gõ nhanh", "Ứng dụng", "Giới thiệu"]
+    private let titles = [tr("Bảng điều khiển", "제어판"), tr("Kiểu gõ", "입력 방식"), tr("Gõ nhanh", "빠른 입력"), tr("Ứng dụng", "앱"), tr("Giới thiệu", "정보")]
     private let orb = OrbButton()
     private var timer: Timer?
 
     // Dashboard
-    private let modeCard = StatCard(caption: "Chế độ gõ",
+    private let modeCard = StatCard(caption: tr("Chế độ gõ", "입력 모드"),
                                     badge: GlossyBadge(shape: .squircle, top: NSColor(red: 0.98, green: 0.45, blue: 0.86, alpha: 1),
                                                        bottom: NSColor(red: 0.62, green: 0.16, blue: 0.80, alpha: 1), symbol: .text("V")),
                                     badgeSize: 96, valueSize: 28)
-    private let permissionCard = StatCard(caption: "Quyền Trợ năng",
+    private let permissionCard = StatCard(caption: tr("Quyền Trợ năng", "손쉬운 사용 권한"),
                                           badge: GlossyBadge(shape: .shield, top: NSColor(red: 0.40, green: 0.92, blue: 0.62, alpha: 1),
                                                              bottom: NSColor(red: 0.05, green: 0.55, blue: 0.40, alpha: 1), symbol: .check),
                                           badgeSize: 80)
-    private let methodCard = StatCard(caption: "Kiểu gõ",
+    private let methodCard = StatCard(caption: tr("Kiểu gõ", "입력 방식"),
                                       badge: GlossyBadge(shape: .hexagon, top: NSColor(red: 1.0, green: 0.68, blue: 0.40, alpha: 1),
                                                          bottom: NSColor(red: 0.85, green: 0.30, blue: 0.20, alpha: 1), symbol: .keycap),
                                       badgeSize: 60, valueSize: 19)
-    private let appCard = StatCard(caption: "Ứng dụng",
+    private let appCard = StatCard(caption: tr("Ứng dụng", "앱"),
                                    badge: GlossyBadge(shape: .hexagon, top: NSColor(red: 0.42, green: 0.62, blue: 1.0, alpha: 1),
                                                       bottom: NSColor(red: 0.18, green: 0.25, blue: 0.85, alpha: 1), symbol: .grid),
                                    badgeSize: 60, valueSize: 19)
-    private let countCard = StatCard(caption: "Đã thêm dấu",
+    private let countCard = StatCard(caption: tr("Đã thêm dấu", "변환한 단어"),
                                      badge: GlossyBadge(shape: .circle, top: NSColor(red: 0.35, green: 0.95, blue: 0.90, alpha: 1),
                                                         bottom: NSColor(red: 0.05, green: 0.55, blue: 0.70, alpha: 1), symbol: .bolt),
                                      badgeSize: 60, valueSize: 19)
-    private let permissionButton = AccentButton(title: "Cấp quyền")
+    private let permissionButton = AccentButton(title: tr("Cấp quyền", "권한 허용"))
     private let tryField = NSTextField(string: "")
 
     // Typing
+    private let languagePicker = PillPicker(options: ["Tiếng Việt", "한국어"])
     private let methodPicker = PillPicker(options: ["Telex", "VNI"])
-    private let encodingPicker = PillPicker(options: ["Dựng sẵn", "Tổ hợp"])
+    private let encodingPicker = PillPicker(options: [tr("Dựng sẵn", "완성형"), tr("Tổ hợp", "조합형")])
     private let spellingSwitch = ToggleSwitch()
     private let toneSwitch = ToggleSwitch()
     private let hotkeyPopup = NSPopUpButton()
@@ -314,7 +317,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         permissionButton.target = self
         permissionButton.action = #selector(permissionClicked)
         modeCard.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(orbClicked)))
-        modeCard.toolTip = "Bấm để chuyển Anh/Việt"
+        modeCard.toolTip = tr("Bấm để chuyển Anh/Việt", "클릭하여 입력 언어 전환")
 
         let top = horizontal([modeCard, permissionCard])
         let bottom = horizontal([methodCard, appCard, countCard])
@@ -335,8 +338,8 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     /// A place to try typing without leaving the panel.
     private func tryCard() -> GlassCard {
         let card = GlassCard()
-        let caption = label("Gõ thử", size: 12, weight: .medium, color: Palette.secondaryText)
-        tryField.placeholderString = "Gõ thử ở đây, ví dụ: Vieetj Nam, dduowngf, Haxy…"
+        let caption = label(tr("Gõ thử", "입력해 보기"), size: 12, weight: .medium, color: Palette.secondaryText)
+        updatePlaceholder()
         tryField.font = .systemFont(ofSize: 17, weight: .medium)
         tryField.textColor = .white
         tryField.isBordered = false
@@ -366,6 +369,8 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     }
 
     private func typingPage() -> NSView {
+        languagePicker.target = self
+        languagePicker.action = #selector(languageChanged)
         methodPicker.target = self
         methodPicker.action = #selector(methodChanged)
         encodingPicker.target = self
@@ -381,15 +386,16 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         hotkeyPopup.action = #selector(hotkeyChanged)
         hotkeyPopup.widthAnchor.constraint(equalToConstant: 240).isActive = true
 
-        let hero = heroCard("Kiểu gõ", "Chọn cách gõ dấu và cách Dokey xử lý chữ.",
+        let hero = heroCard(tr("Kiểu gõ", "입력 방식"), tr("Chọn cách gõ dấu và cách Dokey xử lý chữ.", "입력 언어와 입력 방식을 고르세요."),
                             badge: GlossyBadge(shape: .hexagon, top: NSColor(red: 1.0, green: 0.68, blue: 0.40, alpha: 1),
                                                bottom: NSColor(red: 0.85, green: 0.30, blue: 0.20, alpha: 1), symbol: .keycap))
         let card = settingsCard([
-            ("Kiểu gõ", "Gõ dấu bằng chữ cái (Telex) hoặc chữ số (VNI)", methodPicker),
-            ("Bảng mã", "Dựng sẵn hợp với mọi ứng dụng; tổ hợp tách riêng dấu thanh", encodingPicker),
-            ("Kiểm tra chính tả", "Giữ nguyên từ không phải tiếng Việt: windows, chrome…", spellingSwitch),
-            ("Đặt dấu kiểu mới", "Bật: hoà, khoẻ, thuý · Tắt: hòa, khỏe, thúy", toneSwitch),
-            ("Phím chuyển Anh/Việt", "Dùng được ở mọi ứng dụng", hotkeyPopup),
+            (tr("Ngôn ngữ gõ", "입력 언어"), tr("Tiếng Hàn dùng bàn phím 2-beolsik (두벌식)", "한국어는 두벌식 자판, 베트남어는 Telex·VNI"), languagePicker),
+            (tr("Kiểu gõ", "입력 방식"), tr("Gõ dấu bằng chữ cái (Telex) hoặc chữ số (VNI)", "베트남어 성조를 글자(Telex) 또는 숫자(VNI)로 입력"), methodPicker),
+            (tr("Bảng mã", "인코딩"), tr("Dựng sẵn hợp với mọi ứng dụng; tổ hợp tách riêng dấu thanh", "완성형은 모든 앱과 호환, 조합형은 성조 부호를 분리"), encodingPicker),
+            (tr("Kiểm tra chính tả", "맞춤법 검사"), tr("Giữ nguyên từ không phải tiếng Việt: windows, chrome…", "베트남어가 아닌 단어는 그대로: windows, chrome…"), spellingSwitch),
+            (tr("Đặt dấu kiểu mới", "새 성조 위치"), tr("Bật: hoà, khoẻ, thuý · Tắt: hòa, khỏe, thúy", "켜기: hoà, khoẻ, thuý · 끄기: hòa, khỏe, thúy"), toneSwitch),
+            (tr("Phím chuyển Anh/Việt", "입력 전환 단축키"), tr("Dùng được ở mọi ứng dụng", "모든 앱에서 사용"), hotkeyPopup),
         ])
         let page = vertical([hero, card, examples], spacing: 12)
         fullWidth([hero, card, examples], in: page)
@@ -403,23 +409,25 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         escSwitch.action = #selector(escChanged)
         macroSwitch.target = self
         macroSwitch.action = #selector(macrosChanged)
-        let edit = AccentButton(title: "Sửa danh sách…")
+        let edit = AccentButton(title: tr("Sửa danh sách…", "목록 편집…"))
         edit.target = self
         edit.action = #selector(editMacros)
         let macroControls = NSStackView(views: [edit, macroSwitch])
         macroControls.spacing = 12
 
-        let hero = heroCard("Gõ nhanh", "Gõ tắt, Quick Telex và hoàn tác bằng Esc.",
+        let hero = heroCard(tr("Gõ nhanh", "빠른 입력"), tr("Gõ tắt, Quick Telex và hoàn tác bằng Esc.", "단축어, Quick Telex, Esc로 되돌리기 (베트남어)."),
                             badge: GlossyBadge(shape: .circle, top: NSColor(red: 0.35, green: 0.95, blue: 0.90, alpha: 1),
                                                bottom: NSColor(red: 0.05, green: 0.55, blue: 0.70, alpha: 1), symbol: .bolt))
         let card = settingsCard([
-            ("Gõ tắt", "Gõ từ tắt rồi dấu cách: vn → Việt Nam, ko → không", macroControls),
-            ("Quick Telex", "cc → ch, gg → gi, kk → kh, nn → ng, pp → ph, qq → qu, tt → th (đầu từ)", quickTelexSwitch),
-            ("Hoàn tác bằng Esc", "Bấm Esc khi đang gõ để trả từ về đúng phím đã gõ: tiếng → tieesng", escSwitch),
+            (tr("Gõ tắt", "단축어"), tr("Gõ từ tắt rồi dấu cách: vn → Việt Nam, ko → không", "단축어를 입력하고 스페이스: vn → Việt Nam, ko → không"), macroControls),
+            ("Quick Telex", tr("cc → ch, gg → gi, kk → kh, nn → ng, pp → ph, qq → qu, tt → th (đầu từ)", "단어 첫머리에서 cc → ch, gg → gi, kk → kh, nn → ng, pp → ph, qq → qu, tt → th"), quickTelexSwitch),
+            (tr("Hoàn tác bằng Esc", "Esc로 되돌리기"), tr("Bấm Esc khi đang gõ để trả từ về đúng phím đã gõ: tiếng → tieesng", "입력 중 Esc를 누르면 입력한 키 그대로 되돌립니다: tiếng → tieesng"), escSwitch),
         ])
-        let tips = label("""
+        let tips = label(tr("""
         Mẹo: gõ "xin", dấu cách rồi Backspace là quay lại sửa dấu từ đó ("f" ra "xìn"). Xoá phụ âm cuối thì dấu thanh tự về đúng chỗ.
-        """, size: 12, color: Palette.secondaryText, wrapping: true)
+        """, """
+        단축어, Quick Telex, Esc 되돌리기는 베트남어 입력에 적용됩니다. 한국어는 Backspace로 자모 단위로 지웁니다 (한 ⌫ → 하).
+        """), size: 12, color: Palette.secondaryText, wrapping: true)
         let page = vertical([hero, card, macroSummary, tips], spacing: 12)
         fullWidth([hero, card, macroSummary, tips], in: page)
         return page
@@ -433,26 +441,29 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         loginSwitch.target = self
         loginSwitch.action = #selector(loginChanged)
 
-        let hero = heroCard("Ứng dụng", "Dokey tự nhận biết trình duyệt, Electron và ứng dụng thường.",
+        let hero = heroCard(tr("Ứng dụng", "앱"), tr("Dokey tự nhận biết trình duyệt, Electron và ứng dụng thường.", "Dokey가 브라우저, Electron 앱, 일반 앱을 자동으로 구분합니다."),
                             badge: GlossyBadge(shape: .hexagon, top: NSColor(red: 0.42, green: 0.62, blue: 1.0, alpha: 1),
                                                bottom: NSColor(red: 0.18, green: 0.25, blue: 0.85, alpha: 1), symbol: .grid))
         let card = settingsCard([
-            ("Nhớ chế độ theo ứng dụng", "Mỗi ứng dụng giữ chế độ Anh/Việt của riêng nó", perAppSwitch),
-            ("Tương thích máy chậm", "Thêm 2 ms nghỉ trong Chrome, Edge, Claude, VS Code…", slowSwitch),
-            ("Khởi động cùng macOS", "Tự chạy Dokey khi đăng nhập", loginSwitch),
-            ("Ứng dụng loại trừ", "Thêm từ thanh menu: \"Không gõ tiếng Việt trong …\"", excludedRow()),
+            (tr("Nhớ chế độ theo ứng dụng", "앱별 모드 기억"), tr("Mỗi ứng dụng giữ chế độ Anh/Việt của riêng nó", "앱마다 입력 모드를 따로 기억합니다"), perAppSwitch),
+            (tr("Tương thích máy chậm", "느린 Mac 호환 모드"), tr("Thêm 2 ms nghỉ trong Chrome, Edge, Claude, VS Code…", "Chrome, Edge, Claude, VS Code 등에서 2ms 간격 추가"), slowSwitch),
+            (tr("Khởi động cùng macOS", "로그인 시 자동 실행"), tr("Tự chạy Dokey khi đăng nhập", "로그인할 때 Dokey 자동 실행"), loginSwitch),
+            (tr("Ứng dụng loại trừ", "제외할 앱"), tr("Thêm từ thanh menu: \"Tắt bộ gõ trong …\"", "메뉴 막대에서 추가: \"…에서는 입력기 끄기\""), excludedRow()),
         ])
-        let note = label("""
+        let note = label(tr("""
         Trình duyệt và ứng dụng Electron/IDE (Claude, VS Code, Slack, Zalo…): Dokey bôi đen chữ cũ rồi gõ đè cả cụm chữ mới. \
         Ứng dụng thường (TextEdit, Notes, Terminal…): Dokey dùng Backspace.
-        """, size: 12, color: Palette.secondaryText, wrapping: true)
+        """, """
+        브라우저와 Electron/IDE 앱(Claude, VS Code, Slack, KakaoTalk 등): 이전 글자를 선택한 뒤 새 글자로 덮어씁니다. \
+        일반 앱(TextEdit, 메모, 터미널 등): Backspace로 지웁니다.
+        """), size: 12, color: Palette.secondaryText, wrapping: true)
         let page = vertical([hero, card, note, currentAppLine], spacing: 12)
         fullWidth([hero, card, note, currentAppLine], in: page)
         return page
     }
 
     private func excludedRow() -> NSView {
-        let clear = AccentButton(title: "Bỏ hết")
+        let clear = AccentButton(title: tr("Bỏ hết", "모두 해제"))
         clear.target = self
         clear.action = #selector(clearExcluded)
         let row = NSStackView(views: [excludedValue, clear])
@@ -465,25 +476,30 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
                                 bottom: NSColor(red: 0.45, green: 0.20, blue: 0.95, alpha: 1), symbol: .text("đ"))
         badge.widthAnchor.constraint(equalToConstant: 112).isActive = true
         badge.heightAnchor.constraint(equalToConstant: 112).isActive = true
-        let text = label("""
-        Bộ gõ tiếng Việt cho macOS, chạy trên lõi Dokey Core.
-        Mỗi phím, Dokey dựng lại cả từ và kiểm tra chính tả với 3.759 âm tiết,
-        nên gõ đúng ngay lần đầu và giữ nguyên các từ tiếng Anh.
-        """, size: 13, color: Palette.secondaryText, wrapping: true)
+        let text = label(tr("""
+        Bộ gõ tiếng Việt và tiếng Hàn cho macOS, chạy trên lõi Dokey Core.
+        Mỗi phím, Dokey dựng lại cả từ, nên chữ trên màn hình luôn khớp với phím đã gõ:
+        không nhảy chữ, không mất chữ, kể cả trong Chrome và Claude.
+        """, """
+        Dokey Core 엔진 기반의 macOS용 한국어·베트남어 입력기입니다.
+        키를 누를 때마다 글자 전체를 다시 조합하므로, Chrome이나 Claude에서도
+        글자가 뒤섞이거나 사라지지 않습니다.
+        """), size: 13, color: Palette.secondaryText, wrapping: true)
         text.alignment = .center
-        let github = AccentButton(title: "Trang dự án trên GitHub")
+        let github = AccentButton(title: tr("Trang dự án trên GitHub", "GitHub 프로젝트 페이지"))
         github.target = self
         github.action = #selector(openGitHub)
-        let update = AccentButton(title: "Kiểm tra cập nhật")
+        let update = AccentButton(title: tr("Kiểm tra cập nhật", "업데이트 확인"))
         update.target = self
         update.action = #selector(checkUpdates)
         let link = NSStackView(views: [update, github])
         link.spacing = 10
-        let legal = label("© 2026 Do Huy Toan (dhtoan). All rights reserved.\nPhần mềm độc quyền: cấm sao chép, sửa đổi, phân phối lại.",
+        let legal = label("© 2026 Do Huy Toan (dhtoan). All rights reserved.\n"
+                          + tr("Phần mềm độc quyền: cấm sao chép, sửa đổi, phân phối lại.", "독점 소프트웨어: 복제, 수정, 재배포를 금지합니다."),
                           size: 11, color: NSColor(white: 1, alpha: 0.45))
         legal.alignment = .center
         let page = vertical([badge, label("Dokey", size: 32, weight: .bold),
-                             label("Phiên bản \(Self.version)", size: 13, color: Palette.secondaryText),
+                             label(tr("Phiên bản ", "버전 ") + Self.version, size: 13, color: Palette.secondaryText),
                              text, link,
                              legal],
                             spacing: 8, alignment: .centerX)
@@ -498,19 +514,34 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
     }
 
+    private func updatePlaceholder() {
+        tryField.placeholderString = settings.korean
+            ? tr("Gõ thử ở đây, ví dụ: dkssudgktpdy → 안녕하세요", "여기에 입력해 보세요. 예: dkssudgktpdy → 안녕하세요")
+            : tr("Gõ thử ở đây, ví dụ: Vieetj Nam, dduowngf, Haxy…", "여기에 입력해 보세요. 예: Vieetj Nam → Việt Nam")
+    }
+
     func refresh() {
         guard isWindowLoaded else { return }
-        let vietnamese = settings.vietnamese
+        let vietnamese = settings.vietnamese  // typing on (in the chosen language)
+        let korean = settings.korean
+        let languageName = korean ? tr("Tiếng Hàn", "한국어") : tr("Tiếng Việt", "베트남어")
         orb.isLit = vietnamese
-        orb.title = vietnamese ? "Tắt" : "Bật"
-        orb.toolTip = vietnamese ? "Chuyển sang gõ tiếng Anh" : "Chuyển sang gõ tiếng Việt"
-        modeCard.value.stringValue = vietnamese ? "Tiếng Việt" : "Tiếng Anh"
-        modeCard.badge.symbol = .text(vietnamese ? "V" : "E")
-        modeCard.setStatus(vietnamese ? "Đang bật · \(settings.hotkey.shortTitle) để chuyển" : "Đang tắt · \(settings.hotkey.shortTitle) để bật", ok: vietnamese)
+        orb.title = vietnamese ? tr("Tắt", "끄기") : tr("Bật", "켜기")
+        orb.toolTip = vietnamese ? tr("Chuyển sang gõ tiếng Anh", "영문 입력으로 전환")
+                                 : tr("Bật lại bộ gõ", "입력기 다시 켜기")
+        modeCard.value.stringValue = vietnamese ? languageName : tr("Tiếng Anh", "영어")
+        modeCard.badge.symbol = .text(vietnamese ? (korean ? "한" : "V") : "E")
+        let key = settings.hotkey.shortTitle
+        modeCard.setStatus(vietnamese ? tr("Đang bật · %@ để chuyển", "켜짐 · %@로 전환").replacingOccurrences(of: "%@", with: key)
+                                      : tr("Đang tắt · %@ để bật", "꺼짐 · %@로 켜기").replacingOccurrences(of: "%@", with: key),
+                           ok: vietnamese)
+        languagePicker.selectedIndex = korean ? 1 : 0
+        updatePlaceholder()
 
         let ready = assumeReady || (Accessibility.isTrusted && (delegate?.panelTapRunning ?? false))
-        permissionCard.value.stringValue = ready ? "Sẵn sàng" : "Chưa cấp"
-        permissionCard.setStatus(ready ? "Dokey đang nghe bàn phím" : "Cần quyền để gõ tiếng Việt", ok: ready)
+        permissionCard.value.stringValue = ready ? tr("Sẵn sàng", "준비됨") : tr("Chưa cấp", "권한 없음")
+        permissionCard.setStatus(ready ? tr("Dokey đang nghe bàn phím", "Dokey가 키보드를 받고 있습니다")
+                                       : tr("Cần quyền để gõ", "입력하려면 권한이 필요합니다"), ok: ready)
         permissionCard.setAccessory(ready ? nil : permissionButton)
         permissionCard.badge.symbol = ready ? .check : .text("!")
         permissionCard.badge.top = ready ? NSColor(red: 0.40, green: 0.92, blue: 0.62, alpha: 1)
@@ -520,31 +551,39 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
 
         let vni = settings.method == Int32(DOKEY_VNI)
         let combining = settings.encoding == Int32(DOKEY_UNICODE_COMBINING)
-        methodCard.value.stringValue = vni ? "VNI" : "Telex"
-        methodCard.setStatus(combining ? "Unicode tổ hợp" : "Unicode dựng sẵn", ok: true)
+        if korean {
+            methodCard.value.stringValue = tr("2-beolsik", "두벌식")
+            methodCard.setStatus(tr("Bàn phím tiếng Hàn chuẩn", "표준 한국어 자판"), ok: true)
+        } else {
+            methodCard.value.stringValue = vni ? "VNI" : "Telex"
+            methodCard.setStatus(combining ? tr("Unicode tổ hợp", "유니코드 조합형") : tr("Unicode dựng sẵn", "유니코드 완성형"), ok: true)
+        }
 
         if let app = delegate?.panelFrontApp {
             appCard.value.stringValue = app.name
-            appCard.setStatus("Nhóm: \(app.kind.title)", ok: true)
+            appCard.setStatus(tr("Nhóm: ", "유형: ") + app.kind.title, ok: true)
             appCard.badge.symbol = app.icon.map { .image($0) } ?? .grid
-            currentAppLine.stringValue = "Ứng dụng vừa dùng: \(app.name) (\(app.kind.title))."
+            currentAppLine.stringValue = tr("Ứng dụng vừa dùng: ", "최근 사용한 앱: ") + "\(app.name) (\(app.kind.title))."
         } else {
             appCard.value.stringValue = "—"
-            appCard.setStatus("Chưa có", ok: false)
+            appCard.setStatus(tr("Chưa có", "없음"), ok: false)
             appCard.badge.symbol = .grid
             currentAppLine.stringValue = ""
         }
 
         let count = delegate?.panelEditCount ?? 0
-        countCard.value.stringValue = "\(Self.grouped(count)) từ"
-        countCard.setStatus("từ lúc mở Dokey", ok: true)
+        countCard.value.stringValue = Self.grouped(count) + tr(" từ", " 단어")
+        countCard.setStatus(tr("từ lúc mở Dokey", "Dokey 실행 이후"), ok: true)
 
         methodPicker.selectedIndex = vni ? 1 : 0
         encodingPicker.selectedIndex = combining ? 1 : 0
         spellingSwitch.isOn = settings.checkSpelling
         toneSwitch.isOn = settings.modernToneStyle
         hotkeyPopup.selectItem(at: settings.hotkey.rawValue)
-        examples.stringValue = vni
+        examples.stringValue = korean
+            ? tr("Ví dụ tiếng Hàn:  dkssudgktpdy → 안녕하세요   ·   rkatkgkqslek → 감사합니다   ·   Shift + q w e r t → ㅃ ㅉ ㄸ ㄲ ㅆ",
+                 "예:  dkssudgktpdy → 안녕하세요   ·   rkatkgkqslek → 감사합니다   ·   Shift + q w e r t → ㅃ ㅉ ㄸ ㄲ ㅆ")
+            : vni
             ? "Ví dụ VNI:  Vie65t Nam → Việt Nam   ·   d9u7o7ng2 → đường   ·   1–5 = sắc huyền hỏi ngã nặng, 6 = mũ, 7 = móc, 8 = trăng, 9 = đ"
             : "Ví dụ Telex:  Vieetj Nam → Việt Nam   ·   dduowngf → đường   ·   s f r x j = sắc huyền hỏi ngã nặng, aa ee oo = â ê ô, aw ow uw = ă ơ ư, dd = đ"
 
@@ -553,10 +592,12 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         escSwitch.isOn = settings.undoWithEsc
         macroSwitch.isOn = settings.macrosEnabled
         macroSummary.stringValue = settings.macrosEnabled
-            ? "Đang có \(settings.macroCount) từ tắt. Viết hoa từ tắt để viết hoa nội dung (Vn → Việt Nam, VN → VIỆT NAM)."
-            : "Gõ tắt đang tắt."
+            ? tr("Đang có %d từ tắt. Viết hoa từ tắt để viết hoa nội dung (Vn → Việt Nam, VN → VIỆT NAM).",
+                 "단축어 %d개. 단축어를 대문자로 쓰면 내용도 대문자가 됩니다 (Vn → Việt Nam, VN → VIỆT NAM).")
+                .replacingOccurrences(of: "%d", with: "\(settings.macroCount)")
+            : tr("Gõ tắt đang tắt.", "단축어가 꺼져 있습니다.")
         let excluded = settings.excludedApps
-        excludedValue.stringValue = excluded.isEmpty ? "Chưa có" : "\(excluded.count) ứng dụng"
+        excludedValue.stringValue = excluded.isEmpty ? tr("Chưa có", "없음") : "\(excluded.count)" + tr(" ứng dụng", "개 앱")
         slowSwitch.isOn = settings.slowMachineMode
         loginSwitch.isOn = LoginItem.isEnabled
     }
@@ -614,6 +655,11 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     }
 
     @objc private func permissionClicked() { delegate?.panelShowPermission() }
+
+    @objc private func languageChanged() {
+        delegate?.panelSetLanguage(languagePicker.selectedIndex == 1 ? "ko" : "vi")
+        refresh()
+    }
 
     @objc private func methodChanged() {
         settings.method = methodPicker.selectedIndex == 1 ? Int32(DOKEY_VNI) : Int32(DOKEY_TELEX)
@@ -685,7 +731,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     @objc private func loginChanged() {
         if let error = LoginItem.setEnabled(loginSwitch.isOn) {
             let alert = NSAlert()
-            alert.messageText = "Không đổi được mục khởi động cùng macOS"
+            alert.messageText = tr("Không đổi được mục khởi động cùng macOS", "로그인 항목을 변경하지 못했습니다")
             alert.informativeText = error
             if let window = window { alert.beginSheetModal(for: window) }
         }

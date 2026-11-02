@@ -128,10 +128,19 @@ final class Settings {
         defaults.bool(forKey: "debugLog")
     }
 
-    /// Prototype, set with `defaults write com.dhtoan.dokey.mac language -string ko`:
-    /// type Korean (2-beolsik) instead of Vietnamese. See docs/hangul-design.md.
+    /// Typing language: "vi" (default) or "ko" (Korean 2-beolsik). Chosen in the
+    /// menu or the control panel; still the same `language` key the hidden
+    /// prototype switch used (`defaults write com.dhtoan.dokey.mac language -string ko`).
+    var languageCode: String {
+        get {
+            if let forced = ProcessInfo.processInfo.environment["DOKEY_LANG"] { return forced == "ko" ? "ko" : "vi" }  // screenshots
+            return defaults.string(forKey: "language") == "ko" ? "ko" : "vi"
+        }
+        set { defaults.set(newValue, forKey: "language") }
+    }
+
     var korean: Bool {
-        defaults.string(forKey: "language") == "ko"
+        languageCode == "ko"
     }
 
     var language: Int32 {

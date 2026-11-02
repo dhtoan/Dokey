@@ -27,7 +27,7 @@ final class PermissionWindowController: NSWindowController {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 400),
                               styleMask: [.titled, .closable],
                               backing: .buffered, defer: false)
-        window.title = "Cấp quyền Trợ năng cho Dokey"
+        window.title = tr("Cấp quyền Trợ năng cho Dokey", "Dokey에 손쉬운 사용 권한 허용")
         window.isReleasedWhenClosed = false
         self.init(window: window)
         buildContent()
@@ -39,10 +39,10 @@ final class PermissionWindowController: NSWindowController {
         let icon = NSImageView(image: NSApp.applicationIconImage ?? NSImage())
         icon.imageScaling = .scaleProportionallyUpOrDown
 
-        let title = NSTextField(labelWithString: "Dokey cần quyền Trợ năng để gõ tiếng Việt")
+        let title = NSTextField(labelWithString: tr("Dokey cần quyền Trợ năng để gõ", "Dokey가 입력하려면 손쉬운 사용 권한이 필요합니다"))
         title.font = .boldSystemFont(ofSize: 15)
 
-        let steps = NSTextField(wrappingLabelWithString: """
+        let steps = NSTextField(wrappingLabelWithString: tr("""
         macOS chỉ cho phép bộ gõ đọc và sửa phím khi được cấp quyền Trợ năng (Accessibility). \
         Dokey không ghi lại, không lưu và không gửi phím gõ đi đâu.
 
@@ -52,15 +52,25 @@ final class PermissionWindowController: NSWindowController {
 
         Nếu bạn vừa cập nhật Dokey mà gõ không ra dấu: xoá Dokey khỏi danh sách (dấu −) rồi thêm lại. \
         Mỗi bản dựng mới có chữ ký khác nên macOS coi là ứng dụng mới.
-        """)
+        """, """
+        macOS에서는 손쉬운 사용(Accessibility) 권한이 있는 입력기만 키 입력을 읽고 고칠 수 있습니다. \
+        Dokey는 입력한 키를 기록하거나 저장하거나 외부로 보내지 않습니다.
+
+        1. 아래의 “손쉬운 사용 설정 열기”를 누르세요.
+        2. 목록에서 Dokey 옆의 스위치를 켜세요. Dokey가 없으면 + 버튼을 눌러 응용 프로그램 폴더의 Dokey.app을 추가하세요.
+        3. 이 창으로 돌아오세요. 다시 시작하지 않아도 Dokey가 권한을 바로 인식합니다.
+
+        업데이트 후 입력이 되지 않으면 목록에서 Dokey를 지운 뒤(− 버튼) 다시 추가하세요. \
+        새 빌드마다 서명이 달라 macOS가 새 앱으로 인식하기 때문입니다.
+        """))
         steps.font = .systemFont(ofSize: 13)
 
         statusLabel.font = .systemFont(ofSize: 13, weight: .semibold)
 
-        let openButton = NSButton(title: "Mở Cài đặt Trợ năng", target: self, action: #selector(openSettings))
+        let openButton = NSButton(title: tr("Mở Cài đặt Trợ năng", "손쉬운 사용 설정 열기"), target: self, action: #selector(openSettings))
         openButton.bezelStyle = .rounded
         openButton.keyEquivalent = "\r"
-        let laterButton = NSButton(title: "Để sau", target: self, action: #selector(closeWindow))
+        let laterButton = NSButton(title: tr("Để sau", "나중에"), target: self, action: #selector(closeWindow))
         laterButton.bezelStyle = .rounded
 
         for view in [icon, title, steps, statusLabel, openButton, laterButton] as [NSView] {
@@ -104,13 +114,13 @@ final class PermissionWindowController: NSWindowController {
 
     private func refresh() {
         if Accessibility.isTrusted {
-            statusLabel.stringValue = "✓ Đã có quyền. Bạn có thể bắt đầu gõ."
+            statusLabel.stringValue = tr("✓ Đã có quyền. Bạn có thể bắt đầu gõ.", "✓ 권한이 허용되었습니다. 바로 입력할 수 있습니다.")
             statusLabel.textColor = .systemGreen
             timer?.invalidate()
             timer = nil
             onGranted?()
         } else {
-            statusLabel.stringValue = "Chưa có quyền Trợ năng."
+            statusLabel.stringValue = tr("Chưa có quyền Trợ năng.", "아직 손쉬운 사용 권한이 없습니다.")
             statusLabel.textColor = .systemOrange
         }
     }

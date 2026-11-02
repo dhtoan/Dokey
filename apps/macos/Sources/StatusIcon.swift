@@ -5,13 +5,14 @@ import Cocoa
 /// A small rounded badge: filled with the letter cut out for Vietnamese ("V"),
 /// outlined for English ("E"). Template images follow the menu bar's light/dark look.
 enum StatusIcon {
-    static func image(vietnamese: Bool) -> NSImage {
+    /// `vietnamese`: typing is on (filled badge); `korean`: the badge shows 한 instead of V.
+    static func image(vietnamese: Bool, korean: Bool = false) -> NSImage {
         let size = NSSize(width: 20, height: 16)
         let image = NSImage(size: size, flipped: false) { rect in
             let badge = rect.insetBy(dx: 1.5, dy: 1)
             let path = NSBezierPath(roundedRect: badge, xRadius: 3.5, yRadius: 3.5)
-            let letter = vietnamese ? "V" : "E"
-            let font = NSFont.systemFont(ofSize: 11.5, weight: .heavy)
+            let letter = vietnamese ? (korean ? "한" : "V") : "E"
+            let font = NSFont.systemFont(ofSize: letter == "한" ? 10.5 : 11.5, weight: .heavy)
             NSColor.black.set()
             if vietnamese {
                 path.fill()
@@ -34,7 +35,9 @@ enum StatusIcon {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = vietnamese ? "Dokey: tiếng Việt" : "Dokey: tiếng Anh"
+        image.accessibilityDescription = vietnamese
+            ? (korean ? tr("Dokey: tiếng Hàn", "Dokey: 한국어") : tr("Dokey: tiếng Việt", "Dokey: 베트남어"))
+            : tr("Dokey: tiếng Anh", "Dokey: 영어")
         return image
     }
 }

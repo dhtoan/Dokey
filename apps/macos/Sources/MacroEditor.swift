@@ -10,7 +10,7 @@ final class MacroEditorController: NSWindowController {
     convenience init() {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "Gõ tắt"
+        window.title = tr("Gõ tắt", "단축어")
         if #available(macOS 10.14, *) {
             window.appearance = NSAppearance(named: .darkAqua)
         } else {
@@ -27,8 +27,8 @@ final class MacroEditorController: NSWindowController {
         background.glows = false
         window.contentView = background
 
-        let title = label("Gõ tắt", size: 20, weight: .bold)
-        let help = label("Mỗi dòng một từ tắt: từ tắt = nội dung. Dòng bắt đầu bằng # là ghi chú.",
+        let title = label(tr("Gõ tắt", "단축어"), size: 20, weight: .bold)
+        let help = label(tr("Mỗi dòng một từ tắt: từ tắt = nội dung. Dòng bắt đầu bằng # là ghi chú.", "한 줄에 하나씩: 단축어 = 내용. #으로 시작하는 줄은 메모입니다."),
                          size: 12, color: Palette.secondaryText, wrapping: true)
 
         textView.isRichText = false
@@ -49,10 +49,10 @@ final class MacroEditorController: NSWindowController {
         scroll.wantsLayer = true
         scroll.layer?.cornerRadius = 10
 
-        let save = AccentButton(title: "Lưu")
+        let save = AccentButton(title: tr("Lưu", "저장"))
         save.target = self
         save.action = #selector(saveClicked)
-        let cancel = NSButton(title: "Huỷ", target: self, action: #selector(cancelClicked))
+        let cancel = NSButton(title: tr("Huỷ", "취소"), target: self, action: #selector(cancelClicked))
         cancel.bezelStyle = .rounded
 
         for v in [title, help, scroll, save, cancel] as [NSView] {

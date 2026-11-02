@@ -35,7 +35,7 @@ enum LoginItem {
         }
         do {
             if enabled {
-                guard let executable = Bundle.main.executablePath else { return "Không tìm thấy tệp chạy của Dokey." }
+                guard let executable = Bundle.main.executablePath else { return tr("Không tìm thấy tệp chạy của Dokey.", "Dokey 실행 파일을 찾을 수 없습니다.") }
                 let plist: [String: Any] = [
                     "Label": agentLabel,
                     "ProgramArguments": [executable],

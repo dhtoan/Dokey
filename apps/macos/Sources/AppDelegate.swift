@@ -87,16 +87,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         let main = NSMenu()
         let appItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Giới thiệu Dokey", action: #selector(menuAbout), keyEquivalent: "").target = self
+        appMenu.addItem(withTitle: tr("Giới thiệu Dokey", "Dokey 정보"), action: #selector(menuAbout), keyEquivalent: "").target = self
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Ẩn Dokey", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        appMenu.addItem(withTitle: "Thoát Dokey", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: tr("Thoát Dokey", "Dokey 종료"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)
         let windowItem = NSMenuItem()
-        let windowMenu = NSMenu(title: "Cửa sổ")
-        windowMenu.addItem(withTitle: "Đóng", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        windowMenu.addItem(withTitle: "Thu nhỏ", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        let windowMenu = NSMenu(title: tr("Cửa sổ", "윈도우"))
+        windowMenu.addItem(withTitle: tr("Đóng", "닫기"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windowMenu.addItem(withTitle: tr("Thu nhỏ", "최소화"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowItem.submenu = windowMenu
         main.addItem(windowItem)
         NSApp.mainMenu = main
@@ -125,6 +125,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
     }
 
     func panelCheckUpdates() { Updater.shared.check(interactive: true) }
+
+    func panelSetLanguage(_ code: String) { setLanguage(code) }
 
     var panelTapRunning: Bool { tap.isRunning }
 
@@ -190,7 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
     }
 
     private func updateIcon() {
-        statusItem.button?.image = StatusIcon.image(vietnamese: vietnameseActive)
+        statusItem.button?.image = StatusIcon.image(vietnamese: vietnameseActive, korean: settings.korean)
     }
 
     private func setVietnamese(_ on: Bool, remember: Bool) {
@@ -263,15 +265,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        menu.addItem(item("Mở bảng điều khiển…", #selector(menuControlPanel)))
+        menu.addItem(item(tr("Mở bảng điều khiển…", "제어판 열기…"), #selector(menuControlPanel)))
         menu.addItem(.separator())
-        let mode = item("Gõ tiếng Việt", #selector(menuToggleMode), key: "")
+        let mode = item(settings.korean ? tr("Gõ tiếng Hàn", "한국어 입력") : tr("Gõ tiếng Việt", "베트남어 입력"),
+                        #selector(menuToggleMode), key: "")
         mode.state = settings.vietnamese ? .on : .off
         menu.addItem(mode)
-        let hint = NSMenuItem(title: "Chuyển Anh/Việt: \(settings.hotkey.shortTitle)", action: nil, keyEquivalent: "")
+        let hint = NSMenuItem(title: tr("Chuyển ngôn ngữ / tiếng Anh: %@", "영문 전환: %@")
+                                  .replacingOccurrences(of: "%@", with: settings.hotkey.shortTitle),
+                              action: nil, keyEquivalent: "")
         hint.isEnabled = false
         menu.addItem(hint)
         menu.addItem(.separator())
+
+        // Typing language: Vietnamese or Korean (2-beolsik).
+        let languages = NSMenu()
+        for (title, code) in [("Tiếng Việt", "vi"), ("한국어 (두벌식)", "ko")] {
+            let l = item(title, #selector(menuSetLanguage(_:)))
+            l.representedObject = code
+            l.state = settings.languageCode == code ? .on : .off
+            languages.addItem(l)
+        }
+        menu.addItem(submenu(tr("Ngôn ngữ gõ: ", "입력 언어: ") + (settings.korean ? "한국어" : "Tiếng Việt"), languages))
 
         let methods = NSMenu()
         for (title, value) in [("Telex", Int32(DOKEY_TELEX)), ("VNI", Int32(DOKEY_VNI))] {
@@ -279,21 +294,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
             m.state = settings.method == value ? .on : .off
             methods.addItem(m)
         }
-        menu.addItem(submenu("Kiểu gõ: \(settings.method == Int32(DOKEY_VNI) ? "VNI" : "Telex")", methods))
+        let methodItem = submenu(tr("Kiểu gõ tiếng Việt: ", "베트남어 입력 방식: ")
+                                 + (settings.method == Int32(DOKEY_VNI) ? "VNI" : "Telex"), methods)
+        methodItem.isEnabled = !settings.korean
+        menu.addItem(methodItem)
 
         let encodings = NSMenu()
-        for (title, value) in [("Unicode dựng sẵn", Int32(DOKEY_UNICODE)),
-                               ("Unicode tổ hợp", Int32(DOKEY_UNICODE_COMBINING))] {
+        for (title, value) in [(tr("Unicode dựng sẵn", "유니코드 완성형"), Int32(DOKEY_UNICODE)),
+                               (tr("Unicode tổ hợp", "유니코드 조합형"), Int32(DOKEY_UNICODE_COMBINING))] {
             let e = item(title, #selector(menuSetEncoding(_:)), tag: Int(value))
             e.state = settings.encoding == value ? .on : .off
             encodings.addItem(e)
         }
-        menu.addItem(submenu("Bảng mã", encodings))
+        menu.addItem(submenu(tr("Bảng mã", "인코딩"), encodings))
 
-        let spelling = item("Kiểm tra chính tả", #selector(menuToggleSpelling))
+        let spelling = item(tr("Kiểm tra chính tả", "맞춤법 검사"), #selector(menuToggleSpelling))
         spelling.state = settings.checkSpelling ? .on : .off
         menu.addItem(spelling)
-        let tone = item("Đặt dấu kiểu mới (hoà, khoẻ, thuý)", #selector(menuToggleTone))
+        let tone = item(tr("Đặt dấu kiểu mới (hoà, khoẻ, thuý)", "새 성조 위치 (hoà, khoẻ, thuý)"), #selector(menuToggleTone))
         tone.state = settings.modernToneStyle ? .on : .off
         menu.addItem(tone)
         menu.addItem(.separator())
@@ -304,40 +322,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
             h.state = settings.hotkey == hotkey ? .on : .off
             hotkeys.addItem(h)
         }
-        menu.addItem(submenu("Phím chuyển Anh/Việt", hotkeys))
+        menu.addItem(submenu(tr("Phím chuyển Anh/Việt", "입력 전환 단축키"), hotkeys))
 
-        let perApp = item("Nhớ chế độ Anh/Việt theo ứng dụng", #selector(menuTogglePerApp))
+        let perApp = item(tr("Nhớ chế độ Anh/Việt theo ứng dụng", "앱별 입력 모드 기억"), #selector(menuTogglePerApp))
         perApp.state = settings.rememberModePerApp ? .on : .off
         menu.addItem(perApp)
-        let slow = item("Tương thích máy chậm", #selector(menuToggleSlow))
+        let slow = item(tr("Tương thích máy chậm", "느린 Mac 호환 모드"), #selector(menuToggleSlow))
         slow.state = settings.slowMachineMode ? .on : .off
-        slow.toolTip = "Thêm khoảng nghỉ giữa các phím gửi đi trong Chrome, Edge và ứng dụng Electron."
+        slow.toolTip = tr("Thêm khoảng nghỉ giữa các phím gửi đi trong Chrome, Edge và ứng dụng Electron.", "Chrome, Edge, Electron 앱에 보내는 키 사이에 짧은 간격을 둡니다.")
         menu.addItem(slow)
         if let app = frontApp, !app.bundleID.isEmpty {
-            let exclude = item("Không gõ tiếng Việt trong \(app.name)", #selector(menuToggleExcluded))
+            let exclude = item(tr("Tắt bộ gõ trong %@", "%@에서는 입력기 끄기").replacingOccurrences(of: "%@", with: app.name),
+                               #selector(menuToggleExcluded))
             exclude.state = isExcluded(app.bundleID) ? .on : .off
             menu.addItem(exclude)
         }
-        let login = item("Khởi động cùng macOS", #selector(menuToggleLogin))
+        let login = item(tr("Khởi động cùng macOS", "로그인 시 자동 실행"), #selector(menuToggleLogin))
         login.state = LoginItem.isEnabled ? .on : .off
         menu.addItem(login)
         menu.addItem(.separator())
 
         if let app = frontApp {
-            let info = NSMenuItem(title: "Ứng dụng: \(app.name) (\(app.kind.title))", action: nil, keyEquivalent: "")
+            let info = NSMenuItem(title: tr("Ứng dụng: ", "앱: ") + "\(app.name) (\(app.kind.title))", action: nil, keyEquivalent: "")
             info.isEnabled = false
             menu.addItem(info)
         }
         if !Accessibility.isTrusted || !tap.isRunning {
-            let warning = item("⚠️ Chưa có quyền Trợ năng: bấm để cấp quyền…", #selector(menuPermission))
+            let warning = item(tr("⚠️ Chưa có quyền Trợ năng: bấm để cấp quyền…", "⚠️ 손쉬운 사용 권한 없음: 클릭하여 허용…"), #selector(menuPermission))
             menu.addItem(warning)
         } else {
-            menu.addItem(item("Hướng dẫn cấp quyền Trợ năng…", #selector(menuPermission)))
+            menu.addItem(item(tr("Hướng dẫn cấp quyền Trợ năng…", "손쉬운 사용 권한 안내…"), #selector(menuPermission)))
         }
-        menu.addItem(item("Kiểm tra cập nhật…", #selector(menuCheckUpdates)))
-        menu.addItem(item("Giới thiệu Dokey", #selector(menuAbout)))
+        menu.addItem(item(tr("Kiểm tra cập nhật…", "업데이트 확인…"), #selector(menuCheckUpdates)))
+        menu.addItem(item(tr("Giới thiệu Dokey", "Dokey 정보"), #selector(menuAbout)))
         menu.addItem(.separator())
-        menu.addItem(item("Thoát Dokey", #selector(NSApplication.terminate(_:)), key: "q", target: NSApp))
+        menu.addItem(item(tr("Thoát Dokey", "Dokey 종료"), #selector(NSApplication.terminate(_:)), key: "q", target: NSApp))
     }
 
     private func item(_ title: String, _ action: Selector, key: String = "", tag: Int = 0,
@@ -357,6 +376,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
     @objc private func menuToggleMode() { toggleMode() }
 
     @objc private func menuControlPanel() { showControlPanel() }
+
+    @objc private func menuSetLanguage(_ sender: NSMenuItem) {
+        guard let code = sender.representedObject as? String else { return }
+        setLanguage(code)
+    }
+
+    /// "vi" or "ko". Switching language also turns typing on.
+    private func setLanguage(_ code: String) {
+        settings.languageCode = code
+        engine.reset()
+        if !settings.vietnamese { settings.vietnamese = true }
+        pushState()
+        updateIcon()
+    }
 
     @objc private func menuToggleExcluded() {
         guard let id = frontApp?.bundleID, !id.isEmpty else { return }
@@ -402,7 +435,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
     @objc private func menuToggleLogin() {
         if let error = LoginItem.setEnabled(!LoginItem.isEnabled) {
             let alert = NSAlert()
-            alert.messageText = "Không đổi được mục khởi động cùng macOS"
+            alert.messageText = tr("Không đổi được mục khởi động cùng macOS", "로그인 항목을 변경하지 못했습니다")
             alert.informativeText = error
             NSApp.activate(ignoringOtherApps: true)
             alert.runModal()
@@ -427,13 +460,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
         let alert = NSAlert()
         alert.messageText = "Dokey \(version)"
-        alert.informativeText = """
-        Bộ gõ tiếng Việt cho macOS, chạy trên lõi Dokey Core.
-        Telex, VNI, kiểm tra chính tả, giữ nguyên từ tiếng Anh.
+        alert.informativeText = tr("""
+        Bộ gõ tiếng Việt và tiếng Hàn cho macOS, chạy trên lõi Dokey Core.
+        Telex, VNI, 2-beolsik, kiểm tra chính tả, giữ nguyên từ tiếng Anh.
 
         © 2026 Do Huy Toan (dhtoan). All rights reserved.
         Phần mềm độc quyền: cấm sao chép, sửa đổi, phân phối lại.
-        """
+        """, """
+        Dokey Core 엔진 기반의 macOS용 한국어·베트남어 입력기입니다.
+        두벌식, Telex, VNI, 맞춤법 검사, 영어 단어 유지.
+
+        © 2026 Do Huy Toan (dhtoan). All rights reserved.
+        독점 소프트웨어: 복제, 수정, 재배포를 금지합니다.
+        """)
         if let icon = NSApp.applicationIconImage { alert.icon = icon }
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()

@@ -306,7 +306,18 @@ final class KeyboardTap {
         let textKey: CGKeyCode
         switch profile.textKey {
         case -1: textKey = typedKey
-        case ..<0: textKey = freeTextKey()
+        case ..<0:
+            // Chromium treats a letter key carrying a Hangul character like Korean IME
+            // input and sometimes loses the next Shift+← selection (measured in a
+            // ProseMirror editor on Edge: about 1 in 2 first words wrong with a letter
+            // key, 1 in 10 with Space). Korean in browsers and Electron apps therefore
+            // tags its text with the Space key, unless Space itself is held.
+            if state.korean && state.appKind != .normal
+                && !CGEventSource.keyState(.hidSystemState, key: KeyCode.space) {
+                textKey = KeyCode.space
+            } else {
+                textKey = freeTextKey()
+            }
         default: textKey = CGKeyCode(profile.textKey)
         }
         let chunk = profile.unitsPerEvent

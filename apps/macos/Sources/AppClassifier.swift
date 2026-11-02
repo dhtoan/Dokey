@@ -13,9 +13,9 @@ enum AppKind: String {
 
     var title: String {
         switch self {
-        case .browser: return "trình duyệt"
+        case .browser: return tr("trình duyệt", "브라우저")
         case .electron: return "Electron/IDE"
-        case .normal: return "thường"
+        case .normal: return tr("thường", "일반")
         }
     }
 
