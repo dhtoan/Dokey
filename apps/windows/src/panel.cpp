@@ -218,8 +218,10 @@ void Label(Graphics& g, const std::wstring& text, const RectF& r, float size, We
                                                   : r.X;
     StringFormat format(StringFormat::GenericTypographic());
     format.SetLineAlignment(vertical);
-    format.SetFormatFlags(format.GetFormatFlags() | StringFormatFlagsMeasureTrailingSpaces | StringFormatFlagsNoWrap |
-                          StringFormatFlagsNoClip);
+    // GenericTypographic has LineLimit, which hides a line that does not fit the
+    // box entirely: Malgun Gothic's line is taller than Segoe UI's.
+    format.SetFormatFlags((format.GetFormatFlags() & ~StringFormatFlagsLineLimit) |
+                          StringFormatFlagsMeasureTrailingSpaces | StringFormatFlagsNoWrap | StringFormatFlagsNoClip);
     for (size_t i = 0; i < runs.size(); i++) {
         FontSpec spec(weight, runs[i].second, size);
         const float width = std::max(widths[i] + 4, r.GetRight() - x);
