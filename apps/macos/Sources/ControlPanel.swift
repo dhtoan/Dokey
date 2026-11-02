@@ -136,7 +136,7 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
     private let currentAppLine = label("", size: 12, color: Palette.secondaryText, wrapping: true)
 
     convenience init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 860, height: 500),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 860, height: 520),
                               styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
         window.titlebarAppearsTransparent = true
@@ -185,9 +185,9 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
             content.leadingAnchor.constraint(equalTo: sidebar.trailingAnchor, constant: 22),
             content.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -24),
             content.topAnchor.constraint(equalTo: background.topAnchor, constant: 44),
-            content.bottomAnchor.constraint(equalTo: background.bottomAnchor, constant: -20),
+            content.bottomAnchor.constraint(equalTo: background.bottomAnchor, constant: -16),
             orb.centerXAnchor.constraint(equalTo: content.centerXAnchor),
-            orb.bottomAnchor.constraint(equalTo: background.bottomAnchor, constant: -8),
+            orb.bottomAnchor.constraint(equalTo: background.bottomAnchor, constant: -22),
             orb.widthAnchor.constraint(equalToConstant: 100),
             orb.heightAnchor.constraint(equalToConstant: 100),
         ])
@@ -196,6 +196,12 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         pages = [dashboardPage(), typingPage(), quickPage(), appsPage(), aboutPage()]
         for page in pages {
             page.translatesAutoresizingMaskIntoConstraints = false
+            // Every page starts at the same top edge and is only as tall as its
+            // content, so switching pages never shifts the cards up or down.
+            if let stack = page as? NSStackView {
+                stack.setHuggingPriority(.required, for: .vertical)
+                stack.distribution = .fill
+            }
             content.addSubview(page)
             NSLayoutConstraint.activate([
                 page.leadingAnchor.constraint(equalTo: content.leadingAnchor),
@@ -245,14 +251,6 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         return stack
     }
 
-    private func horizontal(_ views: [NSView], spacing: CGFloat = 12) -> NSStackView {
-        let stack = NSStackView(views: views)
-        stack.orientation = .horizontal
-        stack.alignment = .top
-        stack.spacing = spacing
-        return stack
-    }
-
     /// A page header card: big title and subtitle with a glossy emblem.
     private func heroCard(_ title: String, _ subtitle: String, badge: GlossyBadge) -> GlassCard {
         let card = GlassCard()
@@ -294,9 +292,11 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
             let line = NSStackView(views: [text, spacer, row.2])
             line.orientation = .horizontal
             line.alignment = .centerY
-            line.edgeInsets = NSEdgeInsets(top: 9, left: 18, bottom: 9, right: 18)
+            line.edgeInsets = NSEdgeInsets(top: 0, left: 18, bottom: 0, right: 18)
             stack.addArrangedSubview(line)
             line.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+            // A fixed row height keeps the card's height exact, so pages never stretch or shift.
+            line.heightAnchor.constraint(equalToConstant: 50).isActive = true
         }
         stack.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(stack)
@@ -307,6 +307,28 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
             stack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -3),
         ])
         return card
+    }
+
+    /// Cards side by side filling the whole width, edges pinned so every row of
+    /// the dashboard lines up. `weights`: relative widths (default equal).
+    private func cardRow(_ views: [NSView], height: CGFloat, weights: [CGFloat]? = nil, spacing: CGFloat = 12) -> NSView {
+        let row = NSView()
+        var constraints = [row.heightAnchor.constraint(equalToConstant: height)]
+        for (i, v) in views.enumerated() {
+            v.translatesAutoresizingMaskIntoConstraints = false
+            row.addSubview(v)
+            constraints += [v.topAnchor.constraint(equalTo: row.topAnchor), v.bottomAnchor.constraint(equalTo: row.bottomAnchor)]
+            if i == 0 {
+                constraints.append(v.leadingAnchor.constraint(equalTo: row.leadingAnchor))
+            } else {
+                constraints.append(v.leadingAnchor.constraint(equalTo: views[i - 1].trailingAnchor, constant: spacing))
+                let ratio = (weights?[i] ?? 1) / (weights?[0] ?? 1)
+                constraints.append(v.widthAnchor.constraint(equalTo: views[0].widthAnchor, multiplier: ratio))
+            }
+        }
+        if let last = views.last { constraints.append(last.trailingAnchor.constraint(equalTo: row.trailingAnchor)) }
+        NSLayoutConstraint.activate(constraints)
+        return row
     }
 
     private func fullWidth(_ views: [NSView], in stack: NSStackView) {
@@ -321,19 +343,10 @@ final class ControlPanelController: NSWindowController, NSWindowDelegate {
         modeCard.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(orbClicked)))
         modeCard.toolTip = tr("Bấm để chuyển Anh/Việt", "클릭하여 입력 언어 전환")
 
-        let top = horizontal([modeCard, permissionCard])
-        let bottom = horizontal([methodCard, appCard, countCard])
-        bottom.distribution = .fillEqually
+        let top = cardRow([modeCard, permissionCard], height: 112, weights: [1.25, 1])
+        let bottom = cardRow([methodCard, appCard, countCard], height: 92)
         let page = vertical([top, bottom, tryCard()], spacing: 12)
         fullWidth(page.arrangedSubviews, in: page)
-        NSLayoutConstraint.activate([
-            modeCard.heightAnchor.constraint(equalToConstant: 112),
-            permissionCard.heightAnchor.constraint(equalTo: modeCard.heightAnchor),
-            modeCard.widthAnchor.constraint(equalTo: permissionCard.widthAnchor, multiplier: 1.25),
-            methodCard.heightAnchor.constraint(equalToConstant: 92),
-            appCard.heightAnchor.constraint(equalTo: methodCard.heightAnchor),
-            countCard.heightAnchor.constraint(equalTo: methodCard.heightAnchor),
-        ])
         return page
     }
 
