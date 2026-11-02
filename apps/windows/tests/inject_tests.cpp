@@ -50,6 +50,45 @@ void TestBuildInputs() {
     Check(in[3].ki.dwExtraInfo == kTagEnd, "replayed key carries the end marker");
 
     Check(BuildInputs(Job(), &split).empty(), "empty job, no events");
+
+    Job guarded;
+    guarded.backspaces = 1;
+    guarded.clearSelection = true;
+    guarded.text = u"â";
+    in = BuildInputs(guarded, &split);
+    Check(in.size() == 8 && split == 6, "guard + 2 backspaces + 1 char");
+    Check(in[0].ki.wScan == kSelectionGuard && (in[0].ki.dwFlags & KEYEVENTF_UNICODE) && IsUp(in[1]), "guard first");
+    Check(in[2].ki.wVk == VK_BACK && in[4].ki.wVk == VK_BACK, "one extra backspace for the guard");
+    guarded.backspaces = 0;
+    Check(BuildInputs(guarded, &split).size() == 2, "no guard without backspaces");
+}
+
+// A text box with a selected inline completion after the caret ("tha|nhnien|"),
+// as address bars have: typing replaces the selection, Backspace deletes it.
+std::u16string ApplyToCompletion(const Job& job) {
+    std::u16string text = u"tha", selected = u"nhnien";
+    size_t split = 0;
+    for (const INPUT& e : BuildInputs(job, &split)) {
+        if (IsUp(e)) continue;
+        if (e.ki.wVk == VK_BACK) {
+            if (!selected.empty()) selected.clear();
+            else if (!text.empty()) text.pop_back();
+        } else {
+            selected.clear();
+            text.push_back(static_cast<char16_t>(e.ki.wScan));
+        }
+    }
+    return text + selected;
+}
+
+void TestSelectionGuard() {
+    Job job;  // the second "a" of "thaa": 1 Backspace + "â"
+    job.backspaces = 1;
+    job.text = u"â";
+    Check(ApplyToCompletion(job) == u"thaâ", "without the guard Backspace only removes the completion");
+    job.clearSelection = true;
+    std::u16string out = ApplyToCompletion(job);
+    Check(out == u"thâ", "with the guard the letter is replaced: thâ");
 }
 
 // Applies the engine's edits to a text buffer, as keyboard.cpp does:
@@ -112,6 +151,7 @@ void TestEngineContract() {
 
 int main() {
     TestBuildInputs();
+    TestSelectionGuard();
     TestEngineContract();
     if (g_failures == 0) std::printf("All Windows app tests passed.\n");
     return g_failures == 0 ? 0 : 1;

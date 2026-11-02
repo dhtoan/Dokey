@@ -110,7 +110,7 @@ t.addEventListener('input', e => {
     t.value = v + ac.slice(w.length);
     t.setSelectionRange(v.length, t.value.length, dir);
   }
-  document.title = 'DK:' + t.value.slice(0, t.selectionStart);
+  document.title = 'DK:' + t.value.slice(0, t.selectionStart) + '|';  // | keeps the trailing space
 });
 </script>
 '@
@@ -139,7 +139,7 @@ function Invoke-ChromeCase([string]$query, [scriptblock]$typing) {
         Start-Sleep -Milliseconds 500
         & $typing
         Start-Sleep -Seconds 2
-        return (Get-ChromeWindow).MainWindowTitle.Substring(3)
+        return (Get-ChromeWindow).MainWindowTitle.Substring(3).TrimEnd('|')
     } finally {
         Get-Process chrome -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
         Stop-Process -Id $dokey.Id -Force -ErrorAction SilentlyContinue

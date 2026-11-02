@@ -15,11 +15,18 @@ namespace dokey_win {
 constexpr ULONG_PTR kTagMid = 0x444F4B00;  // "DOK\0"
 constexpr ULONG_PTR kTagEnd = 0x444F4B01;
 
+// A text box may hold a selected inline completion after the caret (address
+// bars, Excel, Explorer): the first Backspace would delete that instead of the
+// letter. Typing this invisible character first replaces any selection, and
+// one more Backspace removes it again.
+constexpr char16_t kSelectionGuard = 0x200B;  // ZERO WIDTH SPACE
+
 inline bool IsOwnEvent(ULONG_PTR extra) { return extra == kTagMid || extra == kTagEnd; }
 
 // One unit of work for the sender thread.
 struct Job {
     int backspaces = 0;      // Backspace presses to send first
+    bool clearSelection = false;  // type kSelectionGuard (and delete it) before the Backspaces
     std::u16string text;     // then this text, as KEYEVENTF_UNICODE events
     WORD replayVk = 0;       // then this virtual key (Enter, Tab, deferred keys)
     WORD replayScan = 0;
@@ -39,12 +46,17 @@ inline INPUT MakeKey(WORD vk, WORD scan, DWORD flags) {
 }
 
 // Returns the events for `job`. `*split` receives the number of leading
-// events that are Backspaces, so a caller can pause after them.
+// events that are the guard and Backspaces, so a caller can pause after them.
 inline std::vector<INPUT> BuildInputs(const Job& job, size_t* split) {
     std::vector<INPUT> out;
-    out.reserve(static_cast<size_t>(job.backspaces) * 2 + job.text.size() * 2 + 2);
+    out.reserve(static_cast<size_t>(job.backspaces) * 2 + job.text.size() * 2 + 6);
     const WORD backScan = static_cast<WORD>(MapVirtualKeyW(VK_BACK, MAPVK_VK_TO_VSC));
-    for (int i = 0; i < job.backspaces; i++) {
+    const bool guard = job.clearSelection && job.backspaces > 0;
+    if (guard) {
+        out.push_back(MakeKey(0, kSelectionGuard, KEYEVENTF_UNICODE));
+        out.push_back(MakeKey(0, kSelectionGuard, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP));
+    }
+    for (int i = 0; i < job.backspaces + (guard ? 1 : 0); i++) {
         out.push_back(MakeKey(VK_BACK, backScan, 0));
         out.push_back(MakeKey(VK_BACK, backScan, KEYEVENTF_KEYUP));
     }
