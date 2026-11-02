@@ -91,6 +91,7 @@ void ApplyEngineOptions() {
     } else {
         g_engine = dokey_create(&o);
     }
+    dokey_set_language(g_engine, g_settings.language == LANGUAGE_KOREAN ? DOKEY_LANG_KOREAN : DOKEY_LANG_VIETNAMESE);
     ApplyMacros();
     g_excluded = IsExcluded(g_settings, g_foregroundExe);
 }
@@ -340,6 +341,14 @@ bool OnKeyDown(const KBDLLHOOKSTRUCT& k) {
         return true;
     }
 
+    // The 한/영 key of Korean keyboards toggles too while Dokey types Korean
+    // (no Microsoft IME is open then, so nobody else wants it).
+    if (vk == VK_HANGUL && g_settings.language == LANGUAGE_KOREAN && !g_imeActive.load()) {
+        Toggle();
+        g_swallowed[vk] = true;
+        return true;
+    }
+
     if (vk == VK_PACKET) {  // text injected by another program
         dokey_reset(g_engine);
         return PassOrDefer(k);
@@ -364,7 +373,14 @@ bool OnKeyDown(const KBDLLHOOKSTRUCT& k) {
     }
     if (IsNeutral(vk)) return PassOrDefer(k);
 
-    wchar_t ch = Translate(k);
+    // Korean 2-beolsik maps key positions, not characters: letters come from the
+    // virtual-key code (US positions, any layout); Caps Lock is ignored.
+    wchar_t ch = 0;
+    if (g_settings.language == LANGUAGE_KOREAN && vk >= 'A' && vk <= 'Z') {
+        ch = static_cast<wchar_t>(shift ? vk : vk - 'A' + 'a');
+    } else {
+        ch = Translate(k);
+    }
     if (ch == 0) {  // arrows, Home, Delete, Esc, F-keys...
         dokey_reset(g_engine);
         return PassOrDefer(k);

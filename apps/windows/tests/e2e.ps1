@@ -46,47 +46,72 @@ public static class W {
 }
 "@
 
-New-Item -Path HKCU:\Software\Dokey -Force | Out-Null
-Set-ItemProperty -Path HKCU:\Software\Dokey -Name Vietnamese -Value 1 -Type DWord
-Set-ItemProperty -Path HKCU:\Software\Dokey -Name Method -Value 0 -Type DWord
+# Starts Dokey with `language` (0 Vietnamese, 1 Korean) and Notepad, runs
+# `typing`, and returns Notepad's text.
+function Invoke-Case([int]$language, [scriptblock]$typing) {
+    New-Item -Path HKCU:\Software\Dokey -Force | Out-Null
+    Set-ItemProperty -Path HKCU:\Software\Dokey -Name Vietnamese -Value 1 -Type DWord
+    Set-ItemProperty -Path HKCU:\Software\Dokey -Name Method -Value 0 -Type DWord
+    Set-ItemProperty -Path HKCU:\Software\Dokey -Name Language -Value $language -Type DWord
+    $dokey = Start-Process -FilePath $Exe -ArgumentList '--background' -PassThru
+    Start-Sleep -Seconds 2
+    $notepad = Start-Process -FilePath notepad.exe -PassThru
+    $notepad.WaitForInputIdle() | Out-Null
+    Start-Sleep -Seconds 1
+    [W]::SetForegroundWindow($notepad.MainWindowHandle) | Out-Null
+    Start-Sleep -Milliseconds 500
+    try {
+        & $typing
+        Start-Sleep -Seconds 2
+        $edit = [W]::FindWindowEx($notepad.MainWindowHandle, [IntPtr]::Zero, "Edit", $null)
+        $len = [int][W]::SendMessage($edit, 0x000E, [IntPtr]::Zero, [IntPtr]::Zero)
+        $sb = New-Object System.Text.StringBuilder ($len + 1)
+        [W]::SendMessage($edit, 0x000D, [IntPtr]($len + 1), $sb) | Out-Null
+        return $sb.ToString()
+    } finally {
+        Stop-Process -Id $notepad.Id -Force -ErrorAction SilentlyContinue
+        Stop-Process -Id $dokey.Id -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 1
+    }
+}
 
-$dokey = Start-Process -FilePath $Exe -ArgumentList '--background' -PassThru
-Start-Sleep -Seconds 2
-$notepad = Start-Process -FilePath notepad.exe -PassThru
-$notepad.WaitForInputIdle() | Out-Null
-Start-Sleep -Seconds 1
-[W]::SetForegroundWindow($notepad.MainWindowHandle) | Out-Null
-Start-Sleep -Milliseconds 500
+function Test-Text([string]$name, [string]$text, [string]$expected) {
+    $codes = ($text.ToCharArray() | ForEach-Object { 'U+{0:X4}' -f [int]$_ }) -join ' '
+    Write-Host "[$name] Typed:    $codes"
+    Write-Host "[$name] Text: $text"
+    if ($text -ceq $expected) {
+        Write-Host "[$name] passed."
+        return $true
+    }
+    $want = ($expected.ToCharArray() | ForEach-Object { 'U+{0:X4}' -f [int]$_ }) -join ' '
+    Write-Host "[$name] Expected: $want"
+    return $false
+}
 
 $exitCode = 0
-try {
+
+# Vietnamese (Telex).
+$text = Invoke-Case 0 {
     $line = "Vieetj Nam dduowngf windows Tooi yeeu tieengs Vieetj "
     [W]::Type($line + "`n", 40)  # a normal typist
     [W]::Type($line + "`n", 0)   # as fast as SendInput goes: tests ordering
     # Dokey 0.4: reopen a word with Backspace after its space, and a text shortcut.
     [W]::Type("Haxy xin `bf btw ", 40)
-    Start-Sleep -Seconds 2
-    $edit = [W]::FindWindowEx($notepad.MainWindowHandle, [IntPtr]::Zero, "Edit", $null)
-    $len = [int][W]::SendMessage($edit, 0x000E, [IntPtr]::Zero, [IntPtr]::Zero)
-    $sb = New-Object System.Text.StringBuilder ($len + 1)
-    [W]::SendMessage($edit, 0x000D, [IntPtr]($len + 1), $sb) | Out-Null
-    $text = $sb.ToString()
-    $viet = "Vi$([char]0x1EC7)t"
-    $want = "$viet Nam $([char]0x0111)$([char]0x01B0)$([char]0x1EDD)ng windows T$([char]0x00F4)i y$([char]0x00EA)u ti$([char]0x1EBF)ng $viet "
-    $third = "H$([char]0x00E3)y x$([char]0x00EC)n by the way "
-    $expected = $want + "`r`n" + $want + "`r`n" + $third
-    $codes = ($text.ToCharArray() | ForEach-Object { 'U+{0:X4}' -f [int]$_ }) -join ' '
-    Write-Host "Typed:    $codes"
-    Write-Host "Text: $text"
-    if ($text -ceq $expected) {
-        Write-Host "End-to-end typing test passed."
-    } else {
-        $want = ($expected.ToCharArray() | ForEach-Object { 'U+{0:X4}' -f [int]$_ }) -join ' '
-        Write-Host "Expected: $want"
-        $exitCode = 1
-    }
-} finally {
-    Stop-Process -Id $notepad.Id -Force -ErrorAction SilentlyContinue
-    Stop-Process -Id $dokey.Id -Force -ErrorAction SilentlyContinue
 }
+$viet = "Vi$([char]0x1EC7)t"
+$want = "$viet Nam $([char]0x0111)$([char]0x01B0)$([char]0x1EDD)ng windows T$([char]0x00F4)i y$([char]0x00EA)u ti$([char]0x1EBF)ng $viet "
+$third = "H$([char]0x00E3)y x$([char]0x00EC)n by the way "
+if (-not (Test-Text 'Vietnamese' $text ($want + "`r`n" + $want + "`r`n" + $third))) { $exitCode = 1 }
+
+# Korean (2-beolsik), letters read by key position: 안녕하세요 한국, typed normally then fast.
+$text = Invoke-Case 1 {
+    [W]::Type("dkssudgktpdy gksrnr`n", 40)
+    [W]::Type("dkssudgktpdy gksrnr ", 0)
+}
+$hello = -join ([char[]](0xC548, 0xB155, 0xD558, 0xC138, 0xC694))
+$korea = -join ([char[]](0xD55C, 0xAD6D))
+if (-not (Test-Text 'Korean' $text "$hello $korea`r`n$hello $korea ")) { $exitCode = 1 }
+
+Set-ItemProperty -Path HKCU:\Software\Dokey -Name Language -Value 0 -Type DWord
+if ($exitCode -eq 0) { Write-Host "End-to-end typing test passed." }
 exit $exitCode

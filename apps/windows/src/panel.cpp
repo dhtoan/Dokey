@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cwctype>
 #include <vector>
 
 #include <objidl.h>
@@ -37,10 +38,17 @@ constexpr UINT_PTR kMacroSaveTimer = 2;  // saves the macro list shortly after t
 constexpr UINT kRefreshMs = 1500;
 constexpr DWORD kSlowPauseMs = 30;  // "slow machine" pause in Chromium windows
 const COLORREF kWellColor = RGB(78, 37, 140);  // the "Gõ thử" well, also the edit box background
-const wchar_t kTryPlaceholder[] = L"Gõ thử ở đây, ví dụ: Vieetj Nam, dduowngf, Haxy…";
 
 enum Page { PAGE_DASHBOARD, PAGE_TYPING, PAGE_QUICK, PAGE_APPS, PAGE_ABOUT, PAGE_COUNT };
-const wchar_t* const kTitles[PAGE_COUNT] = {L"Bảng điều khiển", L"Kiểu gõ", L"Gõ nhanh", L"Ứng dụng", L"Giới thiệu"};
+const wchar_t* Title(int page) {
+    switch (page) {
+        case PAGE_DASHBOARD: return Tr(L"Bảng điều khiển", L"제어판");
+        case PAGE_TYPING: return Tr(L"Kiểu gõ", L"입력 방식");
+        case PAGE_QUICK: return Tr(L"Gõ nhanh", L"빠른 입력");
+        case PAGE_APPS: return Tr(L"Ứng dụng", L"앱");
+        default: return Tr(L"Giới thiệu", L"정보");
+    }
+}
 
 enum HotId {
     HOT_NONE = 0,
@@ -60,6 +68,8 @@ enum HotId {
     HOT_QUICK_TELEX,
     HOT_ESC_UNDO,
     HOT_EXCLUDE_ADD,
+    HOT_LANG_VIETNAMESE,
+    HOT_LANG_KOREAN,
     HOT_EXCLUDE_FIRST,  // + index in the excluded list; keep last
 };
 
@@ -136,30 +146,92 @@ void AddRoundedPolygon(GraphicsPath& path, const std::vector<PointF>& points, fl
 
 enum class Weight { Regular, Semibold, Bold, Mono };
 
+// GDI+ has no font fallback: Segoe UI and Consolas have no Hangul, so Hangul
+// is drawn with Malgun Gothic (Korean text never needs Vietnamese letters, and
+// mixed lines are split into runs below).
+bool IsHangul(wchar_t c) {
+    return (c >= 0x1100 && c <= 0x11FF) || (c >= 0x3130 && c <= 0x318F) || (c >= 0xAC00 && c <= 0xD7A3);
+}
+
+struct FontSpec {
+    FontFamily family;
+    Font font;
+    FontSpec(Weight weight, bool hangul, float size)
+        : family(hangul                       ? L"Malgun Gothic"
+                 : weight == Weight::Semibold ? L"Segoe UI Semibold"
+                 : weight == Weight::Mono     ? L"Consolas"
+                                              : L"Segoe UI"),
+          font(family.IsAvailable() ? &family : FontFamily::GenericSansSerif(), size,
+               weight == Weight::Bold || (hangul && weight == Weight::Semibold) ? FontStyleBold : FontStyleRegular,
+               UnitPixel) {}
+};
+
+// Splits text into runs of Hangul and of everything else; spaces and ASCII
+// punctuation join the run they are in.
+std::vector<std::pair<std::wstring, bool>> HangulRuns(const std::wstring& text) {
+    std::vector<std::pair<std::wstring, bool>> runs;
+    for (wchar_t c : text) {
+        const bool neutral = c < 0x80 && !iswalnum(static_cast<wint_t>(c));
+        const bool hangul = IsHangul(c);
+        if (runs.empty() || (!neutral && runs.back().second != hangul)) runs.push_back({std::wstring(), hangul});
+        runs.back().first.push_back(c);
+    }
+    return runs;
+}
+
+float RunWidth(Graphics& g, const std::wstring& text, const Font& font) {
+    StringFormat format(StringFormat::GenericTypographic());
+    format.SetFormatFlags(format.GetFormatFlags() | StringFormatFlagsMeasureTrailingSpaces | StringFormatFlagsNoWrap);
+    RectF box;
+    g.MeasureString(text.c_str(), -1, &font, PointF(0, 0), &format, &box);
+    return box.Width;
+}
+
 void Label(Graphics& g, const std::wstring& text, const RectF& r, float size, Weight weight, const Color& color,
-              StringAlignment horizontal = StringAlignmentNear, StringAlignment vertical = StringAlignmentNear,
-              bool wrap = false) {
-    FontFamily family(weight == Weight::Semibold ? L"Segoe UI Semibold"
-                      : weight == Weight::Mono   ? L"Consolas"
-                                                 : L"Segoe UI");
-    Font font(family.IsAvailable() ? &family : FontFamily::GenericSansSerif(), size,
-              weight == Weight::Bold ? FontStyleBold : FontStyleRegular, UnitPixel);
-    StringFormat format;
-    format.SetAlignment(horizontal);
-    format.SetLineAlignment(vertical);
-    format.SetTrimming(StringTrimmingEllipsisCharacter);
-    if (!wrap) format.SetFormatFlags(StringFormatFlagsNoWrap);
+           StringAlignment horizontal = StringAlignmentNear, StringAlignment vertical = StringAlignmentNear,
+           bool wrap = false) {
     SolidBrush brush(color);
-    g.DrawString(text.c_str(), -1, &font, r, &format, &brush);
+    auto runs = HangulRuns(text);
+    if (runs.size() <= 1 || wrap) {
+        bool hangul = false;
+        for (const auto& run : runs) hangul = hangul || run.second;
+        FontSpec spec(weight, hangul, size);
+        StringFormat format;
+        format.SetAlignment(horizontal);
+        format.SetLineAlignment(vertical);
+        format.SetTrimming(StringTrimmingEllipsisCharacter);
+        if (!wrap) format.SetFormatFlags(StringFormatFlagsNoWrap);
+        g.DrawString(text.c_str(), -1, &spec.font, r, &format, &brush);
+        return;
+    }
+    // Mixed Hangul and Vietnamese on one line: draw run after run.
+    float total = 0;
+    std::vector<float> widths;
+    for (const auto& run : runs) {
+        FontSpec spec(weight, run.second, size);
+        widths.push_back(RunWidth(g, run.first, spec.font));
+        total += widths.back();
+    }
+    float x = horizontal == StringAlignmentCenter ? r.X + (r.Width - total) / 2
+              : horizontal == StringAlignmentFar  ? r.GetRight() - total
+                                                  : r.X;
+    StringFormat format(StringFormat::GenericTypographic());
+    format.SetLineAlignment(vertical);
+    format.SetFormatFlags(format.GetFormatFlags() | StringFormatFlagsMeasureTrailingSpaces | StringFormatFlagsNoWrap);
+    for (size_t i = 0; i < runs.size(); i++) {
+        FontSpec spec(weight, runs[i].second, size);
+        g.DrawString(runs[i].first.c_str(), -1, &spec.font, RectF(x, r.Y, widths[i] + 4, r.Height), &format, &brush);
+        x += widths[i];
+    }
 }
 
 float TextWidth(Graphics& g, const std::wstring& text, float size, Weight weight) {
-    FontFamily family(weight == Weight::Semibold ? L"Segoe UI Semibold" : L"Segoe UI");
-    Font font(family.IsAvailable() ? &family : FontFamily::GenericSansSerif(), size,
-              weight == Weight::Bold ? FontStyleBold : FontStyleRegular, UnitPixel);
-    RectF box;
-    g.MeasureString(text.c_str(), -1, &font, PointF(0, 0), StringFormat::GenericTypographic(), &box);
-    return box.Width;
+    float total = 0;
+    for (const auto& run : HangulRuns(text)) {
+        FontSpec spec(weight, run.second, size);
+        total += RunWidth(g, run.first, spec.font);
+    }
+    return total;
 }
 
 void FillAccent(Graphics& g, GraphicsPath& path, const RectF& r) {
@@ -192,6 +264,7 @@ struct Emblem {
 };
 
 const Emblem kModeOn = {Shape::Squircle, Rgb(250, 115, 219), Rgb(158, 41, 204), Symbol::Text, L"V"};
+const Emblem kModeKorean = {Shape::Squircle, Rgb(110, 160, 255), Rgb(40, 70, 200), Symbol::Text, L"\uD55C"};  // 한
 const Emblem kModeOff = {Shape::Squircle, Rgb(150, 160, 190), Rgb(80, 85, 120), Symbol::Text, L"E"};
 const Emblem kReady = {Shape::Shield, Rgb(102, 235, 158), Rgb(13, 140, 102), Symbol::Check, nullptr};
 const Emblem kPaused = {Shape::Shield, Rgb(255, 199, 102), Rgb(230, 102, 26), Symbol::Text, L"!"};
@@ -440,7 +513,7 @@ void DrawOrb(Graphics& g, const RectF& box, bool on) {
     g.SetClip(&old);
     Pen rim(White(165), 1.6f);
     g.DrawEllipse(&rim, body);
-    Label(g, on ? L"Tắt" : L"Bật", body, 15, Weight::Semibold, White(255), StringAlignmentCenter,
+    Label(g, on ? Tr(L"Tắt", L"끄기") : Tr(L"Bật", L"켜기"), body, 15, Weight::Semibold, White(255), StringAlignmentCenter,
              StringAlignmentCenter);
     AddHot(body, HOT_ORB);
 }
@@ -554,38 +627,64 @@ RectF TryWell() {
     return RectF(c.X + 12, c.Y + 112 + 12 + 92 + 12 + 34, c.Width - 24, 46);
 }
 
+bool Korean() { return g_settings->language == LANGUAGE_KOREAN; }
+
+const wchar_t* TryPlaceholder() {
+    return Korean() ? Tr(L"Gõ thử tiếng Hàn ở đây, ví dụ: dkssudgktpdy → 안녕하세요",
+                         L"여기에 입력해 보세요. 예: dkssudgktpdy → 안녕하세요")
+                    : Tr(L"Gõ thử ở đây, ví dụ: Vieetj Nam, dduowngf, Haxy…",
+                         L"여기에 입력해 보세요. 예: Vieetj Nam, dduowngf, Haxy…");
+}
+
 void DrawDashboard(Graphics& g, const RectF& c, const PanelStatus& st) {
     const Settings& s = *g_settings;
+    const bool korean = Korean();
     const float stateWidth = (c.Width - 12) / 2.25f, modeWidth = c.Width - 12 - stateWidth;
     RectF mode(c.X, c.Y, modeWidth, 112), state(c.X + modeWidth + 12, c.Y, stateWidth, 112);
-    DrawStatCard(g, mode, L"Chế độ gõ", s.vietnamese ? L"Tiếng Việt" : L"Tiếng Anh", 28,
-                 (s.vietnamese ? L"Đang bật · " : L"Đang tắt · ") + HotkeyText() + L" để chuyển", s.vietnamese,
-                 s.vietnamese ? kModeOn : kModeOff, 96, HOT_MODE);
+    const wchar_t* language = korean ? Tr(L"Tiếng Hàn", L"한국어") : Tr(L"Tiếng Việt", L"베트남어");
+    DrawStatCard(g, mode, Tr(L"Chế độ gõ", L"입력 모드"), s.vietnamese ? language : Tr(L"Tiếng Anh", L"영어"), 28,
+                 (s.vietnamese ? Tr(L"Đang bật · ", L"켜짐 · ") : Tr(L"Đang tắt · ", L"꺼짐 · ")) + HotkeyText() +
+                     Tr(L" để chuyển", L"로 전환"),
+                 s.vietnamese, !s.vietnamese ? kModeOff : korean ? kModeKorean : kModeOn, 96, HOT_MODE);
+    const wchar_t* stateCaption = Tr(L"Trạng thái", L"상태");
     if (IsExcluded(s, st.appExe)) {
-        DrawStatCard(g, state, L"Trạng thái", L"Tạm nghỉ", 22, L"Không gõ tiếng Việt trong " + st.appName, false,
-                     kPaused, 80);
+        std::wstring why = UiKorean() ? L"제외된 앱: " + st.appName : L"Không gõ tiếng Việt trong " + st.appName;
+        DrawStatCard(g, state, stateCaption, Tr(L"Tạm nghỉ", L"일시 중지"), 22, why, false, kPaused, 80);
     } else if (st.imeActive) {
-        DrawStatCard(g, state, L"Trạng thái", L"Tạm nghỉ", 22, L"Bộ gõ Trung/Nhật/Hàn đang bật", false, kPaused, 80);
+        DrawStatCard(g, state, stateCaption, Tr(L"Tạm nghỉ", L"일시 중지"), 22,
+                     Tr(L"Bộ gõ Trung/Nhật/Hàn đang bật", L"다른 입력기(중국어/일본어/한국어) 사용 중"), false, kPaused,
+                     80);
     } else {
-        DrawStatCard(g, state, L"Trạng thái", L"Sẵn sàng", 22, L"Dokey đang nghe bàn phím", true, kReady, 80);
+        DrawStatCard(g, state, stateCaption, Tr(L"Sẵn sàng", L"준비됨"), 22,
+                     Tr(L"Dokey đang nghe bàn phím", L"Dokey가 키보드를 듣고 있습니다"), true, kReady, 80);
     }
 
     const float w = (c.Width - 24) / 3, y = c.Y + 124, h = 92;
-    DrawStatCard(g, RectF(c.X, y, w, h), L"Kiểu gõ", s.method == DOKEY_VNI ? L"VNI" : L"Telex", 19, L"Unicode dựng sẵn",
-                 true, kMethod, 60);
-    if (st.appName.empty()) {
-        DrawStatCard(g, RectF(c.X + w + 12, y, w, h), L"Ứng dụng", L"—", 19, L"Chưa có", false, kApps, 60);
+    if (korean) {
+        DrawStatCard(g, RectF(c.X, y, w, h), Tr(L"Kiểu gõ", L"입력 방식"), L"두벌식", 19,
+                     Tr(L"Theo vị trí phím", L"키 위치 기준"), true, kMethod, 60);
     } else {
-        DrawStatCard(g, RectF(c.X + w + 12, y, w, h), L"Ứng dụng", st.appName, 19,
-                     st.appChromium ? L"Nhóm: trình duyệt" : L"Nhóm: ứng dụng thường", true, kApps, 60);
+        DrawStatCard(g, RectF(c.X, y, w, h), Tr(L"Kiểu gõ", L"입력 방식"), s.method == DOKEY_VNI ? L"VNI" : L"Telex",
+                     19, Tr(L"Unicode dựng sẵn", L"유니코드 완성형"), true, kMethod, 60);
+    }
+    const wchar_t* appCaption = Tr(L"Ứng dụng", L"앱");
+    if (st.appName.empty()) {
+        DrawStatCard(g, RectF(c.X + w + 12, y, w, h), appCaption, L"—", 19, Tr(L"Chưa có", L"없음"), false, kApps, 60);
+    } else {
+        DrawStatCard(g, RectF(c.X + w + 12, y, w, h), appCaption, st.appName, 19,
+                     st.appChromium ? Tr(L"Nhóm: trình duyệt", L"유형: 브라우저")
+                                    : Tr(L"Nhóm: ứng dụng thường", L"유형: 일반 앱"),
+                     true, kApps, 60);
     }
     wchar_t count[32];
-    wsprintfW(count, L"%u từ", st.markedWords);
-    DrawStatCard(g, RectF(c.X + (w + 12) * 2, y, w, h), L"Đã thêm dấu", count, 19, L"từ lúc mở Dokey", true, kCount, 60);
+    wsprintfW(count, Tr(L"%u từ", L"%u개"), st.markedWords);
+    DrawStatCard(g, RectF(c.X + (w + 12) * 2, y, w, h),
+                 korean ? Tr(L"Đã ghép chữ", L"조합한 단어") : Tr(L"Đã thêm dấu", L"성조를 붙인 단어"), count, 19,
+                 Tr(L"từ lúc mở Dokey", L"Dokey 실행 후"), true, kCount, 60);
 
     RectF tryCard(c.X, y + h + 12, c.Width, 92);
     DrawCard(g, tryCard);
-    Label(g, L"Gõ thử", RectF(tryCard.X + 16, tryCard.Y + 10, 200, 20), 12, Weight::Semibold, White(kSecondaryAlpha),
+    Label(g, Tr(L"Gõ thử", L"입력 테스트"), RectF(tryCard.X + 16, tryCard.Y + 10, 200, 20), 12, Weight::Semibold, White(kSecondaryAlpha),
           StringAlignmentNear, StringAlignmentCenter);
     const RectF well = TryWell();
     GraphicsPath wellPath;
@@ -593,7 +692,7 @@ void DrawDashboard(Graphics& g, const RectF& c, const PanelStatus& st) {
     SolidBrush wellBrush(Rgb(kWellColor & 0xFF, (kWellColor >> 8) & 0xFF, (kWellColor >> 16) & 0xFF));
     g.FillPath(&wellBrush, &wellPath);
     if (!g_tryEdit) {  // rendering to a file: no edit box, show its placeholder
-        Label(g, kTryPlaceholder, RectF(well.X + 14, well.Y, well.Width - 28, well.Height), 17, Weight::Regular,
+        Label(g, TryPlaceholder(), RectF(well.X + 14, well.Y, well.Width - 28, well.Height), 17, Weight::Regular,
               White(120), StringAlignmentNear, StringAlignmentCenter);
     }
 }
@@ -639,21 +738,57 @@ RectF SettingsCardRect(const RectF& c, size_t rows) { return RectF(c.X, c.Y + 88
 
 void DrawTypingPage(Graphics& g, const RectF& c) {
     const Settings& s = *g_settings;
-    DrawHero(g, RectF(c.X, c.Y, c.Width, 88), L"Kiểu gõ", L"Chọn cách gõ dấu và cách Dokey xử lý chữ.", kMethod);
-    RectF card = SettingsCardRect(c, 4);
+    const bool korean = Korean();
+    DrawHero(g, RectF(c.X, c.Y, c.Width, 88), Tr(L"Kiểu gõ", L"입력 방식"),
+             Tr(L"Chọn ngôn ngữ, cách gõ và cách Dokey xử lý chữ.", L"언어와 입력 방식을 고르세요."),
+             korean ? kModeKorean : kMethod);
+    const Row language = {Tr(L"Ngôn ngữ", L"언어"),
+                          Tr(L"Tiếng Việt (Telex, VNI) hoặc tiếng Hàn (두벌식)", L"베트남어(Telex, VNI) 또는 한국어(두벌식)")};
+    const wchar_t* const languages[] = {Tr(L"Tiếng Việt", L"베트남어"), L"한국어"};
+    const wchar_t* const hotkeys[] = {L"Ctrl + Shift", L"Alt + Z"};
+
+    if (korean) {
+        RectF card = SettingsCardRect(c, 3);
+        std::vector<float> y = DrawSettingsCard(g, card, {
+            language,
+            {Tr(L"Bàn phím", L"자판"),
+             Tr(L"두벌식 (KS X 5002), đọc theo vị trí phím: gksrnr → 한국", L"두벌식 (KS X 5002), 키 위치 기준: gksrnr → 한국")},
+            {Tr(L"Phím chuyển Anh/Hàn", L"한/영 전환 키"),
+             Tr(L"Dùng được ở mọi ứng dụng; phím 한/영 cũng chuyển được", L"모든 앱에서 사용 가능, 한/영 키도 사용 가능")},
+        });
+        const float right = card.GetRight() - 18;
+        DrawPills(g, right, y[0], 200, languages, 2, 1, HOT_LANG_VIETNAMESE);
+        DrawPills(g, right, y[2], 200, hotkeys, 2, s.hotkey == HOTKEY_ALT_Z ? 1 : 0, HOT_CTRL_SHIFT);
+        Label(g, L"dkssudgktpdy → 안녕하세요   ·   gksrnr → 한국   ·   rkatkgkqslek → 감사합니다   ·   dlTdjdy → 있어요",
+              RectF(c.X + 2, card.GetBottom() + 12, c.Width - 4, 20), 13, Weight::Semibold, White(225));
+        Label(g,
+              Tr(L"Giữ bố cục bàn phím English (US) của Windows; không cần bật bộ gõ tiếng Hàn của Microsoft. "
+                 L"Chữ hiện ra ngay, không có chữ đang ghép dở, nên bấm Enter không làm mất âm tiết cuối.",
+                 L"Windows 키보드는 영어(미국) 그대로 두세요. Microsoft 한국어 입력기는 켤 필요가 없습니다. "
+                 L"조합 중인 글자 없이 바로 입력되므로 Enter를 눌러도 마지막 글자가 사라지지 않습니다."),
+              RectF(c.X + 2, card.GetBottom() + 40, c.Width - 4, 40), 12, Weight::Regular, White(kSecondaryAlpha),
+              StringAlignmentNear, StringAlignmentNear, true);
+        return;
+    }
+
+    RectF card = SettingsCardRect(c, 5);
     std::vector<float> y = DrawSettingsCard(g, card, {
-        {L"Kiểu gõ", L"Gõ dấu bằng chữ cái (Telex) hoặc chữ số (VNI)"},
-        {L"Kiểm tra chính tả", L"Giữ nguyên từ không phải tiếng Việt: windows, chrome…"},
-        {L"Đặt dấu kiểu mới", L"Bật: hoà, khoẻ, thuý · Tắt: hòa, khỏe, thúy"},
-        {L"Phím chuyển Anh/Việt", L"Dùng được ở mọi ứng dụng"},
+        language,
+        {Tr(L"Kiểu gõ", L"베트남어 입력 방식"),
+         Tr(L"Gõ dấu bằng chữ cái (Telex) hoặc chữ số (VNI)", L"문자(Telex) 또는 숫자(VNI)로 성조 입력")},
+        {Tr(L"Kiểm tra chính tả", L"맞춤법 검사"),
+         Tr(L"Giữ nguyên từ không phải tiếng Việt: windows, chrome…", L"베트남어가 아닌 단어는 그대로: windows, chrome…")},
+        {Tr(L"Đặt dấu kiểu mới", L"새 성조 위치"),
+         Tr(L"Bật: hoà, khoẻ, thuý · Tắt: hòa, khỏe, thúy", L"켜기: hoà, khoẻ, thuý · 끄기: hòa, khỏe, thúy")},
+        {Tr(L"Phím chuyển Anh/Việt", L"전환 단축키"), Tr(L"Dùng được ở mọi ứng dụng", L"모든 앱에서 사용 가능")},
     });
     const float right = card.GetRight() - 18;
+    DrawPills(g, right, y[0], 200, languages, 2, 0, HOT_LANG_VIETNAMESE);
     const wchar_t* const methods[] = {L"Telex", L"VNI"};
-    DrawPills(g, right, y[0], 164, methods, 2, s.method == DOKEY_VNI ? 1 : 0, HOT_TELEX);
-    DrawToggle(g, right, y[1], s.checkSpelling, HOT_SPELLING);
-    DrawToggle(g, right, y[2], s.modernTone, HOT_TONE);
-    const wchar_t* const hotkeys[] = {L"Ctrl + Shift", L"Alt + Z"};
-    DrawPills(g, right, y[3], 200, hotkeys, 2, s.hotkey == HOTKEY_ALT_Z ? 1 : 0, HOT_CTRL_SHIFT);
+    DrawPills(g, right, y[1], 164, methods, 2, s.method == DOKEY_VNI ? 1 : 0, HOT_TELEX);
+    DrawToggle(g, right, y[2], s.checkSpelling, HOT_SPELLING);
+    DrawToggle(g, right, y[3], s.modernTone, HOT_TONE);
+    DrawPills(g, right, y[4], 200, hotkeys, 2, s.hotkey == HOTKEY_ALT_Z ? 1 : 0, HOT_CTRL_SHIFT);
 
     const wchar_t* examples =
         s.method == DOKEY_VNI
@@ -673,12 +808,19 @@ RectF MacroWell() {
 
 void DrawQuickPage(Graphics& g, const RectF& c) {
     const Settings& s = *g_settings;
-    DrawHero(g, RectF(c.X, c.Y, c.Width, 88), L"Gõ nhanh", L"Gõ tắt, Quick Telex và hoàn tác bằng Esc.", kCount);
+    DrawHero(g, RectF(c.X, c.Y, c.Width, 88), Tr(L"Gõ nhanh", L"빠른 입력"),
+             Korean() ? Tr(L"Các tính năng này dành cho tiếng Việt.", L"이 기능은 베트남어 입력에 적용됩니다.")
+                      : Tr(L"Gõ tắt, Quick Telex và hoàn tác bằng Esc.", L"약어, Quick Telex, Esc로 되돌리기"),
+             kCount);
     RectF card = SettingsCardRect(c, 3);
     std::vector<float> y = DrawSettingsCard(g, card, {
-        {L"Gõ tắt", L"Gõ từ tắt rồi dấu cách: vn → Việt Nam, ko → không"},
-        {L"Quick Telex", L"cc → ch, gg → gi, kk → kh, nn → ng, pp → ph, qq → qu, tt → th (đầu từ)"},
-        {L"Hoàn tác bằng Esc", L"Bấm Esc khi đang gõ để trả từ về đúng phím đã gõ: tiếng → tieesng"},
+        {Tr(L"Gõ tắt", L"약어"),
+         Tr(L"Gõ từ tắt rồi dấu cách: vn → Việt Nam, ko → không", L"약어 입력 후 스페이스: vn → Việt Nam, ko → không")},
+        {L"Quick Telex", Tr(L"cc → ch, gg → gi, kk → kh, nn → ng, pp → ph, qq → qu, tt → th (đầu từ)",
+                            L"단어 첫머리: cc → ch, gg → gi, kk → kh, nn → ng, pp → ph, qq → qu, tt → th")},
+        {Tr(L"Hoàn tác bằng Esc", L"Esc로 되돌리기"),
+         Tr(L"Bấm Esc khi đang gõ để trả từ về đúng phím đã gõ: tiếng → tieesng",
+            L"입력 중 Esc: 입력한 키 그대로 되돌림 (tiếng → tieesng)")},
     });
     const float right = card.GetRight() - 18;
     DrawToggle(g, right, y[0], s.macrosEnabled, HOT_MACROS);
@@ -686,7 +828,8 @@ void DrawQuickPage(Graphics& g, const RectF& c) {
     DrawToggle(g, right, y[2], s.escUndo, HOT_ESC_UNDO);
 
     const RectF well = MacroWell();
-    Label(g, L"Danh sách gõ tắt (mỗi dòng: từ tắt = nội dung; dòng bắt đầu bằng # là ghi chú)",
+    Label(g, Tr(L"Danh sách gõ tắt (mỗi dòng: từ tắt = nội dung; dòng bắt đầu bằng # là ghi chú)",
+                L"약어 목록 (한 줄에 하나씩: 약어 = 내용, #으로 시작하면 주석)"),
           RectF(c.X + 2, well.Y - 22, c.Width - 4, 18), 12, Weight::Semibold, White(kSecondaryAlpha));
     GraphicsPath wellPath;
     AddRoundRect(wellPath, well, 10);
@@ -696,27 +839,34 @@ void DrawQuickPage(Graphics& g, const RectF& c) {
         Label(g, s.macros, RectF(well.X + 12, well.Y + 8, well.Width - 24, well.Height - 16), 13, Weight::Mono,
               White(225), StringAlignmentNear, StringAlignmentNear, true);
     }
-    Label(g, L"Mẹo: gõ \"xin\", dấu cách rồi Backspace là quay lại sửa dấu từ đó (\"f\" ra \"xìn\"). "
-             L"Xoá phụ âm cuối thì dấu thanh tự về đúng chỗ.",
+    Label(g, Tr(L"Mẹo: gõ \"xin\", dấu cách rồi Backspace là quay lại sửa dấu từ đó (\"f\" ra \"xìn\"). "
+                L"Xoá phụ âm cuối thì dấu thanh tự về đúng chỗ.",
+                L"팁: 단어와 스페이스를 입력한 뒤 Backspace를 누르면 그 단어의 성조를 다시 고칠 수 있습니다."),
           RectF(c.X + 2, well.GetBottom() + 8, c.Width - 4, 34), 12, Weight::Regular, White(kSecondaryAlpha),
           StringAlignmentNear, StringAlignmentNear, true);
 }
 
 void DrawAppsPage(Graphics& g, const RectF& c, const PanelStatus& st) {
     const Settings& s = *g_settings;
-    DrawHero(g, RectF(c.X, c.Y, c.Width, 88), L"Ứng dụng",
-             L"Dokey tự nhận biết trình duyệt, Electron và ứng dụng thường.", kApps);
+    DrawHero(g, RectF(c.X, c.Y, c.Width, 88), Tr(L"Ứng dụng", L"앱"),
+             Tr(L"Dokey tự nhận biết trình duyệt, Electron và ứng dụng thường.",
+                L"Dokey는 브라우저, Electron, 일반 앱을 자동으로 구분합니다."),
+             kApps);
     RectF card = SettingsCardRect(c, 3);
     std::vector<float> y = DrawSettingsCard(g, card, {
-        {L"Tương thích máy chậm", L"Nghỉ lâu hơn giữa phím xoá và chữ mới trong Chrome, Edge, Electron"},
-        {L"Khởi động cùng Windows", L"Tự chạy Dokey khi đăng nhập"},
-        {L"Ứng dụng loại trừ", L"Luôn gõ tiếng Anh trong các ứng dụng này; bấm phím chuyển ở đó để bỏ loại trừ"},
+        {Tr(L"Tương thích máy chậm", L"느린 PC 호환"),
+         Tr(L"Nghỉ lâu hơn giữa phím xoá và chữ mới trong Chrome, Edge, Electron",
+            L"Chrome, Edge, Electron에서 지우기와 새 글자 사이에 더 오래 대기")},
+        {Tr(L"Khởi động cùng Windows", L"Windows 시작 시 실행"), Tr(L"Tự chạy Dokey khi đăng nhập", L"로그인할 때 Dokey 자동 실행")},
+        {Tr(L"Ứng dụng loại trừ", L"제외할 앱"),
+         Tr(L"Luôn gõ tiếng Anh trong các ứng dụng này; bấm phím chuyển ở đó để bỏ loại trừ",
+            L"이 앱에서는 항상 영어로 입력, 그 앱에서 전환 키를 누르면 해제")},
     });
     const float right = card.GetRight() - 18;
     DrawToggle(g, right, y[0], s.chromiumPauseMs >= kSlowPauseMs, HOT_SLOW);
     DrawToggle(g, right, y[1], IsStartupEnabled(), HOT_STARTUP);
     if (!st.appExe.empty() && !IsExcluded(s, st.appExe)) {
-        std::wstring text = L"Thêm " + st.appName;
+        std::wstring text = Tr(L"Thêm ", L"추가: ") + st.appName;
         const float width = std::min(220.0f, TextWidth(g, text, 13, Weight::Semibold) + 32);
         DrawAccentButton(g, RectF(right - width, y[2] - 14, width, 28), text.c_str(), HOT_EXCLUDE_ADD);
     }
@@ -724,7 +874,7 @@ void DrawAppsPage(Graphics& g, const RectF& c, const PanelStatus& st) {
     // The excluded apps as chips; clicking one removes it.
     float x = c.X, top = card.GetBottom() + 10;
     if (s.excludedApps.empty()) {
-        Label(g, L"Chưa loại trừ ứng dụng nào.", RectF(x + 2, top, c.Width, 26), 12, Weight::Regular,
+        Label(g, Tr(L"Chưa loại trừ ứng dụng nào.", L"제외된 앱이 없습니다."), RectF(x + 2, top, c.Width, 26), 12, Weight::Regular,
               White(kSecondaryAlpha), StringAlignmentNear, StringAlignmentCenter);
     }
     for (size_t i = 0; i < s.excludedApps.size(); i++) {
@@ -747,16 +897,20 @@ void DrawAppsPage(Graphics& g, const RectF& c, const PanelStatus& st) {
         x += width + 8;
     }
 
-    const wchar_t* note =
+    const wchar_t* note = Tr(
         L"Trình duyệt và ứng dụng Electron (Chrome, Edge, Cốc Cốc, VS Code, Zalo…): Dokey nghỉ một chút giữa phím "
         L"xoá và chữ mới để trang web kịp xử lý. Google Docs, Sheets, Slides: Dokey gửi từng phím một. "
-        L"Ứng dụng thường (Notepad, Word, Excel…): Dokey xoá và gõ chữ mới trong một lần gửi phím.";
+        L"Ứng dụng thường (Notepad, Word, Excel…): Dokey xoá và gõ chữ mới trong một lần gửi phím.",
+        L"브라우저와 Electron 앱(Chrome, Edge, Whale, VS Code, KakaoTalk 등): 지우기와 새 글자 사이에 잠시 기다려 "
+        L"웹 페이지가 처리할 시간을 줍니다. Google Docs, Sheets, Slides: 한 번에 한 키씩 보냅니다. "
+        L"일반 앱(메모장, Word, Excel 등): 지우기와 새 글자를 한 번에 보냅니다.");
     RectF noteRect(c.X + 2, top + 38, c.Width - 4, 54);
     Label(g, note, noteRect, 12, Weight::Regular, White(kSecondaryAlpha), StringAlignmentNear, StringAlignmentNear,
           true);
     if (!st.appName.empty()) {
-        std::wstring line = L"Ứng dụng vừa dùng: " + st.appName +
-                            (st.appChromium ? L" (trình duyệt, Electron)." : L" (ứng dụng thường).");
+        std::wstring line = Tr(L"Ứng dụng vừa dùng: ", L"최근 사용한 앱: ") + st.appName +
+                            (st.appChromium ? Tr(L" (trình duyệt, Electron).", L" (브라우저, Electron)")
+                                            : Tr(L" (ứng dụng thường).", L" (일반 앱)"));
         Label(g, line, RectF(c.X + 2, noteRect.GetBottom() + 6, c.Width - 4, 20), 12, Weight::Regular,
               White(kSecondaryAlpha));
     }
@@ -768,17 +922,20 @@ void DrawAboutPage(Graphics& g, const RectF& c) {
     float y = c.Y + 130;
     Label(g, L"Dokey", RectF(c.X, y, c.Width, 42), 30, Weight::Bold, White(255), StringAlignmentCenter);
     y += 42;
-    Label(g, std::wstring(L"Phiên bản ") + DOKEY_APP_VERSION_W, RectF(c.X, y, c.Width, 20), 13, Weight::Regular,
+    Label(g, std::wstring(Tr(L"Phiên bản ", L"버전 ")) + DOKEY_APP_VERSION_W, RectF(c.X, y, c.Width, 20), 13, Weight::Regular,
           White(kSecondaryAlpha), StringAlignmentCenter);
     y += 30;
     Label(g,
-          L"Bộ gõ tiếng Việt cho Windows, chạy trên lõi Dokey Core.\n"
-          L"Mỗi phím, Dokey dựng lại cả từ và kiểm tra chính tả với 3.759 âm tiết,\n"
-          L"nên gõ đúng ngay lần đầu và giữ nguyên các từ tiếng Anh.",
+          Tr(L"Bộ gõ tiếng Việt và tiếng Hàn cho Windows, chạy trên lõi Dokey Core.\n"
+             L"Mỗi phím, Dokey dựng lại cả từ và kiểm tra chính tả với 3.759 âm tiết,\n"
+             L"nên gõ đúng ngay lần đầu và giữ nguyên các từ tiếng Anh.",
+             L"Dokey Core 기반의 Windows용 베트남어·한국어 입력기입니다.\n"
+             L"한국어는 두벌식 자판을 키 위치로 읽어 조합 중인 글자 없이 바로 입력합니다.\n"
+             L"어떤 키보드 배열에서도 동작합니다."),
           RectF(c.X + c.Width * 0.1f, y, c.Width * 0.8f, 64), 13, Weight::Regular, White(kSecondaryAlpha),
           StringAlignmentCenter, StringAlignmentNear, true);
     y += 76;
-    DrawAccentButton(g, RectF(cx - 110, y, 220, 32), L"Trang dự án trên GitHub", HOT_GITHUB);
+    DrawAccentButton(g, RectF(cx - 110, y, 220, 32), Tr(L"Trang dự án trên GitHub", L"GitHub 프로젝트 페이지"), HOT_GITHUB);
     y += 46;
     Label(g, L"© 2026 Do Huy Toan. All rights reserved.", RectF(c.X, y, c.Width, 18), 11, Weight::Regular,
           White(115), StringAlignmentCenter);
@@ -794,7 +951,7 @@ void Render(Graphics& g, const PanelStatus& st) {
 
     DrawBackground(g);
     DrawSidebar(g);
-    Label(g, kTitles[g_page], RectF(kSidebar, 6, kWidth - kSidebar, 22), 13, Weight::Semibold, White(217),
+    Label(g, Title(g_page), RectF(kSidebar, 6, kWidth - kSidebar, 22), 13, Weight::Semibold, White(217),
           StringAlignmentCenter, StringAlignmentCenter);
     const RectF content = ContentRect(g_page);
     switch (g_page) {
@@ -929,6 +1086,8 @@ void OnClick(int id) {
         case HOT_GITHUB:
             ShellExecuteW(g_panel, L"open", L"https://github.com/dhtoan/Dokey", nullptr, nullptr, SW_SHOWNORMAL);
             return;
+        case HOT_LANG_VIETNAMESE: s.language = LANGUAGE_VIETNAMESE; s.vietnamese = true; break;
+        case HOT_LANG_KOREAN: s.language = LANGUAGE_KOREAN; s.vietnamese = true; break;
         case HOT_MACROS: s.macrosEnabled = !s.macrosEnabled; break;
         case HOT_QUICK_TELEX: s.quickTelex = !s.quickTelex; break;
         case HOT_ESC_UNDO: s.escUndo = !s.escUndo; break;
@@ -982,7 +1141,7 @@ LRESULT CALLBACK PanelProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // "Gõ thử": a plain edit box, so Dokey types into it with Backspace like any normal app.
             g_tryEdit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | ES_AUTOHSCROLL, 0, 0, 10, 10, hwnd, nullptr,
                                         g_instance, nullptr);
-            if (g_tryEdit) SendMessageW(g_tryEdit, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(kTryPlaceholder));
+            if (g_tryEdit) SendMessageW(g_tryEdit, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(TryPlaceholder()));
             // The macro list, edited in place and saved shortly after each change.
             g_macroEdit = CreateWindowExW(0, L"EDIT", L"",
                                           WS_CHILD | ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | ES_NOHIDESEL,
@@ -1155,7 +1314,9 @@ void ShowPanel(int page) {
 }
 
 void RefreshPanel() {
-    if (g_panel) InvalidateRect(g_panel, nullptr, FALSE);
+    if (!g_panel) return;
+    if (g_tryEdit) SendMessageW(g_tryEdit, EM_SETCUEBANNER, TRUE, reinterpret_cast<LPARAM>(TryPlaceholder()));
+    InvalidateRect(g_panel, nullptr, FALSE);
 }
 
 void ShutdownPanel() {
@@ -1181,15 +1342,24 @@ int RenderPanelImages(const wchar_t* prefix) {
         float scale;
         bool english;
         bool ime;
+        bool korean;  // Korean user interface, typing Korean
     };
-    // The five pages, the dashboard in English with an IME on, and at 150% scale.
-    const Shot shots[] = {{0, 1, false, false}, {1, 1, false, false}, {2, 1, false, false}, {3, 1, false, false},
-                          {4, 1, false, false}, {0, 1, true, true},   {0, 1.5f, false, false}};
+    // The five pages, the dashboard in English with an IME on, at 150% scale,
+    // then the Korean user interface: dashboard, typing page, apps page.
+    const Shot shots[] = {{0, 1, false, false, false}, {1, 1, false, false, false}, {2, 1, false, false, false},
+                          {3, 1, false, false, false}, {4, 1, false, false, false}, {0, 1, true, true, false},
+                          {0, 1.5f, false, false, false}, {0, 1, false, false, true}, {1, 1, false, false, true},
+                          {3, 1, false, false, true}};
+    const bool uiKorean = UiKorean();
     int failures = 0, n = 0;
     for (const Shot& shot : shots) {
         g_page = shot.page;
         g_settings->vietnamese = !shot.english;
+        g_settings->language = shot.korean ? LANGUAGE_KOREAN : LANGUAGE_VIETNAMESE;
+        SetUiKorean(shot.korean);
         demo.imeActive = shot.ime;
+        demo.appName = shot.korean ? L"KakaoTalk" : L"Google Chrome";
+        demo.appChromium = !shot.korean;
         Bitmap bitmap(static_cast<INT>(kWidth * shot.scale), static_cast<INT>(kHeight * shot.scale), PixelFormat32bppARGB);
         {
             Graphics g(&bitmap);
@@ -1201,6 +1371,7 @@ int RenderPanelImages(const wchar_t* prefix) {
         if (bitmap.Save(path, &png, nullptr) != Ok) failures++;
     }
     *g_settings = saved;
+    SetUiKorean(uiKorean);
     g_page = PAGE_DASHBOARD;
     return failures ? 2 : 0;
 }

@@ -102,7 +102,7 @@ jobs:
           $jpeg = [Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object MimeType -eq 'image/jpeg'
           $params = New-Object Drawing.Imaging.EncoderParameters 1
           $params.Param[0] = New-Object Drawing.Imaging.EncoderParameter ([Drawing.Imaging.Encoder]::Quality), 85L
-          foreach ($i in 1..7) {
+          foreach ($i in 1..10) {
             $png = "shots\panel-$i.png"
             if (-not (Test-Path $png)) { throw "$png missing" }
             $image = [Drawing.Image]::FromFile("$pwd\$png")

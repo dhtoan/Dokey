@@ -54,7 +54,7 @@ void TestBuildInputs() {
 
 // Applies the engine's edits to a text buffer, as keyboard.cpp does:
 // '\b' is Backspace (dokey_backspace_edit), '\x1b' is Esc with undo on.
-std::u16string Type(const char* keys, int method, const char* macros = nullptr) {
+std::u16string Type(const char* keys, int method, const char* macros = nullptr, int language = DOKEY_LANG_VIETNAMESE) {
     dokey_options o = {};
     o.method = method;
     o.encoding = DOKEY_UNICODE;
@@ -62,6 +62,7 @@ std::u16string Type(const char* keys, int method, const char* macros = nullptr) 
     o.check_spelling = 1;
     dokey_engine* e = dokey_create(&o);
     dokey_set_macros(e, macros);
+    dokey_set_language(e, language);
     std::u16string buffer;
     for (const char* p = keys; *p; p++) {
         dokey_edit edit;
@@ -102,6 +103,9 @@ void TestEngineContract() {
     Check(Type("tieesng\x1b", DOKEY_TELEX) == u"tieesng", "Esc undoes the marks");
     Check(Type("btw ", DOKEY_TELEX, "btw = by the way") == u"by the way ", "macro expands on space");
     Check(Type("Btw ", DOKEY_TELEX, "btw = by the way") == u"By the way ", "macro keeps the capital");
+    Check(Type("dkssudgktpdy ", DOKEY_TELEX, nullptr, DOKEY_LANG_KOREAN) == u"안녕하세요 ", "Korean: 안녕하세요");
+    Check(Type("gksrnr\r", DOKEY_TELEX, nullptr, DOKEY_LANG_KOREAN) == u"한국\r", "Korean: Enter goes through");
+    Check(Type("gks\b", DOKEY_TELEX, nullptr, DOKEY_LANG_KOREAN) == u"하", "Korean: Backspace drops one jamo");
 }
 
 } // namespace

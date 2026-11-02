@@ -10,9 +10,11 @@
 namespace dokey_win {
 
 enum Hotkey { HOTKEY_CTRL_SHIFT = 0, HOTKEY_ALT_Z = 1 };
+enum Language { LANGUAGE_VIETNAMESE = 0, LANGUAGE_KOREAN = 1 };  // DOKEY_LANG_*
 
 struct Settings {
-    bool vietnamese = true;
+    bool vietnamese = true;    // typing on (Vietnamese or Korean); off: the keys go through
+    int language = LANGUAGE_VIETNAMESE;
     int method = 0;            // DOKEY_TELEX or DOKEY_VNI
     bool checkSpelling = true;
     bool modernTone = true;    // hoà, khoẻ, thuý
@@ -26,6 +28,12 @@ struct Settings {
 };
 
 extern const wchar_t kDefaultMacros[];
+
+// The user interface follows Windows: Korean when the display language is Korean,
+// Vietnamese otherwise. --ui-lang ko|vi overrides it (CI renders both).
+bool UiKorean();
+void SetUiKorean(bool korean);
+inline const wchar_t* Tr(const wchar_t* vi, const wchar_t* ko) { return UiKorean() ? ko : vi; }
 
 bool IsExcluded(const Settings& s, const std::wstring& exe);
 void SetExcluded(Settings& s, const std::wstring& exe, bool excluded);

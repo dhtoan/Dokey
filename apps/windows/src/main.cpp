@@ -44,6 +44,8 @@ enum Command : UINT {
     CMD_HOTKEY_ALT_Z,
     CMD_STARTUP,
     CMD_EXCLUDE,
+    CMD_LANG_VIETNAMESE,
+    CMD_LANG_KOREAN,
     CMD_ABOUT,
     CMD_EXIT,
 };
@@ -51,6 +53,7 @@ enum Command : UINT {
 HINSTANCE g_instance = nullptr;
 Settings g_settings;
 HICON g_iconVietnamese = nullptr;
+HICON g_iconKorean = nullptr;
 HICON g_iconEnglish = nullptr;
 UINT g_taskbarCreated = 0;
 HWND g_mainWindow = nullptr;
@@ -106,8 +109,10 @@ HICON MakeLetterIcon(wchar_t letter, COLORREF background, int size) {
     HGDIOBJ oldBitmap = SelectObject(dc, textBitmap);
     RECT rc = {0, 0, size, size};
     FillRect(dc, &rc, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
-    HFONT font = CreateFontW(-MulDiv(size, 80, 100), 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
-                             OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, VARIABLE_PITCH, L"Segoe UI");
+    const bool hangul = letter >= 0xAC00 && letter <= 0xD7A3;  // "한": a wider glyph, Malgun Gothic
+    HFONT font = CreateFontW(-MulDiv(size, hangul ? 66 : 80, 100), 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+                             DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, VARIABLE_PITCH,
+                             hangul ? L"Malgun Gothic" : L"Segoe UI");
     HGDIOBJ oldFont = SelectObject(dc, font);
     SetBkMode(dc, TRANSPARENT);
     SetTextColor(dc, RGB(255, 255, 255));
@@ -151,7 +156,9 @@ void CreateTrayIcons() {
     if (size < 16) size = 16;
     if (g_iconVietnamese) DestroyIcon(g_iconVietnamese);
     if (g_iconEnglish) DestroyIcon(g_iconEnglish);
+    if (g_iconKorean) DestroyIcon(g_iconKorean);
     g_iconVietnamese = MakeLetterIcon(L'V', RGB(0xD7, 0x26, 0x1E), size);
+    g_iconKorean = MakeLetterIcon(L'\uD55C', RGB(0x1F, 0x4F, 0xB8), size);  // 한
     g_iconEnglish = MakeLetterIcon(L'E', RGB(0x5F, 0x63, 0x68), size);
 }
 
@@ -164,10 +171,13 @@ void FillTrayData(HWND hwnd, NOTIFYICONDATAW& nid) {
     nid.uID = kTrayId;
     nid.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE | NIF_SHOWTIP;
     nid.uCallbackMessage = WM_TRAY;
-    nid.hIcon = g_settings.vietnamese ? g_iconVietnamese : g_iconEnglish;
+    const bool korean = g_settings.language == LANGUAGE_KOREAN;
+    nid.hIcon = !g_settings.vietnamese ? g_iconEnglish : korean ? g_iconKorean : g_iconVietnamese;
     const wchar_t* method = g_settings.method == DOKEY_VNI ? L"VNI" : L"Telex";
-    if (g_settings.vietnamese) {
-        wsprintfW(nid.szTip, L"Dokey - Tiếng Việt (%s)", method);
+    if (g_settings.vietnamese && korean) {
+        lstrcpynW(nid.szTip, L"Dokey - 한국어 (두벌식)", ARRAYSIZE(nid.szTip));
+    } else if (g_settings.vietnamese) {
+        wsprintfW(nid.szTip, Tr(L"Dokey - Tiếng Việt (%s)", L"Dokey - 베트남어 (%s)"), method);
     } else {
         lstrcpynW(nid.szTip, L"Dokey - English", ARRAYSIZE(nid.szTip));
     }
@@ -270,33 +280,43 @@ PanelStatus PanelState() {
 void ShowMenu(HWND hwnd, int x, int y) {
     HMENU menu = CreatePopupMenu();
     HMENU hotkeys = CreatePopupMenu();
-    AppendMenuW(menu, MF_STRING, CMD_PANEL, L"Mở bảng điều khiển");
+    AppendMenuW(menu, MF_STRING, CMD_PANEL, Tr(L"Mở bảng điều khiển", L"제어판 열기"));
     SetMenuDefaultItem(menu, CMD_PANEL, FALSE);
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     const UINT checked = MF_STRING | MF_CHECKED, unchecked = MF_STRING | MF_UNCHECKED;
     auto check = [&](bool on) { return on ? checked : unchecked; };
 
-    const wchar_t* toggleLabel = g_settings.hotkey == HOTKEY_ALT_Z ? L"Gõ tiếng Việt\tAlt+Z" : L"Gõ tiếng Việt\tCtrl+Shift";
-    AppendMenuW(menu, check(g_settings.vietnamese), CMD_TOGGLE, toggleLabel);
+    const bool korean = g_settings.language == LANGUAGE_KOREAN;
+    std::wstring toggleLabel = korean ? Tr(L"Gõ tiếng Hàn", L"한국어 입력") : Tr(L"Gõ tiếng Việt", L"베트남어 입력");
+    toggleLabel += g_settings.hotkey == HOTKEY_ALT_Z ? L"\tAlt+Z" : L"\tCtrl+Shift";
+    AppendMenuW(menu, check(g_settings.vietnamese), CMD_TOGGLE, toggleLabel.c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, check(g_settings.method == DOKEY_TELEX), CMD_TELEX, L"Kiểu gõ Telex");
-    AppendMenuW(menu, check(g_settings.method == DOKEY_VNI), CMD_VNI, L"Kiểu gõ VNI");
+    AppendMenuW(menu, check(!korean), CMD_LANG_VIETNAMESE, Tr(L"Tiếng Việt", L"베트남어 (Tiếng Việt)"));
+    AppendMenuW(menu, check(korean), CMD_LANG_KOREAN, Tr(L"Tiếng Hàn (한국어, 두벌식)", L"한국어 (두벌식)"));
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, check(g_settings.checkSpelling), CMD_SPELLING, L"Kiểm tra chính tả");
-    AppendMenuW(menu, check(g_settings.modernTone), CMD_TONE_MODERN, L"Dấu kiểu mới (hoà, khoẻ, thuý)");
-    AppendMenuW(menu, check(!g_settings.modernTone), CMD_TONE_CLASSIC, L"Dấu kiểu cũ (hòa, khỏe, thúy)");
-    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    if (!korean) {  // Vietnamese options
+        AppendMenuW(menu, check(g_settings.method == DOKEY_TELEX), CMD_TELEX, Tr(L"Kiểu gõ Telex", L"Telex 입력"));
+        AppendMenuW(menu, check(g_settings.method == DOKEY_VNI), CMD_VNI, Tr(L"Kiểu gõ VNI", L"VNI 입력"));
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(menu, check(g_settings.checkSpelling), CMD_SPELLING, Tr(L"Kiểm tra chính tả", L"맞춤법 검사"));
+        AppendMenuW(menu, check(g_settings.modernTone), CMD_TONE_MODERN,
+                    Tr(L"Dấu kiểu mới (hoà, khoẻ, thuý)", L"새 성조 위치 (hoà, khoẻ, thuý)"));
+        AppendMenuW(menu, check(!g_settings.modernTone), CMD_TONE_CLASSIC,
+                    Tr(L"Dấu kiểu cũ (hòa, khỏe, thúy)", L"옛 성조 위치 (hòa, khỏe, thúy)"));
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    }
     AppendMenuW(hotkeys, check(g_settings.hotkey == HOTKEY_CTRL_SHIFT), CMD_HOTKEY_CTRL_SHIFT, L"Ctrl+Shift");
     AppendMenuW(hotkeys, check(g_settings.hotkey == HOTKEY_ALT_Z), CMD_HOTKEY_ALT_Z, L"Alt+Z");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(hotkeys), L"Phím tắt chuyển Anh/Việt");
-    AppendMenuW(menu, check(IsStartupEnabled()), CMD_STARTUP, L"Khởi động cùng Windows");
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(hotkeys),
+                korean ? Tr(L"Phím tắt chuyển Anh/Hàn", L"한/영 전환 키") : Tr(L"Phím tắt chuyển Anh/Việt", L"전환 단축키"));
+    AppendMenuW(menu, check(IsStartupEnabled()), CMD_STARTUP, Tr(L"Khởi động cùng Windows", L"Windows 시작 시 실행"));
     if (!g_appExe.empty()) {
-        std::wstring label = L"Không gõ tiếng Việt trong " + g_appName;
+        std::wstring label = UiKorean() ? g_appName + L"에서 사용 안 함" : L"Không gõ tiếng Việt trong " + g_appName;
         AppendMenuW(menu, check(IsExcluded(g_settings, g_appExe)), CMD_EXCLUDE, label.c_str());
     }
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, CMD_ABOUT, L"Giới thiệu Dokey");
-    AppendMenuW(menu, MF_STRING, CMD_EXIT, L"Thoát");
+    AppendMenuW(menu, MF_STRING, CMD_ABOUT, Tr(L"Giới thiệu Dokey", L"Dokey 정보"));
+    AppendMenuW(menu, MF_STRING, CMD_EXIT, Tr(L"Thoát", L"종료"));
 
     // Without this the menu does not close when the user clicks elsewhere.
     SetForegroundWindow(hwnd);
@@ -318,6 +338,8 @@ void OnCommand(HWND hwnd, UINT id) {
         case CMD_HOTKEY_ALT_Z: g_settings.hotkey = HOTKEY_ALT_Z; break;
         case CMD_STARTUP: SetStartupEnabled(!IsStartupEnabled()); return;
         case CMD_PANEL: ShowPanel(0); return;
+        case CMD_LANG_VIETNAMESE: g_settings.language = LANGUAGE_VIETNAMESE; g_settings.vietnamese = true; break;
+        case CMD_LANG_KOREAN: g_settings.language = LANGUAGE_KOREAN; g_settings.vietnamese = true; break;
         case CMD_EXCLUDE: SetExcluded(g_settings, g_appExe, !IsExcluded(g_settings, g_appExe)); break;
         case CMD_ABOUT: ShowPanel(4); return;
         case CMD_EXIT: DestroyWindow(hwnd); return;
@@ -451,6 +473,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         if (wcscmp(argv[i], L"--self-test") == 0) selfTest = true;
         if (wcscmp(argv[i], L"--background") == 0) background = true;
         if (wcscmp(argv[i], L"--render-panel") == 0 && i + 1 < argc) renderPrefix = argv[++i];
+        if (wcscmp(argv[i], L"--ui-lang") == 0 && i + 1 < argc) SetUiKorean(wcscmp(argv[++i], L"ko") == 0);
     }
     if (argv) LocalFree(argv);
 
@@ -498,7 +521,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         return ok ? 0 : 2;
     }
     if (!StartKeyboard(hwnd, g_settings)) {
-        MessageBoxW(hwnd, L"Không cài được bộ bắt phím của Windows. Dokey sẽ thoát.", L"Dokey", MB_OK | MB_ICONERROR);
+        MessageBoxW(hwnd,
+                    Tr(L"Không cài được bộ bắt phím của Windows. Dokey sẽ thoát.",
+                       L"Windows 키보드 후크를 설치할 수 없습니다. Dokey를 종료합니다."),
+                    L"Dokey", MB_OK | MB_ICONERROR);
         DestroyWindow(hwnd);
         return 1;
     }
@@ -515,6 +541,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     StopKeyboard();
     if (g_iconVietnamese) DestroyIcon(g_iconVietnamese);
     if (g_iconEnglish) DestroyIcon(g_iconEnglish);
+    if (g_iconKorean) DestroyIcon(g_iconKorean);
     if (mutex) {
         ReleaseMutex(mutex);
         CloseHandle(mutex);

@@ -66,6 +66,17 @@ const wchar_t kDefaultMacros[] =
     L"dc = được\n"
     L"btw = by the way\n";
 
+namespace {
+int g_uiKorean = -1;  // -1: follow Windows
+}
+
+bool UiKorean() {
+    if (g_uiKorean < 0) g_uiKorean = PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_KOREAN ? 1 : 0;
+    return g_uiKorean == 1;
+}
+
+void SetUiKorean(bool korean) { g_uiKorean = korean ? 1 : 0; }
+
 bool IsExcluded(const Settings& s, const std::wstring& exe) {
     return !exe.empty() && std::find(s.excludedApps.begin(), s.excludedApps.end(), exe) != s.excludedApps.end();
 }
@@ -79,6 +90,7 @@ void SetExcluded(Settings& s, const std::wstring& exe, bool excluded) {
 Settings LoadSettings() {
     Settings s;
     s.macros = kDefaultMacros;
+    s.language = UiKorean() ? LANGUAGE_KOREAN : LANGUAGE_VIETNAMESE;  // until the user picks one
     HKEY key;
     if (RegOpenKeyExW(HKEY_CURRENT_USER, kKey, 0, KEY_READ, &key) != ERROR_SUCCESS) return s;
     s.vietnamese = ReadDword(key, L"Vietnamese", s.vietnamese) != 0;
@@ -88,6 +100,7 @@ Settings LoadSettings() {
     s.hotkey = ReadDword(key, L"Hotkey", s.hotkey) == HOTKEY_ALT_Z ? HOTKEY_ALT_Z : HOTKEY_CTRL_SHIFT;
     DWORD pause = ReadDword(key, L"ChromiumPauseMs", s.chromiumPauseMs);
     s.chromiumPauseMs = pause > 100 ? 100 : pause;
+    s.language = ReadDword(key, L"Language", s.language) == LANGUAGE_KOREAN ? LANGUAGE_KOREAN : LANGUAGE_VIETNAMESE;
     s.quickTelex = ReadDword(key, L"QuickTelex", s.quickTelex) != 0;
     s.escUndo = ReadDword(key, L"EscUndo", s.escUndo) != 0;
     s.macrosEnabled = ReadDword(key, L"MacrosEnabled", s.macrosEnabled) != 0;
@@ -108,6 +121,7 @@ void SaveSettings(const Settings& s) {
     WriteDword(key, L"ModernTone", s.modernTone);
     WriteDword(key, L"Hotkey", static_cast<DWORD>(s.hotkey));
     WriteDword(key, L"ChromiumPauseMs", s.chromiumPauseMs);
+    WriteDword(key, L"Language", static_cast<DWORD>(s.language));
     WriteDword(key, L"QuickTelex", s.quickTelex);
     WriteDword(key, L"EscUndo", s.escUndo);
     WriteDword(key, L"MacrosEnabled", s.macrosEnabled);
