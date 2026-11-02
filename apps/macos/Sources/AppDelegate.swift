@@ -169,8 +169,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         state.hotkey = settings.hotkey
         state.encoding = settings.encoding
         state.appKind = frontApp?.kind ?? .normal
+        state.vsCode = AppClassifier.isVSCode(bundleID: frontApp?.bundleID ?? "")
         state.profile = state.appKind.profile(slowMachine: settings.slowMachineMode, tuning: settings.tuning)
         state.debugLog = settings.debugLog
+        state.korean = settings.korean
+        engine.setLanguage(settings.language)
         tap.state = state
         controlPanel?.refresh()
     }
@@ -181,6 +184,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
         state.siteProfile = siteProfile
         state.profile = state.appKind.profile(slowMachine: settings.slowMachineMode, tuning: settings.tuning)
         state.debugLog = settings.debugLog
+        state.korean = settings.korean  // picks up `defaults write ... language` while running
+        engine.setLanguage(settings.language)
         tap.state = state
     }
 
@@ -235,6 +240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, Contro
             // Typing in Dokey's own panel (the "Gõ thử" box): a normal Cocoa text field.
             var state = tap.state
             state.appKind = .normal
+            state.vsCode = false
             state.profile = AppKind.normal.profile(slowMachine: settings.slowMachineMode, tuning: settings.tuning)
             tap.state = state
             return

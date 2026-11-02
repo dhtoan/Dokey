@@ -1,6 +1,7 @@
 // Dokey Core - Hangul (2-beolsik) composer tests.
 // Copyright (c) 2026 Do Huy Toan. All rights reserved.
 #include "dokey/hangul.hpp"
+#include "dokey/dokey.h"
 
 #include <cstdio>
 #include <string>
@@ -252,6 +253,30 @@ static void longWords() {
     check(many + "sk", shown + "나", "long");
 }
 
+// The C API the platform apps use: switching language, typing, Enter, Backspace.
+static void cApi() {
+    g_total++;
+    dokey_options opt = {};
+    opt.check_spelling = 1;
+    dokey_engine* e = dokey_create(&opt);
+    dokey_edit edit;
+    dokey_set_language(e, DOKEY_LANG_KOREAN);
+    for (char c : std::string("gk")) dokey_key(e, static_cast<uint32_t>(c), &edit);
+    const int n = dokey_key(e, 's', &edit);  // 하 -> 한
+    const bool keyOk = n == 1 && edit.backspaces == 1 && edit.length == 1 && edit.text[0] == 0xD55C;
+    const int bs = dokey_backspace_edit(e, &edit);  // 한 -> 하
+    const bool bsOk = bs == 1 && edit.backspaces == 1 && edit.length == 1 && edit.text[0] == 0xD558;
+    const bool enterOk = dokey_key(e, 0x0D, &edit) == 0 && dokey_undo(e, &edit) == 0;
+    dokey_set_language(e, DOKEY_LANG_VIETNAMESE);
+    dokey_key(e, 'a', &edit);
+    const bool vietOk = dokey_key(e, 'a', &edit) == 1 && edit.text[0] == 0x00E2;  // aa -> â
+    dokey_destroy(e);
+    if (!keyOk || !bsOk || !enterOk || !vietOk) {
+        g_failed++;
+        std::printf("FAIL [c-api] key=%d backspace=%d enter=%d vietnamese=%d\n", keyOk, bsOk, enterOk, vietOk);
+    }
+}
+
 int main() {
     for (const Case& c : kWords) check(c.keys, c.expected, "word");
     for (const Case& c : kSplit) check(c.keys, c.expected, "split");
@@ -260,6 +285,7 @@ int main() {
     exhaustive();
     invariants();
     longWords();
+    cApi();
 
     // Plain letters are always rewritten; non-jamo keys never are.
     g_total++;

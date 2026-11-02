@@ -13,6 +13,7 @@ typedef struct dokey_engine dokey_engine;
 
 enum { DOKEY_TELEX = 0, DOKEY_VNI = 1 };
 enum { DOKEY_UNICODE = 0, DOKEY_UNICODE_COMBINING = 1 };
+enum { DOKEY_LANG_VIETNAMESE = 0, DOKEY_LANG_KOREAN = 1 };
 
 typedef struct {
     int method;            /* DOKEY_TELEX or DOKEY_VNI */
@@ -33,6 +34,10 @@ typedef struct {
 
 dokey_engine* dokey_create(const dokey_options* options);
 void dokey_set_options(dokey_engine* engine, const dokey_options* options);
+/* DOKEY_LANG_VIETNAMESE (default) or DOKEY_LANG_KOREAN (prototype, 2-beolsik:
+ * send letter keys by their US/ABC position, "gksrnr" types the word Korea).
+ * Korean ignores the Vietnamese options, macros and undo. Starts a new word. */
+void dokey_set_language(dokey_engine* engine, int language);
 /* Returns 1 if the platform must apply `out` and swallow the key,
  * 0 if the original key should go through unchanged. */
 int dokey_key(dokey_engine* engine, uint32_t ch, dokey_edit* out);

@@ -13,6 +13,7 @@ struct EngineEdit {
 final class Engine {
     private let lock = NSLock()
     private let handle: OpaquePointer
+    private var language = Int32(DOKEY_LANG_VIETNAMESE)  // guarded by `lock`
 
     init(options: dokey_options) {
         var o = options
@@ -27,6 +28,17 @@ final class Engine {
         var o = options
         lock.lock()
         dokey_set_options(handle, &o)
+        lock.unlock()
+    }
+
+    /// DOKEY_LANG_VIETNAMESE or DOKEY_LANG_KOREAN. Only a change starts a new word,
+    /// so calling it again with the same language (every 2 s) is harmless.
+    func setLanguage(_ language: Int32) {
+        lock.lock()
+        if language != self.language {
+            self.language = language
+            dokey_set_language(handle, language)
+        }
         lock.unlock()
     }
 

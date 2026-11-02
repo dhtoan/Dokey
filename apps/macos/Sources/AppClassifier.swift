@@ -126,6 +126,20 @@ enum AppClassifier {
         "com.skype.skype",
     ]
 
+    /// VS Code and its forks. Their integrated terminal (xterm.js, where Claude Code
+    /// often runs) reads Shift+← as an escape sequence instead of selecting text.
+    private static let vsCodePrefixes = [
+        "com.microsoft.VSCode",
+        "com.visualstudio.code",
+        "com.vscodium",
+        "com.todesktop.230313mzl4w4u92",  // Cursor
+        "com.exafunction.windsurf",
+    ]
+
+    static func isVSCode(bundleID id: String) -> Bool {
+        vsCodePrefixes.contains(where: { id.hasPrefix($0) })
+    }
+
     private static var cache: [String: AppKind] = [:]
 
     /// Must be called on the main thread.

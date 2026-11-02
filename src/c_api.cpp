@@ -3,9 +3,12 @@
 #include "dokey/dokey.h"
 
 #include "dokey/engine.hpp"
+#include "dokey/hangul.hpp"
 
 struct dokey_engine {
     dokey::Engine engine;
+    dokey::HangulEngine hangul;
+    bool korean = false;
 };
 
 namespace {
@@ -26,11 +29,18 @@ dokey::Options convert(const dokey_options* o) {
 extern "C" {
 
 dokey_engine* dokey_create(const dokey_options* options) {
-    return new dokey_engine{dokey::Engine(convert(options))};
+    return new dokey_engine{dokey::Engine(convert(options)), dokey::HangulEngine(), false};
 }
 
 void dokey_set_options(dokey_engine* e, const dokey_options* options) {
     if (e) e->engine.setOptions(convert(options));
+}
+
+void dokey_set_language(dokey_engine* e, int language) {
+    if (!e) return;
+    e->korean = language == DOKEY_LANG_KOREAN;
+    e->engine.reset();
+    e->hangul.reset();
 }
 
 namespace {
@@ -39,7 +49,10 @@ int toC(dokey_engine* e, const dokey::Edit& edit, dokey_edit* out) {
     out->backspaces = 0;
     out->length = 0;
     if (!edit.handled || edit.insert.size() > DOKEY_MAX_EDIT) {
-        if (edit.handled) e->engine.reset();  // cannot express it: give up on this word
+        if (edit.handled) {  // cannot express it: give up on this word
+            e->engine.reset();
+            e->hangul.reset();
+        }
         return 0;
     }
     out->backspaces = edit.backspaces;
@@ -52,16 +65,18 @@ int toC(dokey_engine* e, const dokey::Edit& edit, dokey_edit* out) {
 
 int dokey_key(dokey_engine* e, uint32_t ch, dokey_edit* out) {
     if (!e || !out) return 0;
-    return toC(e, e->engine.key(static_cast<char32_t>(ch)), out);
+    const char32_t c = static_cast<char32_t>(ch);
+    return toC(e, e->korean ? e->hangul.key(c) : e->engine.key(c), out);
 }
 
 int dokey_backspace_edit(dokey_engine* e, dokey_edit* out) {
     if (!e || !out) return 0;
-    return toC(e, e->engine.backspaceEdit(), out);
+    return toC(e, e->korean ? e->hangul.backspaceEdit() : e->engine.backspaceEdit(), out);
 }
 
 int dokey_undo(dokey_engine* e, dokey_edit* out) {
     if (!e || !out) return 0;
+    if (e->korean) return toC(e, dokey::Edit(), out);
     return toC(e, e->engine.undo(), out);
 }
 
@@ -92,11 +107,18 @@ void dokey_set_macros(dokey_engine* e, const char* lines) {
 }
 
 void dokey_backspace(dokey_engine* e) {
-    if (e) e->engine.backspace();
+    if (!e) return;
+    if (e->korean) {
+        e->hangul.reset();  // a plain Backspace removed a whole syllable: start over
+    } else {
+        e->engine.backspace();
+    }
 }
 
 void dokey_reset(dokey_engine* e) {
-    if (e) e->engine.reset();
+    if (!e) return;
+    e->engine.reset();
+    e->hangul.reset();
 }
 
 void dokey_destroy(dokey_engine* e) {

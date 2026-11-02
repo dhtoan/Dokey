@@ -41,6 +41,24 @@ enum SelfTest {
             return "\(edit.backspaces):" + String(decoding: edit.text, as: UTF16.self)
         }(), "3:eengs")
 
+        let korean = Engine(options: dokey_options(method: Int32(DOKEY_TELEX), encoding: Int32(DOKEY_UNICODE),
+                                                   modern_tone_style: 1, check_spelling: 1, quick_telex: 0))
+        korean.setLanguage(Int32(DOKEY_LANG_KOREAN))
+        check("korean", korean.simulate("dkssudgktpdy gksrnr"), "안녕하세요 한국")
+        check("korean split", korean.simulate("rkqtdl dlTdj"), "값이 있어")
+        var letters = ""
+        let codes: [(CGKeyCode, Bool)] = [(4, false), (40, false), (15, true), (50, false)]
+        for (key, shift) in codes {
+            if let u = KeyCode.usLetter(key, shift: shift), let s = Unicode.Scalar(u) {
+                letters.append(Character(s))
+            } else {
+                letters.append("-")
+            }
+        }
+        check("korean key codes", letters, "hkR-")
+        check("vscode", AppClassifier.isVSCode(bundleID: "com.microsoft.VSCode")
+              && !AppClassifier.isVSCode(bundleID: "com.google.Chrome") ? "ok" : "bad", "ok")
+
         let kinds: [(String, AppKind)] = [
             ("com.google.Chrome", .browser),
             ("com.microsoft.edgemac", .browser),

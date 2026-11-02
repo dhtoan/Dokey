@@ -1,6 +1,6 @@
 # Thiết kế: Dokey Core nhiều ngôn ngữ, gói tiếng Hàn (두벌식)
 
-Trạng thái: **bản thử**. Bộ ghép Hangul (`src/hangul.cpp`, `include/dokey/hangul.hpp`) đã có kèm bài kiểm thử (`tests/hangul_tests.cpp`), nhưng **chưa nối vào event tap macOS hay bản Windows**. Mã của engine tiếng Việt chưa bị sửa dòng nào.
+Trạng thái: **bản thử**. Bộ ghép Hangul (`src/hangul.cpp`, `include/dokey/hangul.hpp`) đã có kèm bài kiểm thử (`tests/hangul_tests.cpp`). Bộ ghép đã được nối vào app macOS sau một khoá ẩn (xem mục 8), còn bản Windows thì chưa. Engine tiếng Việt (`engine.cpp`, `vietnamese.cpp`) chưa bị sửa dòng nào. Khi chưa đặt khoá, app macOS gõ tiếng Việt như cũ.
 
 ## 1. Vì sao làm tiếng Hàn
 
@@ -44,7 +44,7 @@ public:
 
 `Engine` giữ toàn bộ cột trái của bảng ở mục 2 và gọi gói đang chọn. `VietnamesePack` nhận nguyên `Parser`, `render`, `encodeKeys` và Quick Telex từ `engine.cpp`. Gói này chỉ là chỗ chuyển code sang, không viết lại logic. `HangulPack` gọi `hangul::compose()`.
 
-API C thêm một trường **ở cuối** `dokey_options`: `int language; /* DOKEY_LANG_VIETNAMESE = 0, DOKEY_LANG_KOREAN = 1 */`. Bản Windows khởi tạo struct bằng `= {}`, nên tự nhận giá trị 0, tức tiếng Việt. Bản Swift dùng hàm khởi tạo liệt kê đủ các trường (`Settings.swift`, `SelfTest.swift`), nên phải thêm `language:` vào những chỗ đó, nếu không sẽ lỗi biên dịch. Với tiếng Hàn, `method` mang nghĩa bố cục (`DOKEY_HANGUL_2SET = 0`, để chỗ cho 세벌식 sau này).
+API C (đã làm trong bản thử) có thêm hàm `dokey_set_language(engine, DOKEY_LANG_VIETNAMESE | DOKEY_LANG_KOREAN)`, chứ không thêm trường vào `dokey_options`. Lý do: bản Swift tạo `dokey_options` bằng hàm khởi tạo liệt kê đủ các trường, nên mỗi trường mới buộc phải sửa mọi chỗ gọi. Với tiếng Hàn, `dokey_key`, `dokey_backspace_edit` và `dokey_reset` chạy qua `HangulEngine`; `dokey_undo` và gõ tắt không có tác dụng. Khi tách gói thật, có thể cho `method` mang nghĩa bố cục (`DOKEY_HANGUL_2SET = 0`, để chỗ cho 세벌식).
 
 ### Giữ tiếng Việt y hệt từng byte
 
@@ -78,10 +78,11 @@ Bản thử chưa đụng tới engine tiếng Việt. Khi tách gói (một PR 
 Biên dịch bằng zig c++ 0.16 (clang), `-std=c++17 -Wall -Wextra`:
 
 - `dokey_tests` (tiếng Việt, có sẵn): **20.635/20.635**, giống lúc chưa thêm gói Hàn.
-- `dokey_hangul_tests` (mới): **53.203/53.203**, gồm:
+- `dokey_hangul_tests` (mới): **53.204/53.204**, gồm:
   - 86 ca viết tay: từ thông dụng (한국, 안녕하세요, 감사합니다, 있습니다, 읽어, 않아, 밟아, 깎아, 화이팅), nguyên âm ghép, tách âm tiết, jamo đứng riêng, Backspace, từ dài.
   - **Toàn bộ 11.172 âm tiết**, phím được dựng từ bảng viết riêng trong file test: mỗi âm tiết gõ một mình, thêm ㅇㅏ phía sau (phụ âm cuối giữ nguyên), và thêm ㅏ phía sau (phụ âm cuối tách đúng).
   - 20.000 từ ngẫu nhiên (250.522 phím). Sau mỗi phím, chữ trên "màn hình" (áp các phép sửa) phải đúng bằng `compose()` của các phím đã gõ, và mọi ký tự phải là Hangul. **Enter không bao giờ bị engine xử lý.**
+  - API C: chuyển sang tiếng Hàn, gõ, Backspace, Enter, rồi chuyển lại tiếng Việt (`aa` → â).
 - Thử đột biến: bỏ cặp ㄹ+ㄱ → ㄺ thì 801 kiểm tra hỏng, nghĩa là bài test bắt được lỗi quy tắc thật.
 
 Thống kê cách gửi phím: **100% phím tiếng Hàn phải viết lại** (phím Latin sinh ra jamo, nên không bao giờ "để phím gốc đi qua" được). Trung bình mỗi phím cần 0,33 lần xoá và 1,04 ký tự chèn. Với tiếng Việt, phần lớn phím đi qua nguyên vẹn.
@@ -93,18 +94,68 @@ Thống kê cách gửi phím: **100% phím tiếng Hàn phải viết lại** (
 **Chưa kiểm chứng (cần máy Mac):**
 
 1. **Tranh chấp thứ tự** giữa các sự kiện Dokey tự gửi và phím người dùng gõ tiếp theo, trong Chromium và Electron. Tiếng Việt từng gặp lỗi rơi chữ kiểu này (mục mã phím trong `KeyboardTap.swift`). Tiếng Hàn viết lại mọi phím, nên mức phơi nhiễm lớn hơn nhiều.
-2. **Terminal trong VS Code:** nhóm Electron bôi đen bằng Shift+←, nhưng trong xterm.js Shift+← là chuỗi escape (hạn chế đã ghi trong `docs/TESTING.md`). Claude Code thường chạy ở đây, nên trước khi thử phải có cách nhận ra terminal của VS Code và chuyển sang Backspace.
-3. **Đọc phím theo bố cục:** event tap đang lấy ký tự theo bố cục hiện tại. 두벌식 gõ theo vị trí, nên phải ánh xạ theo mã phím (`kVK_ANSI_*`). Nếu không, người dùng Dvorak hoặc AZERTY sẽ ra sai jamo. Người dùng phải đặt nguồn nhập là ABC thay vì bộ gõ Hàn của Apple.
+2. **Terminal trong VS Code:** nhóm Electron bôi đen bằng Shift+←, nhưng trong xterm.js Shift+← là chuỗi escape (hạn chế đã ghi trong `docs/TESTING.md`). Claude Code thường chạy ở đây. Bản thử chọn cách đơn giản: ở chế độ tiếng Hàn, **cả** VS Code và các bản fork (VSCodium, Cursor, Windsurf) đều xoá bằng Backspace. Chế độ tiếng Việt vẫn giữ như cũ. Cách này cũng áp dụng cho trình soạn thảo và ô chat của tiện ích Claude Code, nên cần thử xem hai nơi đó có bỏ qua Backspace tổng hợp không. Muốn chỉ áp dụng cho terminal thì phải hỏi phần tử đang có focus qua Accessibility, nhưng khi bị hỏi như vậy VS Code có thể tự bật chế độ dành cho trình đọc màn hình.
+3. **Đọc phím theo bố cục:** ở chế độ tiếng Hàn, chữ cái được đọc theo mã phím (`kVK_ANSI_*`, xem `KeyCode.usLetter`), nên không phụ thuộc vào bố cục, và Caps Lock bị bỏ qua. Phím không phải chữ (số, dấu câu) vẫn đọc theo bố cục hiện tại. Người dùng vẫn phải đặt nguồn nhập là ABC thay vì bộ gõ Hàn của Apple.
 4. **Phím chuyển 한/영:** người Hàn quen dùng Caps Lock, phím Cmd phải hoặc Ctrl+Space. Phím chuyển hiện tại của Dokey là ⌃⇧ hoặc tổ hợp tự đặt.
 5. **Warp và các trình soạn thảo riêng:** chưa biết Warp xử lý Backspace tổng hợp và sự kiện mang chuỗi Unicode thế nào.
 6. Chưa có Hanja (phím 한자), chưa có 세벌식.
 
 ## 7. Thử trên Mac cần những gì
 
-1. Một nhánh nối `HangulEngine`/`HangulPack` vào `KeyboardTap.swift`, bật bằng một khoá ẩn (ví dụ `defaults write com.dhtoan.dokey.mac language -string ko`). Phím chữ phải ánh xạ theo mã phím. Riêng terminal của VS Code phải gửi Backspace thay vì bôi đen.
+1. ~~Một nhánh nối `HangulEngine` vào `KeyboardTap.swift`, bật bằng một khoá ẩn, đọc phím chữ theo mã phím, và dùng Backspace trong VS Code.~~ Đã làm trên nhánh `hangul-prototype`; cách thử ở mục 8.
 2. Một máy Mac: Apple Silicon và macOS 15 là chính, thêm một máy Intel macOS 14 cho cấu hình máy chậm. Cài Claude Code, VS Code, Chrome, Warp, Terminal.app (có iTerm2 càng tốt).
 3. **Tái hiện lỗi gốc trước:** gõ bằng bộ gõ 2-Set Korean của Apple trong từng ứng dụng, ghi lại tỉ lệ mất hoặc lặp âm tiết cuối. Không có số đối chứng này thì không chứng minh được Dokey tốt hơn.
 4. Bộ câu thử, mỗi câu kết thúc bằng Enter: câu mở (가), có phụ âm cuối (한국), phụ âm cuối kép (값, 닭, 않), ㄲ/ㅆ (깎, 있어요), nguyên âm ghép (과, 의), và một câu dài. Gõ ở 8–120 ms/phím bằng phím giả lập mức HID như các lần thử bản 0.3, khoảng 50 lượt mỗi ứng dụng. Thêm vài lượt do một người Hàn gõ thật với tốc độ nhanh (có chồng phím).
 5. Ma trận ứng dụng: Claude Code CLI trong Terminal, Warp và terminal VS Code; ô chat của tiện ích Claude Code trong VS Code; trình soạn thảo VS Code; Chrome (textarea, contenteditable, ProseMirror trên claude.ai, Google Docs, thanh địa chỉ); Claude Desktop.
 6. So nội dung thật sự được gửi đi với câu mong đợi. Đối chiếu với nhật ký `debugLog` của Dokey để biết lỗi nằm ở engine hay ở khâu gửi phím.
 7. Nhờ một người bản ngữ xem lại quy tắc ở mục 4, nhất là cách Backspace xử lý `가바 ⌫`.
+
+## 8. Cách thử trên Mac
+
+Phần Swift **chưa được biên dịch lần nào** (máy làm bản thử chạy Windows). `build.sh` tự chạy `Dokey --self-test` sau khi build. Bộ self-test có thêm 4 mục cho tiếng Hàn (`korean`, `korean split`, `korean key codes`, `vscode`). Nếu Swift lỗi, lỗi sẽ hiện ngay ở bước build hoặc self-test.
+
+### Build và cài
+
+```bash
+git clone https://github.com/dhtoan/Dokey.git && cd Dokey   # hoặc: git fetch origin
+git checkout hangul-prototype
+apps/macos/build.sh --dmg
+bash apps/macos/install.sh apps/macos/build/Dokey-0.4.0.dmg
+```
+
+Bản build ký ad-hoc, nên mỗi lần build lại thì macOS coi Dokey là app mới. Nếu gõ không ra gì, cấp lại quyền Trợ năng: `tccutil reset Accessibility com.dhtoan.dokey.mac`, mở lại Dokey, rồi bật Dokey trong Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Trợ năng.
+
+### Bật, tắt tiếng Hàn
+
+```bash
+defaults write com.dhtoan.dokey.mac language -string ko    # bật tiếng Hàn (có tác dụng sau tối đa 2 giây, không cần mở lại app)
+defaults delete com.dhtoan.dokey.mac language              # về tiếng Việt
+defaults write com.dhtoan.dokey.mac debugLog -bool true    # tuỳ chọn: ghi nhật ký vào ~/Library/Logs/Dokey.log
+```
+
+- Nguồn nhập của macOS phải là **ABC** (hoặc U.S.), không phải bộ gõ 2-Set Korean của Apple.
+- Phím chuyển của Dokey (mặc định ⌃⇧) đóng vai trò 한/영: bật thì gõ tiếng Hàn, tắt thì gõ chữ Latin. Biểu tượng trên thanh menu vẫn là biểu tượng tiếng Việt.
+- Bảng điều khiển của Dokey chưa biết gì về tiếng Hàn. Ô "Gõ thử" trong bảng điều khiển vẫn gõ tiếng Hàn được.
+
+### Ca thử (gõ trên bố cục ABC, ⏎ = Enter)
+
+| Phím | Mong đợi | Kiểm tra gì |
+|---|---|---|
+| `dkssudgktpdy⏎` | 안녕하세요 | Âm tiết mở ở cuối |
+| `gksrnr⏎` | 한국 | Phụ âm cuối |
+| `rkqt⏎` | 값 | Phụ âm cuối kép |
+| `dlTdjdy⏎` | 있어요 | ㅆ, tách âm tiết |
+| `rhkwk⏎` | 과자 | Nguyên âm ghép |
+| `rkatkgkqslek⏎` | 감사합니다 | Câu dài, nhiều lần tách |
+| `gks⌫⏎` | 하 | Backspace bỏ một jamo |
+| `gks` ⌃⇧ `abc` ⌃⇧ `rk⏎` | 한abc가 | Phím chuyển 한/영 giữa câu |
+
+Thử mỗi ca khoảng 20 lần trong từng ứng dụng, gõ nhanh. Ghi lại nội dung **thật sự được gửi đi** (tin nhắn trong lịch sử chat, dòng lệnh shell nhận được), không chỉ nhìn ô nhập.
+
+- **Claude Code:** trong Terminal.app, Warp, iTerm2 và terminal tích hợp của VS Code.
+- **VS Code:** trình soạn thảo, và ô chat của tiện ích Claude Code. Hai nơi này nay xoá bằng Backspace thay vì bôi đen, cần xem có bị bỏ sót chữ không.
+- **Chrome:** chatgpt.com và claude.ai (ProseMirror), một textarea thường, Google Docs, thanh địa chỉ.
+- **Claude Desktop.**
+- **Ô mật khẩu:** ô đăng nhập trên Chrome/Safari, hoặc `sudo -v` trong Terminal. macOS bật secure input nên Dokey không thấy phím: mong đợi là chữ Latin đúng như gõ, không có jamo. Sau khi rời ô mật khẩu, tiếng Hàn phải chạy lại.
+- **Đối chứng:** chuyển nguồn nhập sang 2-Set Korean của Apple, tắt Dokey (⌃⇧), rồi chạy lại các ca có Enter trong cùng ứng dụng. Ghi tỉ lệ mất hoặc lặp âm tiết cuối để so với Dokey.
+- **Hồi quy tiếng Việt:** chạy `defaults delete com.dhtoan.dokey.mac language`, rồi gõ `tieengs Vieetj ` và `dduowngf ` trong vài ứng dụng trên. Kết quả phải giống bản 0.4.0.

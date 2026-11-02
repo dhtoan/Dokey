@@ -128,6 +128,16 @@ final class Settings {
         defaults.bool(forKey: "debugLog")
     }
 
+    /// Prototype, set with `defaults write com.dhtoan.dokey.mac language -string ko`:
+    /// type Korean (2-beolsik) instead of Vietnamese. See docs/hangul-design.md.
+    var korean: Bool {
+        defaults.string(forKey: "language") == "ko"
+    }
+
+    var language: Int32 {
+        korean ? Int32(DOKEY_LANG_KOREAN) : Int32(DOKEY_LANG_VIETNAMESE)
+    }
+
     static let sampleMacros = """
     # Gõ tắt: mỗi dòng "từ tắt = nội dung". Gõ từ tắt rồi dấu cách để thay.
     # Viết hoa từ tắt để viết hoa nội dung: vn -> Việt Nam, Vn, VN -> VIỆT NAM.

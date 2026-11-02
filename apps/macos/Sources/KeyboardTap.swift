@@ -16,6 +16,20 @@ enum KeyCode {
     static let leftArrow: CGKeyCode = 123
     /// Arrows, Home, End, Page Up, Page Down: the caret moves, so the word ends.
     static let caretMovers: Set<CGKeyCode> = [115, 116, 119, 121, 123, 124, 125, 126]
+
+    /// The letter each key has on a US/ABC keyboard (kVK_ANSI_A ... kVK_ANSI_M).
+    private static let letters: [CGKeyCode: Unicode.Scalar] = [
+        0: "a", 1: "s", 2: "d", 3: "f", 4: "h", 5: "g", 6: "z", 7: "x", 8: "c", 9: "v",
+        11: "b", 12: "q", 13: "w", 14: "e", 15: "r", 16: "y", 17: "t", 31: "o", 32: "u",
+        34: "i", 35: "p", 37: "l", 38: "j", 40: "k", 45: "n", 46: "m",
+    ]
+
+    /// Korean 2-beolsik types by key position, so letters are read by key code,
+    /// whatever the keyboard layout (Dvorak, AZERTY...). Caps Lock is ignored.
+    static func usLetter(_ key: CGKeyCode, shift: Bool) -> UInt32? {
+        guard let letter = letters[key] else { return nil }
+        return shift ? letter.value - 0x20 : letter.value
+    }
 }
 
 /// Written into every event Dokey posts, so the tap never processes its own output.
@@ -32,6 +46,10 @@ struct TapState {
     var undoWithEsc = false
     /// Replaces the app's profile, e.g. for Google Docs (set from the window title).
     var siteProfile: DeliveryProfile?
+    /// Prototype: Korean (2-beolsik) instead of Vietnamese (`defaults write ... language -string ko`).
+    var korean = false
+    /// The front app is VS Code or a fork (see AppClassifier.isVSCode).
+    var vsCode = false
 }
 
 final class KeyboardTap {
@@ -203,7 +221,8 @@ final class KeyboardTap {
             }
         }
 
-        guard let ch = typedCharacter(event) else {
+        let letter = current.korean ? KeyCode.usLetter(keyCode, shift: flags.contains(.maskShift)) : nil
+        guard let ch = letter ?? typedCharacter(event) else {
             newWord()
             return pass
         }
@@ -264,6 +283,9 @@ final class KeyboardTap {
         if state.appKind == .normal, LauncherDetector.spotlightFocused() {
             profile = AppKind.browser.profile(slowMachine: state.profile.settle > 0)
         }
+        // Korean rewrites nearly every key. VS Code's terminal (xterm.js) reads
+        // Shift+← as an escape sequence, so VS Code gets Backspace instead.
+        if state.korean && state.vsCode { profile.select = false }
         // Rich editors (ProseMirror/Tiptap in Claude, Notion…) can ignore synthetic
         // Backspaces, and browser address bars spend the first one on the inline
         // suggestion. Selecting the old letters with Shift+← and typing over them
