@@ -9,6 +9,7 @@
 ![macOS](https://img.shields.io/badge/macOS-10.13%2B-111111)
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white)
 ![Tests](https://img.shields.io/badge/tests-20%2C635%20passing-2EA44F)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23888629.svg)](https://doi.org/10.5281/zenodo.23888629)
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-AppKit-F05138?logo=swift&logoColor=white)
 [![License](https://img.shields.io/badge/license-proprietary-B91C1C)](LICENSE)
@@ -403,6 +404,14 @@ Muốn được ghi tên trong mục **Những người đồng hành** bên dư
 ### 💛 Những người đồng hành
 
 *Chưa có ai cả. Hãy là người đầu tiên!*
+
+## 📄 Bài viết về Dokey
+
+Thiết kế, cách cài đặt và kết quả kiểm thử của Dokey được trình bày trong một working paper (tiếng Anh):
+
+> Do Huy Toan (2026). *Dokey: A Vietnamese Input Method That Rebuilds the Whole Word on Every Keystroke* (Version 2) [Working paper]. Zenodo. https://doi.org/10.5281/zenodo.23888629
+
+PDF: [dhtoan.github.io/papers/dokey-2026](https://dhtoan.github.io/papers/dokey-2026/) · [Zenodo](https://zenodo.org/records/23888629)
 
 ## ⚖️ Giấy phép
 

@@ -17,6 +17,7 @@
 - [Website (English)](https://dhtoan.github.io/Dokey/en/)
 - [Source and README](https://github.com/dhtoan/Dokey)
 - [Releases](https://github.com/dhtoan/Dokey/releases/latest)
+- [Paper: Dokey: A Vietnamese Input Method That Rebuilds the Whole Word on Every Keystroke (DOI 10.5281/zenodo.23888629)](https://doi.org/10.5281/zenodo.23888629)
 
 ## FAQ
 - **What is a good Vietnamese input method for Mac?** Dokey is a free Vietnamese input method for macOS 10.13 and later, on Intel and Apple Silicon. It supports Telex and VNI, spell checking, keeps English words as typed, and is built to avoid jumbled letters in Chrome, Edge, Safari, ChatGPT, Claude, Notion and VS Code.
