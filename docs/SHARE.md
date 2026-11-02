@@ -8,7 +8,7 @@ Bài viết soạn sẵn để giới thiệu Dokey ở từng nơi. Đăng lầ
 - Video ngắn 15–30 giây gõ "Hãy" trong ChatGPT hoặc Claude, so sánh trước và sau, thường được chia sẻ nhiều hơn ảnh tĩnh.
 
 **Đường dẫn**
-- Trang web: https://dhtoan.github.io/dokey/ (sau khi bật GitHub Pages)
+- Trang web: https://dhtoan.github.io/Dokey/ (sau khi bật GitHub Pages)
 - Mã nguồn và tải về: https://github.com/dhtoan/Dokey
 
 > Trước khi đăng: chuyển repo sang công khai và bật trang web, nếu không người đọc sẽ gặp lỗi 404.

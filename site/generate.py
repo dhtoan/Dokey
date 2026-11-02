@@ -9,7 +9,7 @@ import json
 import os
 import re
 
-BASE = "https://dhtoan.github.io/dokey/"
+BASE = "https://dhtoan.github.io/Dokey/"
 REPO = "https://github.com/dhtoan/Dokey"
 RELEASES = REPO + "/releases/latest"
 VERSION = "0.4.0"

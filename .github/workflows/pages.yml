@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Do Huy Toan (dhtoan). All rights reserved. See LICENSE.
 name: Website
 
-# Publishes site/ to GitHub Pages (https://dhtoan.github.io/dokey/).
+# Publishes site/ to GitHub Pages (https://dhtoan.github.io/Dokey/).
 # To turn it on: make the repository public (or use a plan with private Pages),
 # set Settings > Pages > Source to "GitHub Actions", and add the repository
 # variable PAGES_ENABLED = true (Settings > Secrets and variables > Actions > Variables).
