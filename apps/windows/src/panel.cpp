@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cwctype>
+#include <string>
 #include <vector>
 
 #include <objidl.h>
@@ -678,8 +679,7 @@ void DrawDashboard(Graphics& g, const RectF& c, const PanelStatus& st) {
                                     : Tr(L"Nhóm: ứng dụng thường", L"유형: 일반 앱"),
                      true, kApps, 60);
     }
-    wchar_t count[32];
-    wsprintfW(count, Tr(L"%u từ", L"%u개"), st.markedWords);
+    const std::wstring count = std::to_wstring(st.markedWords) + Tr(L" từ", L"개");
     DrawStatCard(g, RectF(c.X + (w + 12) * 2, y, w, h),
                  korean ? Tr(L"Đã ghép chữ", L"조합한 단어") : Tr(L"Đã thêm dấu", L"성조를 붙인 단어"), count, 19,
                  Tr(L"từ lúc mở Dokey", L"Dokey 실행 후"), true, kCount, 60);

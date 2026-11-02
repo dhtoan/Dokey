@@ -28,6 +28,8 @@ Bộ cài chưa được ký số, nên Windows SmartScreen có thể cảnh bá
   - *Hoàn tác bằng Esc* (mặc định tắt): trả từ đang gõ về đúng các phím đã gõ (tiếng → tieesng).
 - **Backspace thông minh:** gõ xong một từ và một dấu cách, bấm Backspace là quay lại sửa dấu từ đó (`xin` ␣ ⌫ `f` → xìn); xoá chữ làm dấu thanh đổi chỗ thì dấu tự về đúng vị trí.
 - **Ứng dụng loại trừ:** luôn gõ tiếng Anh trong các ứng dụng chọn ở trang Ứng dụng hoặc mục "Không gõ tiếng Việt trong …" của menu khay. Bấm phím chuyển trong ứng dụng đó để bỏ loại trừ.
+- **Tiếng Hàn (한국어, 두벌식):** chọn ngôn ngữ ở trang Kiểu gõ hoặc trong menu khay. Dokey đọc chữ cái theo vị trí phím (mã phím ảo), nên giữ bố cục English (US) và không cần bật bộ gõ tiếng Hàn của Microsoft: `dkssudgktpdy` → 안녕하세요, `gksrnr` → 한국. Chữ hiện ra ngay, không có chữ đang ghép dở. Ctrl+Shift, Alt+Z hoặc phím 한/영 để chuyển Anh/Hàn. Biểu tượng khay là **한**.
+- **Giao diện tiếng Hàn:** khi ngôn ngữ hiển thị của Windows là tiếng Hàn, bảng điều khiển và menu khay hiện bằng tiếng Hàn, và ngôn ngữ gõ mặc định là tiếng Hàn. Bản dịch chưa được người Hàn duyệt.
 - Cài đặt lưu ở `HKCU\Software\Dokey`.
 
 ## Cách hoạt động
