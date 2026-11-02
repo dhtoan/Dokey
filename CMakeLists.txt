@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(dokey_core STATIC
     src/engine.cpp
     src/vietnamese.cpp
+    src/hangul.cpp
     src/c_api.cpp
 )
 target_include_directories(dokey_core PUBLIC
@@ -41,3 +42,10 @@ if(MSVC)
 endif()
 target_compile_definitions(dokey_tests PRIVATE DOKEY_TEST_DATA="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
 add_test(NAME dokey_tests COMMAND dokey_tests)
+
+add_executable(dokey_hangul_tests tests/hangul_tests.cpp)
+target_link_libraries(dokey_hangul_tests PRIVATE dokey_core)
+if(MSVC)
+    target_compile_options(dokey_hangul_tests PRIVATE /utf-8)
+endif()
+add_test(NAME dokey_hangul_tests COMMAND dokey_hangul_tests)
