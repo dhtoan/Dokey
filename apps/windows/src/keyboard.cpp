@@ -14,6 +14,8 @@
 #include "keyboard.h"
 
 #include <atomic>
+#include <cstdarg>
+#include <cstdio>
 #include <condition_variable>
 #include <cwctype>
 #include <deque>
@@ -66,6 +68,32 @@ bool g_wordMarked = false;  // the current word was already counted in g_markedW
 std::wstring g_foregroundExe;
 bool g_excluded = false;         // the foreground app is on the excluded list: English
 bool g_macrosSuspended = false;  // the macro editor has the focus
+
+// Debug log (registry DebugLog = 1), for tracing what Dokey did in an app.
+void Log(const char* fmt, ...) {
+    if (!g_settings.debugLog) return;
+    static FILE* f = nullptr;
+    if (!f) {
+        wchar_t path[MAX_PATH];
+        DWORD n = GetTempPathW(MAX_PATH, path);
+        if (n == 0 || n > MAX_PATH - 20) return;
+        wcscat_s(path, L"dokey-debug.log");
+        f = _wfopen(path, L"a");
+        if (!f) return;
+    }
+    fprintf(f, "%llu ", GetTickCount64());
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(f, fmt, args);
+    va_end(args);
+    fputc('\n', f);
+    fflush(f);
+}
+
+void ResetEngine(const char* why) {
+    Log("reset: %s", why);
+    dokey_reset(g_engine);
+}
 
 void ApplyMacros() {
     std::string utf8;
@@ -291,6 +319,7 @@ bool SendEdit(const KBDLLHOOKSTRUCT& k, wchar_t ch, const dokey_edit& edit) {
     }
     if (edit.length > 0 && !IsWordChar(edit.text[edit.length - 1])) g_wordMarked = false;
 
+    Log("edit: %d backspaces, %d chars, chromium %d", edit.backspaces, edit.length, g_chromium ? 1 : 0);
     Job job;
     job.backspaces = edit.backspaces;
     job.guard = static_cast<char16_t>(g_settings.selectionGuard);
@@ -351,13 +380,13 @@ bool OnKeyDown(const KBDLLHOOKSTRUCT& k) {
     }
 
     if (vk == VK_PACKET) {  // text injected by another program
-        dokey_reset(g_engine);
+        ResetEngine("packet");
         return PassOrDefer(k);
     }
     if (!g_settings.vietnamese || g_excluded || g_imeActive.load()) return PassOrDefer(k);
 
     if (ctrl || alt || win) {  // shortcuts
-        dokey_reset(g_engine);
+        ResetEngine("shortcut");
         return PassOrDefer(k);
     }
     dokey_edit edit;
@@ -383,11 +412,12 @@ bool OnKeyDown(const KBDLLHOOKSTRUCT& k) {
         ch = Translate(k);
     }
     if (ch == 0) {  // arrows, Home, Delete, Esc, F-keys...
-        dokey_reset(g_engine);
+        ResetEngine("non-character key");
         return PassOrDefer(k);
     }
 
     UpdateMacroSuspension();
+    Log("key vk %02X ch %04X pending %d", static_cast<unsigned>(vk), static_cast<unsigned>(ch), g_pending.load());
     if (!dokey_key(g_engine, ch, &edit)) {
         if (!IsWordChar(ch)) g_wordMarked = false;
         if (!IsPending()) return false;
@@ -432,7 +462,7 @@ LRESULT CALLBACK MouseProc(int code, WPARAM wParam, LPARAM lParam) {
     if (code == HC_ACTION) {
         switch (wParam) {
             case WM_LBUTTONDOWN: case WM_RBUTTONDOWN: case WM_MBUTTONDOWN: case WM_XBUTTONDOWN:
-                dokey_reset(g_engine);  // the caret may have moved
+                ResetEngine("mouse");  // the caret may have moved
                 break;
             default:
                 break;
@@ -443,13 +473,16 @@ LRESULT CALLBACK MouseProc(int code, WPARAM wParam, LPARAM lParam) {
 
 void CALLBACK WinEventProc(HWINEVENTHOOK, DWORD event, HWND hwnd, LONG, LONG, DWORD, DWORD) {
     if (event == EVENT_SYSTEM_FOREGROUND) {
-        dokey_reset(g_engine);
+        ResetEngine("foreground");
         UpdateFocus(hwnd, true);
         PostMessageW(g_owner, WM_DOKEY_FOCUS, 0, 0);
     } else if (event == EVENT_OBJECT_FOCUS && hwnd != g_lastFocus) {
         // Only a change of window counts: Chromium raises focus events inside
         // one window (popups, accessibility) while the user is still typing.
-        dokey_reset(g_engine);
+        wchar_t cls[64] = {};
+        GetClassNameW(hwnd, cls, 64);
+        Log("focus window %p class %ls", static_cast<void*>(hwnd), cls);
+        ResetEngine("focus");
         UpdateFocus(hwnd, false);
     }
 }

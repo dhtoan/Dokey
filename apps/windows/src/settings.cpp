@@ -117,6 +117,7 @@ Settings LoadSettings() {
     s.language = ReadDword(key, L"Language", s.language) == LANGUAGE_KOREAN ? LANGUAGE_KOREAN : LANGUAGE_VIETNAMESE;
     s.quickTelex = ReadDword(key, L"QuickTelex", s.quickTelex) != 0;
     s.escUndo = ReadDword(key, L"EscUndo", s.escUndo) != 0;
+    s.debugLog = ReadDword(key, L"DebugLog", 0) != 0;
     s.selectionGuard = ReadDword(key, L"SelectionGuard", s.selectionGuard) & 0xFFFF;
     s.macrosEnabled = ReadDword(key, L"MacrosEnabled", s.macrosEnabled) != 0;
     s.macros = ReadString(key, L"Macros", s.macros);

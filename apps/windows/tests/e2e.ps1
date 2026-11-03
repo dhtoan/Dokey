@@ -297,23 +297,12 @@ foreach ($b in $browsers) {
             @{ keys = 'thaayf'; want = "th$([char]0x1EA7)y" },
             @{ keys = 'ddi hocj'; want = "$([char]0x0111)i h$([char]0x1ECD)c" }
         )
-        # Without Dokey: "d", then a burst of edit keys `gap` ms apart.
-        foreach ($spec in 'GBBS', 'DBS', 'BS') {
-            foreach ($gap in 0, 2, 5, 10, 20, 50) {
-                [W]::Chord(0x11, 0x4C)
-                Start-Sleep -Milliseconds 500
-                [W]::Type('d', 0)
-                Start-Sleep -Milliseconds 800
-                [W]::Burst($spec, $gap)
-                Start-Sleep -Milliseconds 800
-                $v = Read-Address $hwnd
-                Write-Host "[$($b.name) address bar burst] $spec gap $gap ms -> '$v'"
-            }
-        }
         # Candidate guards before the Backspaces (SelectionGuard, testing only):
         # none, U+200B, the Delete key, U+00B7, U+00A0, U+2060.
         foreach ($guard in 0x200B) {
             Set-ItemProperty -Path HKCU:\Software\Dokey -Name SelectionGuard -Value $guard -Type DWord
+            Set-ItemProperty -Path HKCU:\Software\Dokey -Name DebugLog -Value 1 -Type DWord
+            Remove-Item (Join-Path $env:TEMP 'dokey-debug.log') -ErrorAction SilentlyContinue
             $dokey = Start-Dokey 0
             [W]::SetForegroundWindow($hwnd) | Out-Null
             Start-Sleep -Milliseconds 500
@@ -332,6 +321,8 @@ foreach ($b in $browsers) {
             Stop-Process -Id $dokey.Id -Force -ErrorAction SilentlyContinue
             $dokey = $null
             Start-Sleep -Seconds 1
+            Get-Content (Join-Path $env:TEMP 'dokey-debug.log') -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "[$($b.name) debug log] $_" }
+            Remove-ItemProperty -Path HKCU:\Software\Dokey -Name DebugLog -ErrorAction SilentlyContinue
         }
         Remove-ItemProperty -Path HKCU:\Software\Dokey -Name SelectionGuard -ErrorAction SilentlyContinue
     } finally {
