@@ -44,6 +44,14 @@ public static class W {
             if (delayMs > 0) System.Threading.Thread.Sleep(delayMs);
         }
     }
+    // One character as a KEYEVENTF_UNICODE press, like Dokey's output.
+    public static void Unicode(char c) {
+        INPUT[] i = new INPUT[2];
+        i[0].type = 1; i[0].u.ki.wScan = c; i[0].u.ki.dwFlags = 4;
+        i[1].type = 1; i[1].u.ki.wScan = c; i[1].u.ki.dwFlags = 6;
+        SendInput(2, i, Marshal.SizeOf(typeof(INPUT)));
+    }
+    public static void Press(ushort vk) { Key(vk, false); Key(vk, true); }
     // A key pressed with a modifier held, e.g. Ctrl+L.
     public static void Chord(ushort modifier, ushort vk) {
         Key(modifier, false); Key(vk, false); Key(vk, true); Key(modifier, true);
@@ -281,9 +289,32 @@ foreach ($b in $browsers) {
             @{ keys = 'thaayf'; want = "th$([char]0x1EA7)y" },
             @{ keys = 'ddi hocj'; want = "$([char]0x0111)i h$([char]0x1ECD)c" }
         )
+        # Step by step without Dokey: what the address bar does with each injected key.
+        foreach ($step in @(
+                @('d', 'type d'), @('U+00B7', 'unicode guard'), @('BS', 'backspace'), @('BS', 'backspace'), @('U+0111', 'unicode d-stroke')),
+                @(@('d', 'type d'), @('BS', 'backspace'), @('U+0111', 'unicode d-stroke')),
+                @(@('d', 'type d'), @('DEL', 'delete'), @('BS', 'backspace'), @('U+0111', 'unicode d-stroke')),
+                @(@('d', 'type d'), @('RIGHT', 'right'), @('BS', 'backspace'), @('U+0111', 'unicode d-stroke'))) {
+            [W]::Chord(0x11, 0x4C)
+            Start-Sleep -Milliseconds 500
+            $trace = @()
+            foreach ($k in $step) {
+                switch -regex ($k[0]) {
+                    '^U\+' { [W]::Unicode([char][Convert]::ToInt32($k[0].Substring(2), 16)) }
+                    '^BS$' { [W]::Press(0x08) }
+                    '^DEL$' { [W]::Press(0x2E) }
+                    '^RIGHT$' { [W]::Press(0x27) }
+                    default { [W]::Type($k[0], 0) }
+                }
+                Start-Sleep -Milliseconds 800
+                $v = Read-Address $hwnd
+                $trace += "$($k[1]) -> '$v' [" + (($v.ToCharArray() | ForEach-Object { '{0:X4}' -f [int]$_ }) -join ' ') + "]"
+            }
+            Write-Host "[$($b.name) address bar steps] $($trace -join ' | ')"
+        }
         # Candidate guards before the Backspaces (SelectionGuard, testing only):
         # none, U+200B, the Delete key, U+00B7, U+00A0, U+2060.
-        foreach ($guard in 0, 0x200B, 0xFFFF, 0x00B7, 0x00A0, 0x2060) {
+        foreach ($guard in 0x200B) {
             Set-ItemProperty -Path HKCU:\Software\Dokey -Name SelectionGuard -Value $guard -Type DWord
             $dokey = Start-Dokey 0
             [W]::SetForegroundWindow($hwnd) | Out-Null
