@@ -21,7 +21,7 @@ struct Settings {
     int hotkey = HOTKEY_CTRL_SHIFT;
     DWORD chromiumPauseMs = 12;
     bool debugLog = false;  // registry only: %TEMP%\dokey-debug.log
-    DWORD selectionGuard = 0x200B;  // registry only (testing): character typed before deletions, 0xFFFF Delete, 0 off
+    DWORD selectionGuard = 0x00B7;  // registry only: character typed before deletions (kSelectionGuard), 0xFFFF Delete, 0 off
     bool quickTelex = false;   // cc gg kk nn pp qq tt -> ch gi kh ng ph qu th at a word start
     bool escUndo = false;      // Esc turns the current word back into its keys
     bool macrosEnabled = true;

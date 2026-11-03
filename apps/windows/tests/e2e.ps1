@@ -298,36 +298,28 @@ foreach ($b in $browsers) {
             @{ keys = 'thaayf'; want = "th$([char]0x1EA7)y" },
             @{ keys = 'ddi hocj'; want = "$([char]0x0111)i h$([char]0x1ECD)c" }
         )
-        # Candidate guards before the Backspaces (SelectionGuard, testing only):
-        # none, U+200B, the Delete key, U+00B7, U+00A0, U+2060.
-        foreach ($guard in 0, 0x200B, 0xFFFF, 0x00B7) {
-            Set-ItemProperty -Path HKCU:\Software\Dokey -Name SelectionGuard -Value $guard -Type DWord
-            Set-ItemProperty -Path HKCU:\Software\Dokey -Name DebugLog -Value 1 -Type DWord
-            Remove-Item (Join-Path $env:TEMP 'dokey-debug.log') -ErrorAction SilentlyContinue
-            $dokey = Start-Dokey 0
-            Get-Process Dokey -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "[$($b.name) address bar] Dokey running: pid $($_.Id) started $($_.StartTime) $($_.Path) (ours: $($dokey.Id), exited: $($dokey.HasExited))" }
-            [W]::SetForegroundWindow($hwnd) | Out-Null
-            Start-Sleep -Milliseconds 500
-            $ok = 0
-            foreach ($w in $words) {
-                foreach ($delay in 40, 0) {
-                    [W]::Chord(0x11, 0x4C)
-                    Start-Sleep -Milliseconds 300
-                    [W]::Type($w.keys, $delay)
-                    Start-Sleep -Seconds 1
-                    $value = Read-Address $hwnd
-                    if (Test-Text ("$($b.name) address bar, guard {0:X4}: $($w.keys) ($delay ms)" -f $guard) $value $w.want) { $ok++ }
-                }
+        $log = Join-Path $env:TEMP 'dokey-debug.log'
+        Remove-Item $log -ErrorAction SilentlyContinue
+        Set-ItemProperty -Path HKCU:\Software\Dokey -Name DebugLog -Value 1 -Type DWord
+        $dokey = Start-Dokey 0
+        [W]::SetForegroundWindow($hwnd) | Out-Null
+        Start-Sleep -Milliseconds 500
+        $failed = $false
+        foreach ($w in $words) {
+            foreach ($delay in 40, 0) {
+                [W]::Chord(0x11, 0x4C)
+                Start-Sleep -Milliseconds 300
+                [W]::Type($w.keys, $delay)
+                Start-Sleep -Seconds 1
+                $value = Read-Address $hwnd
+                if (-not (Test-Text "$($b.name) address bar: $($w.keys) ($delay ms)" $value $w.want)) { $failed = $true }
             }
-            Write-Host ("[$($b.name) address bar] guard {0:X4}: $ok of 6 correct" -f $guard)
-            Stop-Process -Id $dokey.Id -Force -ErrorAction SilentlyContinue
-            $dokey = $null
-            Start-Sleep -Seconds 1
-            Write-Host "[$($b.name) address bar] TEMP=$env:TEMP TMP=$env:TMP log exists: $(Test-Path (Join-Path $env:TEMP 'dokey-debug.log'))"
-            Get-Content (Join-Path $env:TEMP 'dokey-debug.log') -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "[$($b.name) debug log] $_" }
-            Remove-ItemProperty -Path HKCU:\Software\Dokey -Name DebugLog -ErrorAction SilentlyContinue
         }
-        Remove-ItemProperty -Path HKCU:\Software\Dokey -Name SelectionGuard -ErrorAction SilentlyContinue
+        Remove-ItemProperty -Path HKCU:\Software\Dokey -Name DebugLog -ErrorAction SilentlyContinue
+        if ($failed) {
+            $exitCode = 1
+            Get-Content $log -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "[$($b.name) debug log] $_" }
+        }
     } finally {
         Get-Process $b.process -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
         if ($dokey) { Stop-Process -Id $dokey.Id -Force -ErrorAction SilentlyContinue }

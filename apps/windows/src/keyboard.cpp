@@ -417,7 +417,7 @@ bool OnKeyDown(const KBDLLHOOKSTRUCT& k) {
     }
 
     UpdateMacroSuspension();
-    Log("key vk %02X ch %04X pending %d", static_cast<unsigned>(vk), static_cast<unsigned>(ch), g_pending.load());
+    Log("key (word char %d), %d jobs pending", IsWordChar(ch) ? 1 : 0, g_pending.load());  // never which key
     if (!dokey_key(g_engine, ch, &edit)) {
         if (!IsWordChar(ch)) g_wordMarked = false;
         if (!IsPending()) return false;

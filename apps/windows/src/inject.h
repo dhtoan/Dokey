@@ -17,10 +17,12 @@ constexpr ULONG_PTR kTagEnd = 0x444F4B01;
 
 // A text box may hold a selected inline completion after the caret (address
 // bars, Excel, Explorer): the first Backspace would delete that instead of the
-// letter. Typing this invisible character first replaces any selection, and
-// one more Backspace removes it again.
-constexpr char16_t kSelectionGuard = 0x200B;  // ZERO WIDTH SPACE
-constexpr char16_t kGuardDelete = 0xFFFF;
+// letter. Typing this character first replaces any selection, and one more
+// Backspace removes it again. It must be a character the address bar does not
+// ignore when it looks for a completion: with U+200B, Chrome brought the same
+// completion back ("ddoox" still gave "dđỗ").
+constexpr char16_t kSelectionGuard = 0x00B7;  // MIDDLE DOT
+constexpr char16_t kGuardDelete = 0xFFFF;     // SelectionGuard value: the Delete key instead
 
 inline bool IsOwnEvent(ULONG_PTR extra) { return extra == kTagMid || extra == kTagEnd; }
 
