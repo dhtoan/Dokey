@@ -287,17 +287,19 @@ final class KeyboardTap {
         // Shift+← as an escape sequence, so VS Code gets Backspace instead.
         if state.korean && state.vsCode { profile.select = false }
         // Rich editors (ProseMirror/Tiptap in Claude, Notion…) can ignore synthetic
-        // Backspaces, and browser address bars spend the first one on the inline
-        // suggestion. Selecting the old letters with Shift+← and typing over them
-        // works in both. Combining marks are skipped: ← moves by whole character.
+        // Backspaces: selecting the old letters with Shift+← and typing over them
+        // works. Address bars select an inline completion after the caret, which
+        // the browser profile clears first (see deletionSteps). Combining marks
+        // are skipped: ← moves by whole character.
         let select = profile.select && !edit.text.isEmpty
             && state.encoding != Int32(DOKEY_UNICODE_COMBINING)
         if state.debugLog { DebugLog.write(edit, kind: state.appKind, selected: select) }
-        for _ in 0..<edit.backspaces {
-            if select {
-                postKey(KeyCode.leftArrow, flags: [.maskShift, .maskSecondaryFn, .maskNumericPad], proxy: proxy)
-            } else {
-                postKey(KeyCode.backspace, proxy: proxy)
+        for step in Self.deletionSteps(backspaces: edit.backspaces, select: select,
+                                       clearSelection: profile.clearSelection && !state.korean) {
+            switch step {
+            case .zeroWidthSpace: postText([0x200B], key: freeTextKey(), up: true, proxy: proxy)
+            case .selectLeft: postKey(KeyCode.leftArrow, flags: [.maskShift, .maskSecondaryFn, .maskNumericPad], proxy: proxy)
+            case .backspace: postKey(KeyCode.backspace, proxy: proxy)
             }
             pause(profile.step)
         }
@@ -337,6 +339,20 @@ final class KeyboardTap {
             copy.setIntegerValueField(.eventSourceUserData, value: dokeyEventTag)
             copy.tapPostEvent(proxy)
         }
+    }
+
+    enum DeletionStep: Equatable { case zeroWidthSpace, selectLeft, backspace }
+
+    /// How the old letters go before the new text is typed: selected with
+    /// Shift+← (typed over) or deleted with Backspace. With `clearSelection`, an
+    /// invisible U+200B goes first: it replaces whatever the app had selected
+    /// after the caret (an address bar's inline completion), and one more
+    /// step removes it, so the steps always act on the letters Dokey typed.
+    static func deletionSteps(backspaces: Int, select: Bool, clearSelection: Bool) -> [DeletionStep] {
+        guard backspaces > 0 else { return [] }
+        let count = clearSelection ? backspaces + 1 : backspaces
+        let steps = [DeletionStep](repeating: select ? .selectLeft : .backspace, count: count)
+        return clearSelection ? [.zeroWidthSpace] + steps : steps
     }
 
     /// The virtual key that text events carry. Apps see a key-down for that key, so

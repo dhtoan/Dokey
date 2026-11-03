@@ -35,6 +35,9 @@ enum AppKind: String {
         // the user's next key (other Vietnamese IMEs found the same).
         case .browser, .electron:
             p = DeliveryProfile(select: true, unitsPerEvent: 20, step: 0, settle: 0, tail: 0, textKey: -2, textUp: true)
+            // Address bars and search boxes select an inline completion after the
+            // caret; Shift+← then only shrinks that selection ("dd" gave "dđ").
+            p.clearSelection = self == .browser
         // Shift+← is an escape sequence in Terminal, so normal apps get Backspace.
         case .normal:
             p = DeliveryProfile(select: false, unitsPerEvent: 20, step: 0, settle: 0, tail: 0, textKey: -2, textUp: true)
@@ -80,6 +83,8 @@ struct DeliveryProfile {
     var tail: useconds_t
     var textKey: Int
     var textUp: Bool
+    /// Type U+200B first, replacing any selected inline completion, and delete it with the old letters.
+    var clearSelection = false
 }
 
 enum AppClassifier {

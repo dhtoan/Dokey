@@ -117,6 +117,8 @@ static const Case kTelex[] = {
     {"ow ", "ơ "},
     {"owr ", "ở "},
     {"ddaay ", "đây "},
+    {"ddoox ", "đỗ "},
+    {"thaayf ", "thầy "},
     // undo by repeating the key
     {"aaa ", "aa "},
     {"ass ", "as "},
@@ -386,6 +388,24 @@ static void corpus() {
 #endif
 }
 
+// Each key's edit, for a doubled key that becomes one letter: an app that only
+// sees the edits must end up with the same text (the macOS/Windows send paths).
+static void doubledKeyEdits() {
+    struct Step { char key; bool handled; int backspaces; const char16_t* insert; };
+    const Step steps[] = {{'d', false, 0, u""}, {'d', true, 1, u"đ"}, {'o', false, 0, u""},
+                          {'o', true, 1, u"ô"}, {'x', true, 1, u"ỗ"}};
+    Options o;
+    Engine e(o);
+    for (const Step& s : steps) {
+        g_total++;
+        Edit ed = e.key(static_cast<char32_t>(s.key));
+        if (ed.handled != s.handled || ed.backspaces != s.backspaces || (s.handled && ed.insert != s.insert)) {
+            g_failed++;
+            std::printf("FAIL [doubled-key edits] ddoox at '%c': handled=%d backspaces=%d\n", s.key, ed.handled, ed.backspaces);
+        }
+    }
+}
+
 static void cApi() {
     g_total++;
     dokey_options opt = {DOKEY_TELEX, DOKEY_UNICODE, 1, 1, 0};
@@ -451,6 +471,7 @@ int main() {
     corpus();
     cApi();
     passthrough();
+    doubledKeyEdits();
 
     std::printf("\n%d/%d passed\n", g_total - g_failed, g_total);
     return g_failed == 0 ? 0 : 1;

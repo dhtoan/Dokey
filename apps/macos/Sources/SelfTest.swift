@@ -70,6 +70,30 @@ enum SelfTest {
             check("classify \(id)", AppClassifier.classify(bundleID: id, bundleURL: nil).rawValue, kind.rawValue)
         }
 
+        // The send path against a text box that selects an inline completion after
+        // the caret, like an address bar ("dd" used to give "dđ" there).
+        for (keys, expected) in [("ddoox ", "đỗ "), ("thaayf ", "thầy "), ("dduowcj ", "được "), ("Vieetj ", "Việt ")] {
+            for (select, completes) in [(true, true), (false, true), (true, false), (false, false)] {
+                let field = CompletingField(words: completes ? ["dantri.com.vn", "thanhnien.vn", "duoc.vn", "vietnamnet.vn"] : [])
+                let engine = Engine(options: dokey_options(method: Int32(DOKEY_TELEX), encoding: Int32(DOKEY_UNICODE),
+                                                           modern_tone_style: 1, check_spelling: 1, quick_telex: 0))
+                for scalar in keys.unicodeScalars {
+                    guard let edit = engine.key(scalar.value) else { field.type([UInt16](String(scalar).utf16)); continue }
+                    let steps = KeyboardTap.deletionSteps(backspaces: edit.backspaces, select: select && !edit.text.isEmpty,
+                                                          clearSelection: true)
+                    for step in steps {
+                        switch step {
+                        case .zeroWidthSpace: field.type([0x200B])
+                        case .selectLeft: field.shiftLeft()
+                        case .backspace: field.backspace()
+                        }
+                    }
+                    if !edit.text.isEmpty { field.type(edit.text) }
+                }
+                check("\(completes ? "completion" : "plain") box, \(select ? "select" : "backspace"): \(keys)", field.typedText, expected)
+            }
+        }
+
         let icon = StatusIcon.image(vietnamese: true)
         check("status icon", icon.isTemplate && icon.size.width > 0 ? "ok" : "bad", "ok")
 
@@ -94,4 +118,44 @@ enum SelfTest {
         }
         return 0
     }
+}
+
+/// A one-line text box that, like a browser address bar, fills in the rest of a
+/// known word after each typed letter and selects it (anchor at the caret).
+final class CompletingField {
+    private var text: [UInt16] = []
+    private var anchor = 0, focus = 0
+    private let words: [[UInt16]]
+
+    init(words: [String]) { self.words = words.map { Array($0.utf16) } }
+
+    /// What the user typed: the text up to the selection (the completion is not theirs).
+    var typedText: String { String(utf16CodeUnits: Array(text[0..<min(anchor, focus)]), count: min(anchor, focus)) }
+
+    private func replaceSelection(with units: [UInt16]) {
+        let lo = min(anchor, focus), hi = max(anchor, focus)
+        text.replaceSubrange(lo..<hi, with: units)
+        anchor = lo + units.count
+        focus = anchor
+    }
+
+    func type(_ units: [UInt16]) {
+        replaceSelection(with: units)
+        // Inline completion of what is typed so far (nothing matches U+200B).
+        let typed = text
+        guard anchor == text.count, !typed.isEmpty,
+              let word = words.first(where: { $0.count > typed.count && Array($0.prefix(typed.count)) == typed.map(Self.lower) })
+        else { return }
+        text += word[typed.count...]
+        focus = text.count
+    }
+
+    func shiftLeft() { if focus > 0 { focus -= 1 } }
+
+    func backspace() {
+        if anchor != focus { replaceSelection(with: []) }
+        else if focus > 0 { text.remove(at: focus - 1); focus -= 1; anchor = focus }
+    }
+
+    private static func lower(_ u: UInt16) -> UInt16 { (u >= 0x41 && u <= 0x5A) ? u + 32 : u }
 }
