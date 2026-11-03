@@ -293,7 +293,7 @@ bool SendEdit(const KBDLLHOOKSTRUCT& k, wchar_t ch, const dokey_edit& edit) {
 
     Job job;
     job.backspaces = edit.backspaces;
-    job.clearSelection = true;
+    job.guard = static_cast<char16_t>(g_settings.selectionGuard);
     job.text.assign(reinterpret_cast<const char16_t*>(edit.text), static_cast<size_t>(edit.length));
     if (ch != 0 && ch < 0x20 && !job.text.empty() && job.text.back() == ch) {
         // Enter/Tab ended the word: send the real key, not a control character.

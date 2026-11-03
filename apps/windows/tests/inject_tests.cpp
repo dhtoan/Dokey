@@ -53,7 +53,7 @@ void TestBuildInputs() {
 
     Job guarded;
     guarded.backspaces = 1;
-    guarded.clearSelection = true;
+    guarded.guard = kSelectionGuard;
     guarded.text = u"â";
     in = BuildInputs(guarded, &split);
     Check(in.size() == 8 && split == 6, "guard + 2 backspaces + 1 char");
@@ -86,7 +86,7 @@ void TestSelectionGuard() {
     job.backspaces = 1;
     job.text = u"â";
     Check(ApplyToCompletion(job) == u"thaâ", "without the guard Backspace only removes the completion");
-    job.clearSelection = true;
+    job.guard = kSelectionGuard;
     std::u16string out = ApplyToCompletion(job);
     Check(out == u"thâ", "with the guard the letter is replaced: thâ");
 }
@@ -138,6 +138,11 @@ void TestEngineContract() {
     Check(Type("windows ", DOKEY_TELEX) == u"windows ", "English word kept");
     Check(Type("tieesng\b\bs", DOKEY_TELEX).size() > 0, "backspace inside a word");
     Check(Type("Haxy ", DOKEY_TELEX) == u"Hãy ", "Telex: Hãy");
+    Check(Type("ddoox ", DOKEY_TELEX) == u"đỗ ", "Telex: ddoox -> đỗ");
+    Check(Type("dodox DDoox ", DOKEY_TELEX) == u"đỗ Đỗ ", "Telex: dd after the vowel, capital");
+    Check(Type("thaayf thayaf ", DOKEY_TELEX) == u"thầy thầy ", "Telex: thầy, marks in any order");
+    Check(Type("ddd ", DOKEY_TELEX) == u"dd ", "Telex: a third d undoes đ");
+    Check(Type("d9o64 ", DOKEY_VNI) == u"đỗ ", "VNI: đỗ");
     Check(Type("xin \bf", DOKEY_TELEX) == u"xìn", "Backspace after the space reopens the word");
     Check(Type("tieesng\x1b", DOKEY_TELEX) == u"tieesng", "Esc undoes the marks");
     Check(Type("btw ", DOKEY_TELEX, "btw = by the way") == u"by the way ", "macro expands on space");

@@ -276,24 +276,35 @@ foreach ($b in $browsers) {
         [W]::Type('d', 0)
         Start-Sleep -Seconds 1
         Write-Host "[$($b.name) address bar] 'd' without Dokey shows: $(Read-Address $hwnd)"
-        $dokey = Start-Dokey 0
-        [W]::SetForegroundWindow($hwnd) | Out-Null
-        Start-Sleep -Milliseconds 500
         $words = @(
             @{ keys = 'ddoox'; want = "$([char]0x0111)$([char]0x1ED7)" },
             @{ keys = 'thaayf'; want = "th$([char]0x1EA7)y" },
             @{ keys = 'ddi hocj'; want = "$([char]0x0111)i h$([char]0x1ECD)c" }
         )
-        foreach ($w in $words) {
-            foreach ($delay in 40, 0) {
-                [W]::Chord(0x11, 0x4C)
-                Start-Sleep -Milliseconds 300
-                [W]::Type($w.keys, $delay)
-                Start-Sleep -Seconds 1
-                $value = Read-Address $hwnd
-                if (-not (Test-Text "$($b.name) address bar: $($w.keys) ($delay ms)" $value $w.want)) { $exitCode = 1 }
+        # Candidate guards before the Backspaces (SelectionGuard, testing only):
+        # none, U+200B, the Delete key, U+00B7, U+00A0, U+2060.
+        foreach ($guard in 0, 0x200B, 0xFFFF, 0x00B7, 0x00A0, 0x2060) {
+            Set-ItemProperty -Path HKCU:\Software\Dokey -Name SelectionGuard -Value $guard -Type DWord
+            $dokey = Start-Dokey 0
+            [W]::SetForegroundWindow($hwnd) | Out-Null
+            Start-Sleep -Milliseconds 500
+            $ok = 0
+            foreach ($w in $words) {
+                foreach ($delay in 40, 0) {
+                    [W]::Chord(0x11, 0x4C)
+                    Start-Sleep -Milliseconds 300
+                    [W]::Type($w.keys, $delay)
+                    Start-Sleep -Seconds 1
+                    $value = Read-Address $hwnd
+                    if (Test-Text ("$($b.name) address bar, guard {0:X4}: $($w.keys) ($delay ms)" -f $guard) $value $w.want) { $ok++ }
+                }
             }
+            Write-Host ("[$($b.name) address bar] guard {0:X4}: $ok of 6 correct" -f $guard)
+            Stop-Process -Id $dokey.Id -Force -ErrorAction SilentlyContinue
+            $dokey = $null
+            Start-Sleep -Seconds 1
         }
+        Remove-ItemProperty -Path HKCU:\Software\Dokey -Name SelectionGuard -ErrorAction SilentlyContinue
     } finally {
         Get-Process $b.process -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
         if ($dokey) { Stop-Process -Id $dokey.Id -Force -ErrorAction SilentlyContinue }
