@@ -39,7 +39,7 @@ Bộ cài chưa được ký số, nên Windows SmartScreen có thể cảnh bá
 | Bắt phím | `WH_KEYBOARD_LL` trên một luồng riêng. Hook chỉ chạy engine rồi xếp việc vào hàng đợi, không bao giờ chờ, để Windows không gỡ hook. |
 | Gửi chữ | Khi `dokey_key` trả 1: xoá và chèn chữ (`KEYEVENTF_UNICODE`) bằng **một lần `SendInput`** trên luồng gửi. Khi trả 0: phím gốc đi qua. |
 | Không nhảy chữ | Mỗi sự kiện Dokey gửi đều gắn `dwExtraInfo`. Từ lúc xếp việc tới lúc hook thấy sự kiện cuối của nó quay về, các phím người dùng gõ tiếp được xếp sau, nên không thể vượt lên trước chữ của Dokey. |
-| Gợi ý tự hoàn thành | Thanh địa chỉ trình duyệt, Excel, Explorer bôi đen phần gợi ý sau con trỏ, nên phím xoá đầu tiên chỉ xoá phần gợi ý (`thaayf` thành "thaầy"). Trước các phím xoá, Dokey gõ một ký tự vô hình (U+200B) để thay chỗ bôi đen rồi xoá thêm một lần. |
+| Gợi ý tự hoàn thành | Thanh địa chỉ trình duyệt, Excel, Explorer bôi đen phần gợi ý sau con trỏ, nên phím xoá đầu tiên chỉ xoá phần gợi ý (`thaayf` thành "thaầy"). Trước các phím xoá, Dokey gõ một ký tự `·` (U+00B7) để thay chỗ bôi đen rồi xoá thêm một lần. Không dùng ký tự vô hình U+200B: thanh địa chỉ bỏ qua nó và hiện lại gợi ý (`ddoox` vẫn thành "dđỗ"). Registry `SelectionGuard` đổi được ký tự này (0 tắt, 65535 dùng phím Delete). |
 | Chrome, Edge, Electron | Nhận ra cửa sổ lớp `Chrome_WidgetWin_*` và nghỉ ngắn (mặc định 12 ms, `ChromiumPauseMs` trong registry) giữa phím xoá và chữ mới. |
 | Google Docs, Sheets, Slides | Nhận ra qua tiêu đề cửa sổ (tiếng Anh hoặc tiếng Việt): gửi từng phím một, nghỉ 2 ms giữa các phím và 6 ms trước chữ mới (gấp đôi khi bật Tương thích máy chậm). |
 | Đặt lại từ | Khi click chuột, đổi cửa sổ, phím mũi tên/Home/End/Delete/Esc, phím tắt Ctrl/Alt/Win. |
@@ -48,7 +48,9 @@ Bộ cài chưa được ký số, nên Windows SmartScreen có thể cảnh bá
 
 Giới hạn đã biết:
 - Không gõ được vào cửa sổ chạy quyền Administrator khi Dokey chạy quyền thường (Windows chặn, UIPI).
-- Gợi ý tự hoàn thành mới được thử trên ô gõ mô phỏng trong Chrome (CI), chưa thử thanh địa chỉ thật.
+- Gợi ý tự hoàn thành đã thử trên thanh địa chỉ thật của Chrome và Edge (CI, có lịch sử duyệt web); Excel và Explorer chưa thử.
+
+Gỡ lỗi: đặt registry `HKCU\Software\Dokey\DebugLog` = 1 (DWORD) rồi mở lại Dokey; mỗi phím, mỗi lần sửa chữ và mỗi lần đặt lại từ được ghi vào `%TEMP%\dokey-debug.log` (chỉ ghi sự kiện và số phím xoá/số ký tự, không ghi phím nào được gõ). Xoá giá trị đó để tắt.
 
 ## Build
 
