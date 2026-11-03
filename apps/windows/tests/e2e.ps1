@@ -44,6 +44,10 @@ public static class W {
             if (delayMs > 0) System.Threading.Thread.Sleep(delayMs);
         }
     }
+    // A key pressed with a modifier held, e.g. Ctrl+L.
+    public static void Chord(ushort modifier, ushort vk) {
+        Key(modifier, false); Key(vk, false); Key(vk, true); Key(modifier, true);
+    }
     // Lowercase letters and spaces with rollover: each key goes down before
     // the previous one comes up, as in fast real typing.
     public static void TypeRolled(string text, int delayMs) {
@@ -100,9 +104,17 @@ function Invoke-Case([int]$language, [scriptblock]$typing) {
 $page = Join-Path $env:TEMP 'dokey-e2e.html'
 Set-Content -Path $page -Encoding UTF8 -Value @'
 <!doctype html><meta charset="utf-8"><title>DK:</title>
-<textarea id="t" autofocus style="width:90vw;height:80vh"></textarea>
+<textarea id="t" autofocus style="width:90vw;height:40vh"></textarea>
+<div id="ce" contenteditable="true" style="width:90vw;height:40vh;border:1px solid"></div>
 <script>
 const t = document.getElementById('t'), q = new URLSearchParams(location.search);
+if (q.get('ce')) {
+  // A rich editor (contenteditable), as in Gmail, Messenger, Notion.
+  const ce = document.getElementById('ce');
+  t.remove();
+  ce.focus();
+  ce.addEventListener('input', () => { document.title = 'DK:' + ce.innerText.replace(/\u00a0/g, ' ') + '|'; });
+}
 const ac = q.get('ac') || '', dir = q.get('dir') || 'backward';
 t.addEventListener('input', e => {
   const v = t.value, w = v.slice(v.lastIndexOf(' ') + 1);
@@ -185,16 +197,110 @@ if (-not (Test-Text 'Vietnamese' $text ($want + "`r`n" + $want + "`r`n" + $third
 $cases = @(
     @{ name = 'Chrome'; query = '' },
     @{ name = 'Chrome autocomplete'; query = 'ac=thanhnien&dir=backward' },
-    @{ name = 'Chrome autocomplete (forward)'; query = 'ac=thanhnien&dir=forward' }
+    @{ name = 'Chrome autocomplete (forward)'; query = 'ac=thanhnien&dir=forward' },
+    @{ name = 'Chrome autocomplete (d)'; query = 'ac=dantri&dir=backward' },
+    @{ name = 'Chrome rich editor'; query = 'ce=1' }
 )
 foreach ($case in $cases) {
     $text = Invoke-ChromeCase $case.query {
-        [W]::Type("thaayf ddi hocj bees tooi ", 40)
-        [W]::Type("thaayf ddi hocj bees tooi ", 0)
-        [W]::TypeRolled("thaayf ddi hocj bees tooi ", 15)
+        [W]::Type("thaayf ddi hocj bees tooi ddoox ", 40)
+        [W]::Type("thaayf ddi hocj bees tooi ddoox ", 0)
+        [W]::TypeRolled("thaayf ddi hocj bees tooi ddoox ", 15)
     }
-    if (-not (Test-Text $case.name $text ($thay + $thay + $thay))) { $exitCode = 1 }
+    $line = $thay + "$([char]0x0111)$([char]0x1ED7) "
+    if (-not (Test-Text $case.name $text ($line + $line + $line))) { $exitCode = 1 }
 }
+
+# The real address bar of Chrome and Edge, with history so that "d" and "th"
+# complete inline (thaayf gave "thaầy", ddoox gave "dđỗ"). Pages are served
+# from *.localhost, which the browsers resolve to this machine.
+$listener = Start-Job -ScriptBlock {
+    $l = New-Object System.Net.HttpListener
+    $l.Prefixes.Add('http://+:8123/')
+    $l.Start()
+    while ($true) {
+        $c = $l.GetContext()
+        $b = [Text.Encoding]::UTF8.GetBytes('<title>ok</title>ok')
+        $c.Response.OutputStream.Write($b, 0, $b.Length)
+        $c.Response.Close()
+    }
+}
+Start-Sleep -Seconds 2
+$readAddress = Join-Path $env:TEMP 'dokey-address.ps1'
+Set-Content -Path $readAddress -Encoding UTF8 -Value @'
+param([int]$hwnd, [string]$out)
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+$root = [Windows.Automation.AutomationElement]::FromHandle([IntPtr]$hwnd)
+$cond = New-Object Windows.Automation.PropertyCondition ([Windows.Automation.AutomationElement]::ControlTypeProperty), ([Windows.Automation.ControlType]::Edit)
+$edit = $root.FindFirst([Windows.Automation.TreeScope]::Descendants, $cond)
+$value = if ($edit) { $edit.GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).Current.Value } else { '<no edit>' }
+[IO.File]::WriteAllText($out, $value, [Text.Encoding]::UTF8)
+'@
+function Read-Address($hwnd) {
+    $out = Join-Path $env:TEMP 'dokey-address.txt'
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File $readAddress -hwnd ([int]$hwnd) -out $out | Out-Null
+    return [IO.File]::ReadAllText($out, [Text.Encoding]::UTF8)
+}
+$browsers = @(
+    @{ name = 'Chrome'; exe = "${env:ProgramFiles}\Google\Chrome\Application\chrome.exe"; process = 'chrome' },
+    @{ name = 'Edge'; exe = "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"; process = 'msedge' }
+)
+foreach ($b in $browsers) {
+    if (-not (Test-Path $b.exe)) { Write-Host "[$($b.name) address bar] skipped: not installed"; continue }
+    $profile = Join-Path $env:TEMP ("dokey-" + $b.process + "-" + [guid]::NewGuid())
+    Start-Process -FilePath $b.exe -ArgumentList "--user-data-dir=$profile", '--no-first-run', '--no-default-browser-check',
+        '--disable-sync', '--disable-features=msEdgeOnRampFRE,msUndersideButton', 'about:blank' | Out-Null
+    $dokey = $null
+    try {
+        $window = $null
+        for ($i = 0; $i -lt 40 -and -not $window; $i++) {
+            Start-Sleep -Milliseconds 500
+            $window = Get-Process $b.process -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+        }
+        if (-not $window) { throw "$($b.name) window not found" }
+        Start-Sleep -Seconds 3
+        $hwnd = $window.MainWindowHandle
+        [W]::SetForegroundWindow($hwnd) | Out-Null
+        Start-Sleep -Milliseconds 500
+        # History, typed without Dokey: twice each, so the address bar completes them inline.
+        foreach ($i in 1..2) {
+            foreach ($site in 'dantri.localhost:8123/', 'thanhnien.localhost:8123/') {
+                [W]::Chord(0x11, 0x4C)
+                Start-Sleep -Milliseconds 300
+                [W]::Type("http://$site`n", 20)
+                Start-Sleep -Seconds 2
+            }
+        }
+        [W]::Chord(0x11, 0x4C)
+        Start-Sleep -Milliseconds 300
+        [W]::Type('d', 0)
+        Start-Sleep -Seconds 1
+        Write-Host "[$($b.name) address bar] 'd' without Dokey shows: $(Read-Address $hwnd)"
+        $dokey = Start-Dokey 0
+        [W]::SetForegroundWindow($hwnd) | Out-Null
+        Start-Sleep -Milliseconds 500
+        $words = @(
+            @{ keys = 'ddoox'; want = "$([char]0x0111)$([char]0x1ED7)" },
+            @{ keys = 'thaayf'; want = "th$([char]0x1EA7)y" },
+            @{ keys = 'ddi hocj'; want = "$([char]0x0111)i h$([char]0x1ECD)c" }
+        )
+        foreach ($w in $words) {
+            foreach ($delay in 40, 0) {
+                [W]::Chord(0x11, 0x4C)
+                Start-Sleep -Milliseconds 300
+                [W]::Type($w.keys, $delay)
+                Start-Sleep -Seconds 1
+                $value = Read-Address $hwnd
+                if (-not (Test-Text "$($b.name) address bar: $($w.keys) ($delay ms)" $value $w.want)) { $exitCode = 1 }
+            }
+        }
+    } finally {
+        Get-Process $b.process -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+        if ($dokey) { Stop-Process -Id $dokey.Id -Force -ErrorAction SilentlyContinue }
+        Start-Sleep -Seconds 1
+    }
+}
+Stop-Job $listener -ErrorAction SilentlyContinue
 
 # Korean (2-beolsik), letters read by key position: 안녕하세요 한국, typed normally then fast.
 $text = Invoke-Case 1 {
