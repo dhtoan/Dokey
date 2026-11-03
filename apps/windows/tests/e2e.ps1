@@ -81,7 +81,8 @@ public static class W {
 "@
 
 function Start-Dokey([int]$language) {
-    New-Item -Path HKCU:\Software\Dokey -Force | Out-Null
+    # New-Item -Force would recreate the key and drop values set by the caller.
+    if (-not (Test-Path HKCU:\Software\Dokey)) { New-Item -Path HKCU:\Software\Dokey | Out-Null }
     Set-ItemProperty -Path HKCU:\Software\Dokey -Name Vietnamese -Value 1 -Type DWord
     Set-ItemProperty -Path HKCU:\Software\Dokey -Name Method -Value 0 -Type DWord
     Set-ItemProperty -Path HKCU:\Software\Dokey -Name Language -Value $language -Type DWord
@@ -299,7 +300,7 @@ foreach ($b in $browsers) {
         )
         # Candidate guards before the Backspaces (SelectionGuard, testing only):
         # none, U+200B, the Delete key, U+00B7, U+00A0, U+2060.
-        foreach ($guard in 0x200B) {
+        foreach ($guard in 0, 0x200B, 0xFFFF, 0x00B7) {
             Set-ItemProperty -Path HKCU:\Software\Dokey -Name SelectionGuard -Value $guard -Type DWord
             Set-ItemProperty -Path HKCU:\Software\Dokey -Name DebugLog -Value 1 -Type DWord
             Remove-Item (Join-Path $env:TEMP 'dokey-debug.log') -ErrorAction SilentlyContinue
