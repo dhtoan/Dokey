@@ -83,7 +83,7 @@ enum SelfTest {
                                                           clearSelection: true)
                     for step in steps {
                         switch step {
-                        case .zeroWidthSpace: field.type([0x200B])
+                        case .guardCharacter: field.type([KeyboardTap.selectionGuard])
                         case .selectLeft: field.shiftLeft()
                         case .backspace: field.backspace()
                         }
@@ -141,8 +141,8 @@ final class CompletingField {
 
     func type(_ units: [UInt16]) {
         replaceSelection(with: units)
-        // Inline completion of what is typed so far (nothing matches U+200B).
-        let typed = text
+        // Inline completion of what is typed so far. Like Chrome, it skips U+200B.
+        let typed = text.filter { $0 != 0x200B }
         guard anchor == text.count, !typed.isEmpty,
               let word = words.first(where: { $0.count > typed.count && Array($0.prefix(typed.count)) == typed.map(Self.lower) })
         else { return }

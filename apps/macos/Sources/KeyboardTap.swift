@@ -297,7 +297,7 @@ final class KeyboardTap {
         for step in Self.deletionSteps(backspaces: edit.backspaces, select: select,
                                        clearSelection: profile.clearSelection && !state.korean) {
             switch step {
-            case .zeroWidthSpace: postText([0x200B], key: freeTextKey(), up: true, proxy: proxy)
+            case .guardCharacter: postText([Self.selectionGuard], key: freeTextKey(), up: true, proxy: proxy)
             case .selectLeft: postKey(KeyCode.leftArrow, flags: [.maskShift, .maskSecondaryFn, .maskNumericPad], proxy: proxy)
             case .backspace: postKey(KeyCode.backspace, proxy: proxy)
             }
@@ -341,18 +341,24 @@ final class KeyboardTap {
         }
     }
 
-    enum DeletionStep: Equatable { case zeroWidthSpace, selectLeft, backspace }
+    enum DeletionStep: Equatable { case guardCharacter, selectLeft, backspace }
+
+    /// Typed before deletions with `clearSelection`. It must be a character the
+    /// address bar does not skip when it looks for a completion: Chrome and Edge
+    /// ignore U+200B and bring the same completion back ("ddoox" still gave
+    /// "dđỗ" on Windows, measured in the real address bars), U+00B7 ends it.
+    static let selectionGuard: UInt16 = 0x00B7  // MIDDLE DOT
 
     /// How the old letters go before the new text is typed: selected with
-    /// Shift+← (typed over) or deleted with Backspace. With `clearSelection`, an
-    /// invisible U+200B goes first: it replaces whatever the app had selected
+    /// Shift+← (typed over) or deleted with Backspace. With `clearSelection`,
+    /// `selectionGuard` goes first: it replaces whatever the app had selected
     /// after the caret (an address bar's inline completion), and one more
     /// step removes it, so the steps always act on the letters Dokey typed.
     static func deletionSteps(backspaces: Int, select: Bool, clearSelection: Bool) -> [DeletionStep] {
         guard backspaces > 0 else { return [] }
         let count = clearSelection ? backspaces + 1 : backspaces
         let steps = [DeletionStep](repeating: select ? .selectLeft : .backspace, count: count)
-        return clearSelection ? [.zeroWidthSpace] + steps : steps
+        return clearSelection ? [.guardCharacter] + steps : steps
     }
 
     /// The virtual key that text events carry. Apps see a key-down for that key, so

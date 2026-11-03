@@ -83,7 +83,7 @@ struct DeliveryProfile {
     var tail: useconds_t
     var textKey: Int
     var textUp: Bool
-    /// Type U+200B first, replacing any selected inline completion, and delete it with the old letters.
+    /// Type KeyboardTap.selectionGuard first, replacing any selected inline completion, and delete it with the old letters.
     var clearSelection = false
 }
 
