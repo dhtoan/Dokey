@@ -304,6 +304,7 @@ foreach ($b in $browsers) {
             Set-ItemProperty -Path HKCU:\Software\Dokey -Name DebugLog -Value 1 -Type DWord
             Remove-Item (Join-Path $env:TEMP 'dokey-debug.log') -ErrorAction SilentlyContinue
             $dokey = Start-Dokey 0
+            Get-Process Dokey -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "[$($b.name) address bar] Dokey running: pid $($_.Id) started $($_.StartTime) $($_.Path) (ours: $($dokey.Id), exited: $($dokey.HasExited))" }
             [W]::SetForegroundWindow($hwnd) | Out-Null
             Start-Sleep -Milliseconds 500
             $ok = 0
@@ -321,6 +322,7 @@ foreach ($b in $browsers) {
             Stop-Process -Id $dokey.Id -Force -ErrorAction SilentlyContinue
             $dokey = $null
             Start-Sleep -Seconds 1
+            Write-Host "[$($b.name) address bar] TEMP=$env:TEMP TMP=$env:TMP log exists: $(Test-Path (Join-Path $env:TEMP 'dokey-debug.log'))"
             Get-Content (Join-Path $env:TEMP 'dokey-debug.log') -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "[$($b.name) debug log] $_" }
             Remove-ItemProperty -Path HKCU:\Software\Dokey -Name DebugLog -ErrorAction SilentlyContinue
         }
